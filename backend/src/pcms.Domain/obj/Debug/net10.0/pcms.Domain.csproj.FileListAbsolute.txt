@@ -1,0 +1,11 @@
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/bin/Debug/net10.0/pcms.Domain.deps.json
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/bin/Debug/net10.0/pcms.Domain.dll
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/bin/Debug/net10.0/pcms.Domain.pdb
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/pcms.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/pcms.Domain.AssemblyInfoInputs.cache
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/pcms.Domain.AssemblyInfo.cs
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/pcms.Domain.csproj.CoreCompileInputs.cache
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/pcms.Domain.dll
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/refint/pcms.Domain.dll
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/pcms.Domain.pdb
+/home/vboxuser/Desktop/pcms/backend/src/pcms.Domain/obj/Debug/net10.0/ref/pcms.Domain.dll
