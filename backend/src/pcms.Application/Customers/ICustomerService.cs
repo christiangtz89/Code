@@ -5,8 +5,9 @@ namespace pcms.Application.Customers;
 public interface ICustomerService
 {
     Task<PaginatedResult<CustomerDto>> GetAllAsync(
-    int page,
-    int pageSize);
+        int page,
+        int pageSize,
+        bool isActive);
 
     Task<CustomerDto?> GetByIdAsync(Guid id);
 
@@ -22,5 +23,6 @@ public interface ICustomerService
     Task<bool> RestoreAsync(Guid id);
 
     Task<IEnumerable<CustomerDto>> SearchAsync(
-        string term);
+        string term,
+        bool isActive);
 }

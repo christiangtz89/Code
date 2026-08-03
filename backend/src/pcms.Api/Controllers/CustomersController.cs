@@ -21,12 +21,14 @@ public class CustomersController : ControllerBase
     [HttpGet]
 public async Task<IActionResult> GetAll(
     int page = 1,
-    int pageSize = 10)
+    int pageSize = 10,
+    bool isActive = true)
 {
     var customers =
         await _customerService.GetAllAsync(
             page,
-            pageSize);
+            pageSize,
+            isActive);
 
     return Ok(customers);
 }
@@ -93,10 +95,13 @@ public async Task<IActionResult> Delete(Guid id)
 
 [HttpGet("search")]
 public async Task<IActionResult> Search(
-    [FromQuery] string term)
+    [FromQuery] string term,
+    [FromQuery] bool isActive = true)
 {
     var customers =
-        await _customerService.SearchAsync(term);
+        await _customerService.SearchAsync(
+            term,
+            isActive);
 
     return Ok(customers);
 }

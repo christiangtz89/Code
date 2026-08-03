@@ -6,6 +6,7 @@ import { DashboardPage } from '../pages/DashboardPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProtectedRoute } from '../routes/ProtectedRoute'
+import { CustomersPage } from '../features/customers/pages/CustomersPage'
 
 export const router = createBrowserRouter([
   {
@@ -25,13 +26,8 @@ export const router = createBrowserRouter([
           },
           {
             path: 'customers',
-            element: (
-              <ModulePlaceholderPage
-                title="Clientes"
-                description="Administra la información personal y de contacto de los clientes."
-              />
-            ),
-          },
+            element: <CustomersPage />,
+      },
           {
             path: 'pets',
             element: (
