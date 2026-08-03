@@ -1,0 +1,6 @@
+@pcms.Api_HostAddress = http://localhost:5167
+
+GET {{pcms.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

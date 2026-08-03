@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/pcms.Api/pcms.Api.csproj" />
+    <Project Path="src/pcms.Application/pcms.Application.csproj" />
+    <Project Path="src/pcms.Domain/pcms.Domain.csproj" />
+    <Project Path="src/pcms.Infrastructure/pcms.Infrastructure.csproj" />
+  </Folder>
+</Solution>
