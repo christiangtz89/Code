@@ -7,6 +7,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProtectedRoute } from '../routes/ProtectedRoute'
 import { CustomersPage } from '../features/customers/pages/CustomersPage'
+import { PetsPage } from '../features/pets/pages/PetsPage'
 
 export const router = createBrowserRouter([
   {
@@ -27,15 +28,10 @@ export const router = createBrowserRouter([
           {
             path: 'customers',
             element: <CustomersPage />,
-      },
+          },
           {
             path: 'pets',
-            element: (
-              <ModulePlaceholderPage
-                title="Mascotas"
-                description="Administra las mascotas asociadas a cada cliente."
-              />
-            ),
+            element: <PetsPage />,
           },
           {
             path: 'veterinary-clinics',

@@ -88,21 +88,31 @@ if (customer == null)
 
     public async Task<PagedPetsDto> GetAllAsync(
     int page,
-    int pageSize)
+    int pageSize,
+    bool isActive)
 {
+    page = Math.Max(page, 1);
+    pageSize = Math.Clamp(pageSize, 1, 100);
+
     var query = _context.Pets
-        .Where(p => p.IsActive);
+        .AsNoTracking()
+        .Where(p => p.IsActive == isActive);
 
     var totalItems = await query.CountAsync();
 
     var items = await query
         .OrderBy(p => p.Name)
+        .ThenBy(p => p.Customer.LastName)
+        .ThenBy(p => p.Customer.FirstName)
         .Skip((page - 1) * pageSize)
         .Take(pageSize)
         .Select(p => new PetDto
         {
             Id = p.Id,
             CustomerId = p.CustomerId,
+            CustomerName =
+                p.Customer.FirstName + " " +
+                p.Customer.LastName,
             Name = p.Name,
             Species = p.Species,
             Breed = p.Breed,
@@ -122,18 +132,25 @@ if (customer == null)
         Page = page,
         PageSize = pageSize,
         TotalItems = totalItems,
-        TotalPages = (int)Math.Ceiling((double)totalItems / pageSize)
+        TotalPages = (int)Math.Ceiling(
+            totalItems / (double)pageSize)
     };
 }
 
     public async Task<PetDto?> GetByIdAsync(Guid id)
 {
     return await _context.Pets
-        .Where(p => p.Id == id && p.IsActive)
+        .AsNoTracking()
+        .Where(p =>
+            p.Id == id &&
+            p.IsActive)
         .Select(p => new PetDto
         {
             Id = p.Id,
             CustomerId = p.CustomerId,
+            CustomerName =
+                p.Customer.FirstName + " " +
+                p.Customer.LastName,
             Name = p.Name,
             Species = p.Species,
             Breed = p.Breed,
@@ -244,27 +261,42 @@ public async Task<bool> RestoreAsync(Guid id)
     return true;
 }
 
-    public async Task<IEnumerable<PetDto>> SearchAsync(string search)
+   public async Task<IEnumerable<PetDto>> SearchAsync(
+    string search,
+    bool isActive)
 {
     search = search.Trim().ToLower();
 
+    if (string.IsNullOrWhiteSpace(search))
+    {
+        return [];
+    }
+
     return await _context.Pets
+        .AsNoTracking()
         .Where(p =>
-            p.IsActive &&
+            p.IsActive == isActive &&
             (
                 p.Name.ToLower().Contains(search) ||
                 p.Species.ToLower().Contains(search) ||
                 p.Breed.ToLower().Contains(search) ||
-                p.Customer.FirstName.ToLower().Contains(search) ||
-                p.Customer.LastName.ToLower().Contains(search)
+                p.Customer.FirstName
+                    .ToLower()
+                    .Contains(search) ||
+                p.Customer.LastName
+                    .ToLower()
+                    .Contains(search)
             ))
         .OrderBy(p => p.Name)
+        .ThenBy(p => p.Customer.LastName)
+        .ThenBy(p => p.Customer.FirstName)
         .Select(p => new PetDto
         {
             Id = p.Id,
             CustomerId = p.CustomerId,
             CustomerName =
-                p.Customer.FirstName + " " + p.Customer.LastName,
+                p.Customer.FirstName + " " +
+                p.Customer.LastName,
             Name = p.Name,
             Species = p.Species,
             Breed = p.Breed,

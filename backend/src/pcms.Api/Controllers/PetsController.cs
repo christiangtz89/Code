@@ -40,31 +40,33 @@ public class PetsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<PagedPetsDto>> GetAll(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+public async Task<ActionResult<PagedPetsDto>> GetAll(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] bool isActive = true)
     {
-        if (page < 1)
+    if (page < 1)
+    {
+        return BadRequest(new
         {
-            return BadRequest(new
-            {
-                message = "Page must be greater than zero."
-            });
-        }
+            message = "Page must be greater than zero."
+        });
+    }
 
-        if (pageSize < 1 || pageSize > 100)
+    if (pageSize < 1 || pageSize > 100)
+    {
+        return BadRequest(new
         {
-            return BadRequest(new
-            {
-                message = "Page size must be between 1 and 100."
-            });
-        }
+            message = "Page size must be between 1 and 100."
+        });
+    }
 
-        var pets = await _petService.GetAllAsync(
-            page,
-            pageSize);
+    var pets = await _petService.GetAllAsync(
+        page,
+        pageSize,
+        isActive);
 
-        return Ok(pets);
+    return Ok(pets);
     }
 
     [HttpGet("{id:guid}")]
@@ -134,19 +136,22 @@ public class PetsController : ControllerBase
     }
 
     [HttpGet("search")]
-    public async Task<ActionResult<IEnumerable<PetDto>>> Search(
-        [FromQuery] string search)
+public async Task<ActionResult<IEnumerable<PetDto>>> Search(
+    [FromQuery] string search,
+    [FromQuery] bool isActive = true)
+{
+    if (string.IsNullOrWhiteSpace(search))
     {
-        if (string.IsNullOrWhiteSpace(search))
+        return BadRequest(new
         {
-            return BadRequest(new
-            {
-                message = "Search term is required."
-            });
-        }
-
-        var pets = await _petService.SearchAsync(search);
-
-        return Ok(pets);
+            message = "Search term is required."
+        });
     }
+
+    var pets = await _petService.SearchAsync(
+        search,
+        isActive);
+
+    return Ok(pets);
+}
 }

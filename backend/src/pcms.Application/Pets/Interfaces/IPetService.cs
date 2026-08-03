@@ -8,7 +8,8 @@ public interface IPetService
 
     Task<PagedPetsDto> GetAllAsync(
         int page,
-        int pageSize);
+        int pageSize,
+        bool isActive);
 
     Task<PetDto?> GetByIdAsync(Guid id);
 
@@ -20,5 +21,7 @@ public interface IPetService
 
     Task<bool> RestoreAsync(Guid id);
 
-    Task<IEnumerable<PetDto>> SearchAsync(string search);
+    Task<IEnumerable<PetDto>> SearchAsync(
+        string search,
+        bool isActive);
 }
