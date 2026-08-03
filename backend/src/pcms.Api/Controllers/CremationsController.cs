@@ -1,0 +1,301 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using pcms.Application.Cremations.DTOs;
+using pcms.Application.Cremations.Interfaces;
+using pcms.Domain.Enums;
+
+namespace pcms.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class CremationsController : ControllerBase
+{
+    private readonly ICremationService _cremationService;
+
+    public CremationsController(
+        ICremationService cremationService)
+    {
+        _cremationService = cremationService;
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<CremationDto>> Create(
+        CreateCremationDto dto)
+    {
+        try
+        {
+            var cremation =
+                await _cremationService.CreateAsync(dto);
+
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = cremation.Id },
+                cremation);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<PagedCremationsDto>> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        if (page < 1)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message =
+                    "La página debe ser mayor que cero."
+            });
+        }
+
+        if (pageSize < 1 || pageSize > 100)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message =
+                    "El tamaño de página debe estar entre 1 y 100."
+            });
+        }
+
+        var cremations =
+            await _cremationService.GetAllAsync(
+                page,
+                pageSize);
+
+        return Ok(cremations);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<CremationDto>> GetById(
+        Guid id)
+    {
+        var cremation =
+            await _cremationService.GetByIdAsync(id);
+
+        if (cremation == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Cremación no encontrada."
+            });
+        }
+
+        return Ok(cremation);
+    }
+
+    [HttpGet("reception/{receptionId:guid}")]
+    public async Task<ActionResult<CremationDto>>
+        GetByReceptionId(Guid receptionId)
+    {
+        var cremation =
+            await _cremationService.GetByReceptionIdAsync(
+                receptionId);
+
+        if (cremation == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message =
+                    "No se encontró una cremación para esta recepción."
+            });
+        }
+
+        return Ok(cremation);
+    }
+
+    [HttpGet("status/{status}")]
+    public async Task<
+        ActionResult<IEnumerable<CremationDto>>> GetByStatus(
+        CremationStatus status)
+    {
+        try
+        {
+            var cremations =
+                await _cremationService.GetByStatusAsync(
+                    status);
+
+            return Ok(cremations);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<CremationDto>> Update(
+        Guid id,
+        UpdateCremationDto dto)
+    {
+        try
+        {
+            var cremation =
+                await _cremationService.UpdateAsync(
+                    id,
+                    dto);
+
+            if (cremation == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Cremación no encontrada."
+                });
+            }
+
+            return Ok(cremation);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    [HttpPatch("{id:guid}/status")]
+    public async Task<ActionResult<CremationDto>> ChangeStatus(
+        Guid id,
+        ChangeCremationStatusDto dto)
+    {
+        try
+        {
+            var cremation =
+                await _cremationService.ChangeStatusAsync(
+                    id,
+                    dto);
+
+            if (cremation == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Cremación no encontrada."
+                });
+            }
+
+            return Ok(cremation);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Deactivate(Guid id)
+    {
+        var success =
+            await _cremationService.DeactivateAsync(id);
+
+        if (!success)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message =
+                    "No se encontró una cremación activa."
+            });
+        }
+
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/restore")]
+    public async Task<IActionResult> Restore(Guid id)
+    {
+        try
+        {
+            var success =
+                await _cremationService.RestoreAsync(id);
+
+            if (!success)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message =
+                        "No se encontró una cremación inactiva."
+                });
+            }
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    [HttpGet("search")]
+    public async Task<
+        ActionResult<IEnumerable<CremationDto>>> Search(
+        [FromQuery] string search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message =
+                    "El término de búsqueda es obligatorio."
+            });
+        }
+
+        var cremations =
+            await _cremationService.SearchAsync(search);
+
+        return Ok(cremations);
+    }
+}

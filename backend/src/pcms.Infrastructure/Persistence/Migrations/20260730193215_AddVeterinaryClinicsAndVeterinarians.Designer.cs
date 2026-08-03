@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using pcms.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using pcms.Infrastructure.Persistence;
 namespace pcms.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260730193215_AddVeterinaryClinicsAndVeterinarians")]
+    partial class AddVeterinaryClinicsAndVeterinarians
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,104 +24,6 @@ namespace pcms.Infrastructure.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("pcms.Domain.Entities.Cremation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("Id");
-
-                    b.Property<Guid?>("AssignedToUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("AsignadoAUsuarioId");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("FechaFinalizacion");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("FechaCreacion");
-
-                    b.Property<int>("CremationType")
-                        .HasColumnType("integer")
-                        .HasColumnName("TipoCremacion");
-
-                    b.Property<DateTime?>("DeliveredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("FechaEntrega");
-
-                    b.Property<bool>("IncludesCertificate")
-                        .HasColumnType("boolean")
-                        .HasColumnName("IncluyeCertificado");
-
-                    b.Property<bool>("IncludesPawPrint")
-                        .HasColumnType("boolean")
-                        .HasColumnName("IncluyeHuella");
-
-                    b.Property<bool>("IncludesUrn")
-                        .HasColumnType("boolean")
-                        .HasColumnName("IncluyeUrna");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("Activo");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("Notas");
-
-                    b.Property<string>("PackageName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)")
-                        .HasColumnName("NombrePaquete");
-
-                    b.Property<DateTime?>("ReadyForDeliveryAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("FechaListaParaEntrega");
-
-                    b.Property<Guid>("ReceptionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("RecepcionId");
-
-                    b.Property<DateTime?>("ScheduledAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("FechaProgramada");
-
-                    b.Property<string>("SpecialInstructions")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("InstruccionesEspeciales");
-
-                    b.Property<DateTime?>("StartedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("FechaInicio");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("Estado");
-
-                    b.Property<string>("UrnDescription")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("DescripcionUrna");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedToUserId");
-
-                    b.HasIndex("ReceptionId")
-                        .IsUnique();
-
-                    b.HasIndex("ScheduledAt");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("Cremaciones", (string)null);
-                });
 
             modelBuilder.Entity("pcms.Domain.Entities.Customer", b =>
                 {
@@ -267,23 +172,10 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("RecibidoPorUsuarioId");
 
-                    b.Property<string>("ReferralNotes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("NotasReferencia");
-
-                    b.Property<Guid?>("ReferringVeterinarianId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("VeterinarioReferenteId");
-
                     b.Property<decimal>("VerifiedWeightKg")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("PesoVerificadoKg");
-
-                    b.Property<Guid?>("VeterinaryClinicId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("VeterinariaId");
 
                     b.HasKey("Id");
 
@@ -294,10 +186,6 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("ReceivedByUserId");
-
-                    b.HasIndex("ReferringVeterinarianId");
-
-                    b.HasIndex("VeterinaryClinicId");
 
                     b.ToTable("Recepciones", (string)null);
                 });
@@ -568,24 +456,6 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.ToTable("Veterinarias", (string)null);
                 });
 
-            modelBuilder.Entity("pcms.Domain.Entities.Cremation", b =>
-                {
-                    b.HasOne("pcms.Domain.Entities.User", "AssignedToUser")
-                        .WithMany()
-                        .HasForeignKey("AssignedToUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("pcms.Domain.Entities.Reception", "Reception")
-                        .WithOne("Cremation")
-                        .HasForeignKey("pcms.Domain.Entities.Cremation", "ReceptionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("AssignedToUser");
-
-                    b.Navigation("Reception");
-                });
-
             modelBuilder.Entity("pcms.Domain.Entities.Pet", b =>
                 {
                     b.HasOne("pcms.Domain.Entities.Customer", "Customer")
@@ -611,23 +481,9 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("pcms.Domain.Entities.Veterinarian", "ReferringVeterinarian")
-                        .WithMany("ReferredReceptions")
-                        .HasForeignKey("ReferringVeterinarianId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("pcms.Domain.Entities.VeterinaryClinic", "VeterinaryClinic")
-                        .WithMany("ReferredReceptions")
-                        .HasForeignKey("VeterinaryClinicId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Pet");
 
                     b.Navigation("ReceivedByUser");
-
-                    b.Navigation("ReferringVeterinarian");
-
-                    b.Navigation("VeterinaryClinic");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.ReceptionPhoto", b =>
@@ -691,8 +547,6 @@ namespace pcms.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("pcms.Domain.Entities.Reception", b =>
                 {
-                    b.Navigation("Cremation");
-
                     b.Navigation("Photos");
                 });
 
@@ -706,15 +560,8 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("pcms.Domain.Entities.Veterinarian", b =>
-                {
-                    b.Navigation("ReferredReceptions");
-                });
-
             modelBuilder.Entity("pcms.Domain.Entities.VeterinaryClinic", b =>
                 {
-                    b.Navigation("ReferredReceptions");
-
                     b.Navigation("Veterinarians");
                 });
 #pragma warning restore 612, 618

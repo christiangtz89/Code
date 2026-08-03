@@ -19,4 +19,7 @@ public class Customer
     public bool IsActive { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public ICollection<Pet> Pets { get; set; }
+    = new List<Pet>();
 }
