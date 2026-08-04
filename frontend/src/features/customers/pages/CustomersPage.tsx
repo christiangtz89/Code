@@ -26,6 +26,7 @@ import type {
   Customer,
   PaginatedCustomers,
 } from '../types/customer.types'
+import { CustomerPetsModal } from '../components/CustomerPetsModal'
 
 type CustomerStatusFilter = 'active' | 'inactive'
 type FormMode = 'create' | 'edit'
@@ -89,6 +90,11 @@ export function CustomersPage() {
 
   const [modalState, setModalState] =
     useState<CustomerModalState | null>(null)
+
+  const [
+    selectedPetsCustomer,
+    setSelectedPetsCustomer,
+    ] = useState<Customer | null>(null)
 
   const isActive = statusFilter === 'active'
   const normalizedSearch = debouncedSearch.trim()
@@ -443,6 +449,7 @@ export function CustomersPage() {
             customers={customers}
             showingActive={isActive}
             pendingCustomerId={pendingCustomerId}
+            onViewPets={setSelectedPetsCustomer}
             onEdit={(customer) =>
               setModalState({
                 mode: 'edit',
@@ -504,6 +511,11 @@ export function CustomersPage() {
           }
         }}
         onSubmit={handleFormSubmit}
+      />
+
+      <CustomerPetsModal
+        customer={selectedPetsCustomer}
+        onClose={() => setSelectedPetsCustomer(null)}
       />
     </section>
   )

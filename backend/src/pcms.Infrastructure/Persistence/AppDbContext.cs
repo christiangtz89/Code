@@ -234,7 +234,11 @@ modelBuilder.Entity<Customer>(entity =>
         .HasColumnName("Nombre");
 
     entity.Property(x => x.LastName)
-        .HasColumnName("Apellido");
+        .HasColumnName("ApellidoPaterno");
+
+    entity.Property(x => x.SecondLastName)
+        .HasColumnName("ApellidoMaterno")
+        .IsRequired(false);
 
     entity.Property(x => x.Phone)
         .HasColumnName("Telefono");

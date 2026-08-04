@@ -2,6 +2,7 @@ export interface Customer {
   id: string
   firstName: string
   lastName: string
+  secondLastName: string | null
   phone: string
   email: string
   isActive: boolean
@@ -19,6 +20,7 @@ export interface PaginatedCustomers {
 export interface CustomerPayload {
   firstName: string
   lastName: string
+  secondLastName: string
   phone: string
   email: string
 }
@@ -32,4 +34,20 @@ export interface GetCustomersParams {
 export interface SearchCustomersParams {
   term: string
   isActive: boolean
+}
+
+export interface CustomerPet {
+  id: string
+  customerId: string
+  customerName: string
+  name: string
+  species: string
+  breed: string
+  sex: string
+  color: string
+  weightKg: number
+  ageYears: number | null
+  dateOfDeath: string
+  isActive: boolean
+  createdAt: string
 }

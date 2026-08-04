@@ -1,9 +1,11 @@
 import type { Customer } from '../types/customer.types'
+import { getCustomerFullName } from '../utils/customerName'
 
 interface CustomersTableProps {
   customers: Customer[]
   showingActive: boolean
   pendingCustomerId: string | null
+  onViewPets: (customer: Customer) => void
   onEdit: (customer: Customer) => void
   onDeactivate: (customer: Customer) => void
   onRestore: (customer: Customer) => void
@@ -29,6 +31,7 @@ export function CustomersTable({
   customers,
   showingActive,
   pendingCustomerId,
+  onViewPets,
   onEdit,
   onDeactivate,
   onRestore,
@@ -93,8 +96,7 @@ export function CustomersTable({
                 >
                   <td className="whitespace-nowrap px-5 py-4">
                     <p className="font-medium text-slate-900">
-                      {customer.firstName}{' '}
-                      {customer.lastName}
+                      {getCustomerFullName(customer)}
                     </p>
 
                     <p className="mt-1 text-xs text-slate-400">
@@ -132,9 +134,19 @@ export function CustomersTable({
                   </td>
 
                   <td className="whitespace-nowrap px-5 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onViewPets(customer)}
+                            disabled={isPending}
+                            className="rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
+                          >
+                            Ver mascotas
+                          </button>
+                          
                       {showingActive ? (
                         <>
+
                           <button
                             type="button"
                             onClick={() => onEdit(customer)}

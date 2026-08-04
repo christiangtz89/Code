@@ -17,6 +17,10 @@ public interface IPetService
         Guid id,
         UpdatePetDto dto);
 
+    Task<IEnumerable<PetDto>> GetByCustomerIdAsync(
+        Guid customerId,
+        bool? isActive);    
+
     Task<bool> DeactivateAsync(Guid id);
 
     Task<bool> RestoreAsync(Guid id);

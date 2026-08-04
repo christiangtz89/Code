@@ -2,15 +2,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Customer } from '../../customers/types/customer.types'
-import {
-  petSchema,
-  type PetFormValues,
-} from '../schemas/petSchema'
+import { petSchema, type PetFormValues, } from '../schemas/petSchema'
 import type { Pet } from '../types/pet.types'
-import {
-  getLocalDateInputValue,
-  toDateInputValue,
-} from '../utils/petDates'
+import {getLocalDateInputValue, toDateInputValue, } from '../utils/petDates'
+import { getCustomerFullName } from '../../customers/utils/customerName'
 
 interface PetFormModalProps {
   isOpen: boolean
@@ -171,8 +166,7 @@ export function PetFormModal({
                     key={customer.id}
                     value={customer.id}
                   >
-                    {customer.firstName}{' '}
-                    {customer.lastName} —{' '}
+                    {getCustomerFullName(customer)}
                     {customer.phone}
                   </option>
                 ))}

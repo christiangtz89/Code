@@ -13,6 +13,11 @@ export const customerSchema = z.object({
     .min(2, 'El apellido debe tener al menos 2 caracteres.')
     .max(100, 'El apellido no puede exceder 100 caracteres.'),
 
+  secondLastName: z
+    .string()
+    .trim()
+    .max(100, 'El apellido materno no puede exceder 100 caracteres.',),  
+
   phone: z
     .string()
     .trim()

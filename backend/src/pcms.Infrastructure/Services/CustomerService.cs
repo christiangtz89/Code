@@ -16,6 +16,13 @@ public class CustomerService : ICustomerService
         _context = context;
     }
 
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+
 public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
     int page,
     int pageSize,
@@ -40,6 +47,7 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
             Id = c.Id,
             FirstName = c.FirstName,
             LastName = c.LastName,
+            SecondLastName = c.SecondLastName,
             Phone = c.Phone,
             Email = c.Email,
             IsActive = c.IsActive,
@@ -72,6 +80,7 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
             Id = customer.Id,
             FirstName = customer.FirstName,
             LastName = customer.LastName,
+            SecondLastName = customer.SecondLastName,
             Phone = customer.Phone,
             Email = customer.Email,
             IsActive = customer.IsActive,
@@ -84,22 +93,16 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
         CreateCustomerDto dto)
     {
         var customer = new Customer
-        {
+{
             Id = Guid.NewGuid(),
-
-            FirstName = dto.FirstName,
-
-            LastName = dto.LastName,
-
-            Phone = dto.Phone,
-
-            Email = dto.Email,
-
+            FirstName = dto.FirstName.Trim(),
+            LastName = dto.LastName.Trim(),
+            SecondLastName = NormalizeOptional(dto.SecondLastName),
+            Phone = dto.Phone.Trim(),
+            Email = dto.Email.Trim(),
             IsActive = true,
-
             CreatedAt = DateTime.UtcNow
-        };
-
+};
 
         _context.Customers.Add(customer);
 
@@ -111,6 +114,7 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
             Id = customer.Id,
             FirstName = customer.FirstName,
             LastName = customer.LastName,
+            SecondLastName = customer.SecondLastName,
             Phone = customer.Phone,
             Email = customer.Email,
             IsActive = customer.IsActive,
@@ -130,13 +134,11 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
         return null;
 
 
-    customer.FirstName = dto.FirstName;
-
-    customer.LastName = dto.LastName;
-
-    customer.Phone = dto.Phone;
-
-    customer.Email = dto.Email;
+        customer.FirstName = dto.FirstName.Trim();
+        customer.LastName = dto.LastName.Trim();
+        customer.SecondLastName = NormalizeOptional(dto.SecondLastName);
+        customer.Phone = dto.Phone.Trim();
+        customer.Email = dto.Email.Trim();
 
 
     await _context.SaveChangesAsync();
@@ -149,6 +151,8 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
         FirstName = customer.FirstName,
 
         LastName = customer.LastName,
+
+        SecondLastName = customer.SecondLastName,
 
         Phone = customer.Phone,
 
@@ -183,30 +187,54 @@ public async Task<IEnumerable<CustomerDto>> SearchAsync(
     string term,
     bool isActive)
 {
-    term = term.Trim().ToLower();
-
     if (string.IsNullOrWhiteSpace(term))
     {
-        return [];
+        return Array.Empty<CustomerDto>();
     }
+
+    var normalizedTerm = term.Trim();
 
     return await _context.Customers
         .AsNoTracking()
+        .Where(c => c.IsActive == isActive)
         .Where(c =>
-            c.IsActive == isActive &&
+            EF.Functions.ILike(
+                c.FirstName,
+                $"%{normalizedTerm}%") ||
+
+            EF.Functions.ILike(
+                c.LastName,
+                $"%{normalizedTerm}%") ||
+
             (
-                c.FirstName.ToLower().Contains(term) ||
-                c.LastName.ToLower().Contains(term) ||
-                c.Phone.Contains(term) ||
-                c.Email.ToLower().Contains(term)
-            ))
-        .OrderBy(c => c.LastName)
-        .ThenBy(c => c.FirstName)
+                c.SecondLastName != null &&
+                EF.Functions.ILike(
+                    c.SecondLastName,
+                    $"%{normalizedTerm}%")
+            ) ||
+
+            EF.Functions.ILike(
+                c.FirstName + " " +
+                c.LastName + " " +
+                (c.SecondLastName ?? ""),
+                $"%{normalizedTerm}%") ||
+
+            EF.Functions.ILike(
+                c.Phone,
+                $"%{normalizedTerm}%") ||
+
+            EF.Functions.ILike(
+                c.Email,
+                $"%{normalizedTerm}%"))
+        .OrderBy(c => c.FirstName)
+        .ThenBy(c => c.LastName)
+        .ThenBy(c => c.SecondLastName)
         .Select(c => new CustomerDto
         {
             Id = c.Id,
             FirstName = c.FirstName,
             LastName = c.LastName,
+            SecondLastName = c.SecondLastName,
             Phone = c.Phone,
             Email = c.Email,
             IsActive = c.IsActive,

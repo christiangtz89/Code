@@ -7,8 +7,12 @@ public class Customer
     public string FirstName { get; set; }
         = string.Empty;
 
+    // Apellido paterno — obligatorio
     public string LastName { get; set; }
         = string.Empty;
+
+    // Apellido materno — opcional
+    public string? SecondLastName { get; set; }
 
     public string Phone { get; set; }
         = string.Empty;
@@ -21,5 +25,5 @@ public class Customer
     public DateTime CreatedAt { get; set; }
 
     public ICollection<Pet> Pets { get; set; }
-    = new List<Pet>();
+        = new List<Pet>();
 }

@@ -135,6 +135,21 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
         return NoContent();
     }
 
+    [HttpGet("customer/{customerId:guid}")]
+    public async Task<
+        ActionResult<IEnumerable<PetDto>>>
+        GetByCustomer(
+            Guid customerId,
+            [FromQuery] bool? isActive = null)
+{
+        var pets =
+            await _petService.GetByCustomerIdAsync(
+                customerId,
+                isActive);
+
+    return Ok(pets);
+}
+
     [HttpGet("search")]
 public async Task<ActionResult<IEnumerable<PetDto>>> Search(
     [FromQuery] string search,

@@ -2,6 +2,7 @@ import { apiClient } from '../../../services/apiClient'
 import type {
   Customer,
   CustomerPayload,
+  CustomerPet,
   GetCustomersParams,
   PaginatedCustomers,
   SearchCustomersParams,
@@ -64,4 +65,14 @@ export async function restoreCustomer(
   id: string,
 ): Promise<void> {
   await apiClient.put(`/Customers/${id}/restore`)
+}
+
+export async function getCustomerPets(
+  customerId: string,
+): Promise<CustomerPet[]> {
+  const response = await apiClient.get<CustomerPet[]>(
+    `/Pets/customer/${customerId}`,
+  )
+
+  return response.data
 }

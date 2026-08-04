@@ -15,6 +15,21 @@ public class PetService : IPetService
         _context = context;
     }
 
+    private static string BuildCustomerName(
+        Customer customer)
+    {
+        return string.Join(
+            " ",
+            new[]
+            {
+                customer.FirstName,
+                customer.LastName,
+                customer.SecondLastName
+            }
+            .Where(value =>
+                !string.IsNullOrWhiteSpace(value)));
+    }
+
     public async Task<PetDto> CreateAsync(CreatePetDto dto)
 {
 
@@ -71,8 +86,7 @@ if (customer == null)
 {
     Id = pet.Id,
     CustomerId = pet.CustomerId,
-    CustomerName =
-        customer.FirstName + " " + customer.LastName,
+    CustomerName = BuildCustomerName(customer),
     Name = pet.Name,
     Species = pet.Species,
     Breed = pet.Breed,
@@ -112,7 +126,13 @@ if (customer == null)
             CustomerId = p.CustomerId,
             CustomerName =
                 p.Customer.FirstName + " " +
-                p.Customer.LastName,
+                p.Customer.LastName +
+                (
+                    p.Customer.SecondLastName == null ||
+                    p.Customer.SecondLastName == ""
+                        ? ""
+                        : " " + p.Customer.SecondLastName
+                ),
             Name = p.Name,
             Species = p.Species,
             Breed = p.Breed,
@@ -150,7 +170,13 @@ if (customer == null)
             CustomerId = p.CustomerId,
             CustomerName =
                 p.Customer.FirstName + " " +
-                p.Customer.LastName,
+                p.Customer.LastName +
+                (
+                    p.Customer.SecondLastName == null ||
+                    p.Customer.SecondLastName == ""
+                        ? ""
+                        : " " + p.Customer.SecondLastName
+                ),
             Name = p.Name,
             Species = p.Species,
             Breed = p.Breed,
@@ -208,8 +234,8 @@ if (dto.DateOfDeath > DateTime.UtcNow)
     {
         Id = pet.Id,
         CustomerId = pet.CustomerId,
-        CustomerName =
-            pet.Customer.FirstName + " " + pet.Customer.LastName,
+        CustomerName = BuildCustomerName(
+        pet.Customer),
         Name = pet.Name,
         Species = pet.Species,
         Breed = pet.Breed,
@@ -296,7 +322,55 @@ public async Task<bool> RestoreAsync(Guid id)
             CustomerId = p.CustomerId,
             CustomerName =
                 p.Customer.FirstName + " " +
-                p.Customer.LastName,
+                p.Customer.LastName +
+                (
+                    p.Customer.SecondLastName == null ||
+                    p.Customer.SecondLastName == ""
+                        ? ""
+                        : " " + p.Customer.SecondLastName
+                ),
+            Name = p.Name,
+            Species = p.Species,
+            Breed = p.Breed,
+            Sex = p.Sex,
+            Color = p.Color,
+            WeightKg = p.WeightKg,
+            AgeYears = p.AgeYears,
+            DateOfDeath = p.DateOfDeath,
+            IsActive = p.IsActive,
+            CreatedAt = p.CreatedAt
+        })
+        .ToListAsync();
+}
+public async Task<IEnumerable<PetDto>>
+    GetByCustomerIdAsync(
+        Guid customerId,
+        bool? isActive)
+{
+    return await _context.Pets
+        .AsNoTracking()
+        .Where(p =>
+            p.CustomerId == customerId &&
+            (
+                !isActive.HasValue ||
+                p.IsActive == isActive.Value
+            ))
+        .OrderByDescending(p => p.IsActive)
+        .ThenBy(p => p.Name)
+        .Select(p => new PetDto
+        {
+            Id = p.Id,
+            CustomerId = p.CustomerId,
+            CustomerName =
+                p.Customer.FirstName + " " +
+                p.Customer.LastName +
+                (
+                    p.Customer.SecondLastName == null ||
+                    p.Customer.SecondLastName == ""
+                        ? ""
+                        : " " +
+                          p.Customer.SecondLastName
+                ),
             Name = p.Name,
             Species = p.Species,
             Breed = p.Breed,
