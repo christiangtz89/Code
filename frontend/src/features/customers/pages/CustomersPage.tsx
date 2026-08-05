@@ -27,6 +27,7 @@ import type {
   PaginatedCustomers,
 } from '../types/customer.types'
 import { CustomerPetsModal } from '../components/CustomerPetsModal'
+import { getCustomerFullName } from '../utils/customerName'
 
 type CustomerStatusFilter = 'active' | 'inactive'
 type FormMode = 'create' | 'edit'
@@ -286,7 +287,7 @@ export function CustomersPage() {
 
   function handleDeactivate(customer: Customer) {
     const confirmed = window.confirm(
-      `¿Deseas desactivar a ${customer.firstName} ${customer.lastName}?`,
+      `¿Deseas desactivar a ${getCustomerFullName(customer)}?`,
     )
 
     if (confirmed) {
@@ -296,7 +297,7 @@ export function CustomersPage() {
 
   function handleRestore(customer: Customer) {
     const confirmed = window.confirm(
-      `¿Deseas restaurar a ${customer.firstName} ${customer.lastName}?`,
+      `¿Deseas restaurar a ${getCustomerFullName(customer)}?`,
     )
 
     if (confirmed) {
