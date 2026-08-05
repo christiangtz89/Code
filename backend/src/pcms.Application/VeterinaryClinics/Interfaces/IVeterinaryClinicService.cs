@@ -9,7 +9,8 @@ public interface IVeterinaryClinicService
 
     Task<PagedVeterinaryClinicsDto> GetAllAsync(
         int page,
-        int pageSize);
+        int pageSize,
+        bool isActive);
 
     Task<VeterinaryClinicDto?> GetByIdAsync(Guid id);
 
@@ -22,5 +23,6 @@ public interface IVeterinaryClinicService
     Task<bool> RestoreAsync(Guid id);
 
     Task<IEnumerable<VeterinaryClinicDto>> SearchAsync(
-        string search);
+        string search,
+        bool isActive);
 }

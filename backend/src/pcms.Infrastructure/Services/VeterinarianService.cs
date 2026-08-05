@@ -117,14 +117,18 @@ public class VeterinarianService : IVeterinarianService
 }
 
     public async Task<PagedVeterinariansDto> GetAllAsync(
-    int page,
-    int pageSize)
+        int page,
+        int pageSize,
+        bool isActive)
 {
     var query = _context.Veterinarians
         .AsNoTracking()
         .Where(v =>
-            v.IsActive &&
-            v.VeterinaryClinic.IsActive);
+            v.IsActive == isActive &&
+            (
+                !isActive ||
+                v.VeterinaryClinic.IsActive
+            ));
 
     var totalItems = await query.CountAsync();
 
@@ -185,32 +189,45 @@ public class VeterinarianService : IVeterinarianService
         .FirstOrDefaultAsync();
 }
 
-    public async Task<IEnumerable<VeterinarianDto>> GetByClinicIdAsync(
-    Guid veterinaryClinicId)
+    public async Task<IEnumerable<VeterinarianDto>>
+    GetByClinicIdAsync(
+        Guid veterinaryClinicId,
+        bool? isActive)
 {
-    var clinicExists = await _context.VeterinaryClinics
-        .AsNoTracking()
-        .AnyAsync(c =>
-            c.Id == veterinaryClinicId &&
-            c.IsActive);
+    var clinicExists =
+        await _context.VeterinaryClinics
+            .AsNoTracking()
+            .AnyAsync(c =>
+                c.Id == veterinaryClinicId);
 
     if (!clinicExists)
     {
         return Array.Empty<VeterinarianDto>();
     }
 
-    return await _context.Veterinarians
+    var query = _context.Veterinarians
         .AsNoTracking()
         .Where(v =>
-            v.VeterinaryClinicId == veterinaryClinicId &&
-            v.IsActive)
-        .OrderBy(v => v.LastName)
+            v.VeterinaryClinicId ==
+                veterinaryClinicId);
+
+    if (isActive.HasValue)
+    {
+        query = query.Where(v =>
+            v.IsActive == isActive.Value);
+    }
+
+    return await query
+        .OrderByDescending(v => v.IsActive)
+        .ThenBy(v => v.LastName)
         .ThenBy(v => v.FirstName)
         .Select(v => new VeterinarianDto
         {
             Id = v.Id,
-            VeterinaryClinicId = v.VeterinaryClinicId,
-            VeterinaryClinicName = v.VeterinaryClinic.Name,
+            VeterinaryClinicId =
+                v.VeterinaryClinicId,
+            VeterinaryClinicName =
+                v.VeterinaryClinic.Name,
             FirstName = v.FirstName,
             LastName = v.LastName,
             Phone = v.Phone,
@@ -381,7 +398,8 @@ public class VeterinarianService : IVeterinarianService
 }
 
     public async Task<IEnumerable<VeterinarianDto>> SearchAsync(
-    string search)
+    string search,
+    bool isActive)
 {
     var normalizedSearch = search.Trim().ToLower();
 
@@ -393,8 +411,11 @@ public class VeterinarianService : IVeterinarianService
     return await _context.Veterinarians
         .AsNoTracking()
         .Where(v =>
-            v.IsActive &&
-            v.VeterinaryClinic.IsActive &&
+            v.IsActive == isActive &&
+            (
+                !isActive ||
+                v.VeterinaryClinic.IsActive
+            ) &&
             (
                 v.FirstName.ToLower().Contains(normalizedSearch) ||
                 v.LastName.ToLower().Contains(normalizedSearch) ||

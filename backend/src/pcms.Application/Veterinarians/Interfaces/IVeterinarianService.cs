@@ -9,12 +9,15 @@ public interface IVeterinarianService
 
     Task<PagedVeterinariansDto> GetAllAsync(
         int page,
-        int pageSize);
+        int pageSize,
+        bool isActive);
 
     Task<VeterinarianDto?> GetByIdAsync(Guid id);
 
-    Task<IEnumerable<VeterinarianDto>> GetByClinicIdAsync(
-        Guid veterinaryClinicId);
+    Task<IEnumerable<VeterinarianDto>>
+        GetByClinicIdAsync(
+            Guid veterinaryClinicId,
+            bool? isActive);
 
     Task<VeterinarianDto?> UpdateAsync(
         Guid id,
@@ -25,5 +28,6 @@ public interface IVeterinarianService
     Task<bool> RestoreAsync(Guid id);
 
     Task<IEnumerable<VeterinarianDto>> SearchAsync(
-        string search);
+        string search,
+        bool isActive);
 }

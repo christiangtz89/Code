@@ -52,7 +52,8 @@ public class VeterinaryClinicsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedVeterinaryClinicsDto>> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool isActive = true)
     {
         if (page < 1)
         {
@@ -74,7 +75,8 @@ public class VeterinaryClinicsController : ControllerBase
 
         var clinics = await _clinicService.GetAllAsync(
             page,
-            pageSize);
+            pageSize,
+            isActive);
 
         return Ok(clinics);
     }
@@ -172,7 +174,8 @@ public class VeterinaryClinicsController : ControllerBase
     [HttpGet("search")]
     public async Task<
         ActionResult<IEnumerable<VeterinaryClinicDto>>> Search(
-        [FromQuery] string search)
+        [FromQuery] string search,
+        [FromQuery] bool isActive = true)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -183,7 +186,9 @@ public class VeterinaryClinicsController : ControllerBase
             });
         }
 
-        var clinics = await _clinicService.SearchAsync(search);
+        var clinics = await _clinicService.SearchAsync(
+            search,
+            isActive);
 
         return Ok(clinics);
     }

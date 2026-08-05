@@ -69,11 +69,12 @@ public class VeterinaryClinicService
 
     public async Task<PagedVeterinaryClinicsDto> GetAllAsync(
     int page,
-    int pageSize)
+    int pageSize,
+    bool isActive)
 {
     var query = _context.VeterinaryClinics
         .AsNoTracking()
-        .Where(v => v.IsActive);
+        .Where(v => v.IsActive == isActive);
 
     var totalItems = await query.CountAsync();
 
@@ -221,7 +222,8 @@ public class VeterinaryClinicService
 }
 
     public async Task<IEnumerable<VeterinaryClinicDto>> SearchAsync(
-    string search)
+    string search,
+    bool isActive)
 {
     var normalizedSearch = search.Trim().ToLower();
 
@@ -233,19 +235,33 @@ public class VeterinaryClinicService
     return await _context.VeterinaryClinics
         .AsNoTracking()
         .Where(v =>
-            v.IsActive &&
+            v.IsActive == isActive &&
             (
                 v.Name.ToLower().Contains(normalizedSearch) ||
-                (v.Phone != null &&
-                    v.Phone.ToLower().Contains(normalizedSearch)) ||
-                (v.Email != null &&
-                    v.Email.ToLower().Contains(normalizedSearch)) ||
-                (v.Address != null &&
-                    v.Address.ToLower().Contains(normalizedSearch)) ||
-                (v.PrimaryContactName != null &&
+                (
+                    v.Phone != null &&
+                    v.Phone
+                        .ToLower()
+                        .Contains(normalizedSearch)
+                ) ||
+                (
+                    v.Email != null &&
+                    v.Email
+                        .ToLower()
+                        .Contains(normalizedSearch)
+                ) ||
+                (
+                    v.Address != null &&
+                    v.Address
+                        .ToLower()
+                        .Contains(normalizedSearch)
+                ) ||
+                (
+                    v.PrimaryContactName != null &&
                     v.PrimaryContactName
                         .ToLower()
-                        .Contains(normalizedSearch))
+                        .Contains(normalizedSearch)
+                )
             ))
         .OrderBy(v => v.Name)
         .Select(v => new VeterinaryClinicDto
@@ -255,7 +271,8 @@ public class VeterinaryClinicService
             Phone = v.Phone,
             Email = v.Email,
             Address = v.Address,
-            PrimaryContactName = v.PrimaryContactName,
+            PrimaryContactName =
+                v.PrimaryContactName,
             IsActive = v.IsActive,
             CreatedAt = v.CreatedAt
         })

@@ -8,6 +8,7 @@ import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProtectedRoute } from '../routes/ProtectedRoute'
 import { CustomersPage } from '../features/customers/pages/CustomersPage'
 import { PetsPage } from '../features/pets/pages/PetsPage'
+import { VeterinaryClinicsPage } from '../features/veterinary-clinics/pages/VeterinaryClinicsPage'
 
 export const router = createBrowserRouter([
   {
@@ -35,12 +36,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'veterinary-clinics',
-            element: (
-              <ModulePlaceholderPage
-                title="Veterinarias"
-                description="Administra el directorio de clínicas veterinarias."
-              />
-            ),
+            element: <VeterinaryClinicsPage />,
           },
           {
             path: 'veterinarians',

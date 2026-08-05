@@ -53,7 +53,8 @@ public class VeterinariansController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedVeterinariansDto>> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool isActive = true)
     {
         if (page < 1)
         {
@@ -75,9 +76,10 @@ public class VeterinariansController : ControllerBase
         }
 
         var veterinarians =
-            await _veterinarianService.GetAllAsync(
-                page,
-                pageSize);
+    await _veterinarianService.GetAllAsync(
+        page,
+        pageSize,
+        isActive);
 
         return Ok(veterinarians);
     }
@@ -104,11 +106,13 @@ public class VeterinariansController : ControllerBase
     [HttpGet("clinic/{veterinaryClinicId:guid}")]
     public async Task<
         ActionResult<IEnumerable<VeterinarianDto>>> GetByClinicId(
-        Guid veterinaryClinicId)
+        Guid veterinaryClinicId,
+        [FromQuery] bool? isActive = null)
     {
         var veterinarians =
             await _veterinarianService.GetByClinicIdAsync(
-                veterinaryClinicId);
+                veterinaryClinicId,
+                isActive);
 
         return Ok(veterinarians);
     }
@@ -192,7 +196,8 @@ public class VeterinariansController : ControllerBase
     [HttpGet("search")]
     public async Task<
         ActionResult<IEnumerable<VeterinarianDto>>> Search(
-        [FromQuery] string search)
+        [FromQuery] string search,
+        [FromQuery] bool isActive = true)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -204,7 +209,9 @@ public class VeterinariansController : ControllerBase
         }
 
         var veterinarians =
-            await _veterinarianService.SearchAsync(search);
+            await _veterinarianService.SearchAsync(
+                search,
+                isActive);
 
         return Ok(veterinarians);
     }
