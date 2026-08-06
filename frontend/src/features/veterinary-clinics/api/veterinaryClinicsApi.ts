@@ -1,4 +1,4 @@
-import { apiClient } from '../../../services/apiClient'
+import { apiClient } from "../../../services/apiClient";
 import type {
   GetVeterinaryClinicsParams,
   PaginatedVeterinaryClinics,
@@ -6,44 +6,43 @@ import type {
   Veterinarian,
   VeterinaryClinic,
   VeterinaryClinicPayload,
-} from '../types/veterinaryClinic.types'
+} from "../types/veterinaryClinic.types";
 
 export async function getVeterinaryClinics(
   params: GetVeterinaryClinicsParams,
 ): Promise<PaginatedVeterinaryClinics> {
-  const response =
-    await apiClient.get<PaginatedVeterinaryClinics>(
-      '/VeterinaryClinics',
-      {
-        params,
-      },
-    )
+  const response = await apiClient.get<PaginatedVeterinaryClinics>(
+    "/VeterinaryClinics",
+    {
+      params,
+    },
+  );
 
-  return response.data
+  return response.data;
 }
 
 export async function searchVeterinaryClinics(
   params: SearchVeterinaryClinicsParams,
 ): Promise<VeterinaryClinic[]> {
   const response = await apiClient.get<VeterinaryClinic[]>(
-    '/VeterinaryClinics/search',
+    "/VeterinaryClinics/search",
     {
       params,
     },
-  )
+  );
 
-  return response.data
+  return response.data;
 }
 
 export async function createVeterinaryClinic(
   payload: VeterinaryClinicPayload,
 ): Promise<VeterinaryClinic> {
   const response = await apiClient.post<VeterinaryClinic>(
-    '/VeterinaryClinics',
+    "/VeterinaryClinics",
     payload,
-  )
+  );
 
-  return response.data
+  return response.data;
 }
 
 export async function updateVeterinaryClinic(
@@ -53,23 +52,17 @@ export async function updateVeterinaryClinic(
   const response = await apiClient.put<VeterinaryClinic>(
     `/VeterinaryClinics/${id}`,
     payload,
-  )
+  );
 
-  return response.data
+  return response.data;
 }
 
-export async function deactivateVeterinaryClinic(
-  id: string,
-): Promise<void> {
-  await apiClient.delete(`/VeterinaryClinics/${id}`)
+export async function deactivateVeterinaryClinic(id: string): Promise<void> {
+  await apiClient.delete(`/VeterinaryClinics/${id}`);
 }
 
-export async function restoreVeterinaryClinic(
-  id: string,
-): Promise<void> {
-  await apiClient.patch(
-    `/VeterinaryClinics/${id}/restore`,
-  )
+export async function restoreVeterinaryClinic(id: string): Promise<void> {
+  await apiClient.patch(`/VeterinaryClinics/${id}/restore`);
 }
 
 export async function getClinicVeterinarians(
@@ -77,7 +70,7 @@ export async function getClinicVeterinarians(
 ): Promise<Veterinarian[]> {
   const response = await apiClient.get<Veterinarian[]>(
     `/Veterinarians/clinic/${clinicId}`,
-  )
+  );
 
-  return response.data
+  return response.data;
 }

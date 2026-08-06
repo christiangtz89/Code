@@ -1,16 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
-import { getClinicVeterinarians } from '../api/veterinaryClinicsApi'
-import type { VeterinaryClinic } from '../types/veterinaryClinic.types'
+import { useQuery } from "@tanstack/react-query";
+import { getClinicVeterinarians } from "../api/veterinaryClinicsApi";
+import type { VeterinaryClinic } from "../types/veterinaryClinic.types";
+import { getVeterinarianFullName } from "../../veterinarians/utils/veterinarianName";
 
 interface ClinicVeterinariansModalProps {
-  clinic: VeterinaryClinic | null
-  onClose: () => void
+  clinic: VeterinaryClinic | null;
+  onClose: () => void;
 }
 
-function showOptional(
-  value: string | null,
-): string {
-  return value?.trim() || 'No registrado'
+function showOptional(value: string | null): string {
+  return value?.trim() || "No registrado";
 }
 
 export function ClinicVeterinariansModal({
@@ -18,33 +17,24 @@ export function ClinicVeterinariansModal({
   onClose,
 }: ClinicVeterinariansModalProps) {
   const veterinariansQuery = useQuery({
-    queryKey: [
-      'clinic-veterinarians',
-      clinic?.id ?? null,
-    ],
+    queryKey: ["clinic-veterinarians", clinic?.id ?? null],
 
-    queryFn: () =>
-      getClinicVeterinarians(clinic?.id ?? ''),
+    queryFn: () => getClinicVeterinarians(clinic?.id ?? ""),
 
     enabled: Boolean(clinic),
-  })
+  });
 
   if (!clinic) {
-    return null
+    return null;
   }
 
-  const veterinarians =
-    veterinariansQuery.data ?? []
+  const veterinarians = veterinariansQuery.data ?? [];
 
-  const activeVeterinarians =
-    veterinarians.filter(
-      (veterinarian) =>
-        veterinarian.isActive,
-    ).length
+  const activeVeterinarians = veterinarians.filter(
+    (veterinarian) => veterinarian.isActive,
+  ).length;
 
-  const inactiveVeterinarians =
-    veterinarians.length -
-    activeVeterinarians
+  const inactiveVeterinarians = veterinarians.length - activeVeterinarians;
 
   return (
     <div
@@ -57,9 +47,7 @@ export function ClinicVeterinariansModal({
         aria-modal="true"
         aria-labelledby="clinic-veterinarians-title"
         className="max-h-full w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
-        onMouseDown={(event) =>
-          event.stopPropagation()
-        }
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
@@ -76,7 +64,7 @@ export function ClinicVeterinariansModal({
 
             <p className="mt-1 text-sm text-slate-500">
               {showOptional(clinic.phone)}
-              {' · '}
+              {" · "}
               {showOptional(clinic.email)}
             </p>
           </div>
@@ -94,9 +82,7 @@ export function ClinicVeterinariansModal({
         <div className="px-6 py-6">
           <div className="mb-6 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-slate-200 p-4">
-              <p className="text-sm text-slate-500">
-                Total
-              </p>
+              <p className="text-sm text-slate-500">Total</p>
 
               <p className="mt-1 text-2xl font-semibold text-slate-900">
                 {veterinarians.length}
@@ -104,9 +90,7 @@ export function ClinicVeterinariansModal({
             </div>
 
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-sm text-emerald-700">
-                Activos
-              </p>
+              <p className="text-sm text-emerald-700">Activos</p>
 
               <p className="mt-1 text-2xl font-semibold text-emerald-800">
                 {activeVeterinarians}
@@ -114,9 +98,7 @@ export function ClinicVeterinariansModal({
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-600">
-                Inactivos
-              </p>
+              <p className="text-sm text-slate-600">Inactivos</p>
 
               <p className="mt-1 text-2xl font-semibold text-slate-800">
                 {inactiveVeterinarians}
@@ -132,8 +114,7 @@ export function ClinicVeterinariansModal({
 
           {veterinariansQuery.isError && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-              No fue posible cargar los
-              veterinarios asociados.
+              No fue posible cargar los veterinarios asociados.
             </div>
           )}
 
@@ -142,14 +123,12 @@ export function ClinicVeterinariansModal({
             veterinarians.length === 0 && (
               <div className="rounded-xl border border-dashed border-slate-300 px-5 py-10 text-center">
                 <p className="font-medium text-slate-900">
-                  Esta veterinaria no tiene
-                  veterinarios registrados.
+                  Esta veterinaria no tiene veterinarios registrados.
                 </p>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Los veterinarios se podrán
-                  registrar en la siguiente parte
-                  de esta fase.
+                  Registra o asigna veterinarios desde el módulo de
+                  Veterinarios.
                 </p>
               </div>
             )}
@@ -158,58 +137,42 @@ export function ClinicVeterinariansModal({
             !veterinariansQuery.isError &&
             veterinarians.length > 0 && (
               <div className="space-y-3">
-                {veterinarians.map(
-                  (veterinarian) => (
-                    <article
-                      key={veterinarian.id}
-                      className="flex flex-col gap-4 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold text-slate-900">
-                            Dr.{' '}
-                            {
-                              veterinarian.firstName
-                            }{' '}
-                            {
-                              veterinarian.lastName
-                            }
-                          </h3>
+                {veterinarians.map((veterinarian) => (
+                  <article
+                    key={veterinarian.id}
+                    className="flex flex-col gap-4 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-slate-900">
+                          Dr. {getVeterinarianFullName(veterinarian)}
+                        </h3>
 
-                          <span
-                            className={[
-                              'rounded-full px-2.5 py-1 text-xs font-semibold',
-                              veterinarian.isActive
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-slate-100 text-slate-600',
-                            ].join(' ')}
-                          >
-                            {veterinarian.isActive
-                              ? 'Activo'
-                              : 'Inactivo'}
-                          </span>
-                        </div>
-
-                        <p className="mt-2 text-sm text-slate-600">
-                          Cédula profesional:{' '}
-                          {showOptional(
-                            veterinarian.professionalLicenseNumber,
-                          )}
-                        </p>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          {showOptional(
-                            veterinarian.phone,
-                          )}
-                          {' · '}
-                          {showOptional(
-                            veterinarian.email,
-                          )}
-                        </p>
+                        <span
+                          className={[
+                            "rounded-full px-2.5 py-1 text-xs font-semibold",
+                            veterinarian.isActive
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-slate-100 text-slate-600",
+                          ].join(" ")}
+                        >
+                          {veterinarian.isActive ? "Activo" : "Inactivo"}
+                        </span>
                       </div>
-                    </article>
-                  ),
-                )}
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        Cédula profesional:{" "}
+                        {showOptional(veterinarian.professionalLicenseNumber)}
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-500">
+                        {showOptional(veterinarian.phone)}
+                        {" · "}
+                        {showOptional(veterinarian.email)}
+                      </p>
+                    </div>
+                  </article>
+                ))}
               </div>
             )}
         </div>
@@ -225,5 +188,5 @@ export function ClinicVeterinariansModal({
         </footer>
       </section>
     </div>
-  )
+  );
 }

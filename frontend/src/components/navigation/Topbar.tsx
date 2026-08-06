@@ -1,12 +1,9 @@
 interface TopbarProps {
-  onOpenMenu: () => void
-  onLogout: () => void
+  onOpenMenu: () => void;
+  onLogout: () => void;
 }
 
-export function Topbar({
-  onOpenMenu,
-  onLogout,
-}: TopbarProps) {
+export function Topbar({ onOpenMenu, onLogout }: TopbarProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-20 items-center justify-between gap-4 px-5 sm:px-8">
@@ -30,25 +27,17 @@ export function Topbar({
           </button>
 
           <div>
-            <p className="text-sm text-slate-500">
-              Sistema PCMS
-            </p>
+            <p className="text-sm text-slate-500">Sistema PCMS</p>
 
-            <p className="font-semibold text-slate-900">
-              Panel administrativo
-            </p>
+            <p className="font-semibold text-slate-900">Panel administrativo</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-slate-800">
-              Usuario activo
-            </p>
+            <p className="text-sm font-medium text-slate-800">Usuario activo</p>
 
-            <p className="text-xs text-slate-500">
-              Sesión autenticada
-            </p>
+            <p className="text-xs text-slate-500">Sesión autenticada</p>
           </div>
 
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
@@ -60,16 +49,12 @@ export function Topbar({
             onClick={onLogout}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            <span className="hidden sm:inline">
-              Cerrar sesión
-            </span>
+            <span className="hidden sm:inline">Cerrar sesión</span>
 
-            <span className="sm:hidden">
-              Salir
-            </span>
+            <span className="sm:hidden">Salir</span>
           </button>
         </div>
       </div>
     </header>
-  )
+  );
 }

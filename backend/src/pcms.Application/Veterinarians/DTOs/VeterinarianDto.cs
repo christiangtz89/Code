@@ -4,13 +4,17 @@ public class VeterinarianDto
 {
     public Guid Id { get; set; }
 
-    public Guid VeterinaryClinicId { get; set; }
+    public Guid? VeterinaryClinicId { get; set; }
 
-    public string VeterinaryClinicName { get; set; } = string.Empty;
+    public string? VeterinaryClinicName { get; set; }
 
-    public string FirstName { get; set; } = string.Empty;
+    public string FirstName { get; set; }
+        = string.Empty;
 
-    public string LastName { get; set; } = string.Empty;
+    public string LastName { get; set; }
+        = string.Empty;
+
+    public string? SecondLastName { get; set; }
 
     public string? Phone { get; set; }
 

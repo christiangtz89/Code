@@ -396,7 +396,7 @@ modelBuilder.Entity<Customer>(entity =>
 
     entity.Property(v => v.VeterinaryClinicId)
         .HasColumnName("VeterinariaId")
-        .IsRequired();
+        .IsRequired(false);
 
     entity.Property(v => v.FirstName)
         .HasColumnName("Nombre")
@@ -404,9 +404,13 @@ modelBuilder.Entity<Customer>(entity =>
         .IsRequired();
 
     entity.Property(v => v.LastName)
-        .HasColumnName("Apellido")
+        .HasColumnName("ApellidoPaterno")
         .HasMaxLength(100)
         .IsRequired();
+
+    entity.Property(x => x.SecondLastName)
+        .HasColumnName("ApellidoMaterno")
+        .IsRequired(false);
 
     entity.Property(v => v.Phone)
         .HasColumnName("Telefono")
@@ -428,9 +432,10 @@ modelBuilder.Entity<Customer>(entity =>
         .HasColumnName("FechaCreacion")
         .IsRequired();
 
-    entity.HasOne(v => v.VeterinaryClinic)
-        .WithMany(c => c.Veterinarians)
-        .HasForeignKey(v => v.VeterinaryClinicId)
+    entity.HasOne(x => x.VeterinaryClinic)
+        .WithMany(x => x.Veterinarians)
+        .HasForeignKey(x => x.VeterinaryClinicId)
+        .IsRequired(false)
         .OnDelete(DeleteBehavior.Restrict);
 
     entity.HasIndex(v => v.VeterinaryClinicId);

@@ -4,11 +4,19 @@ public class Veterinarian
 {
     public Guid Id { get; set; }
 
-    public Guid VeterinaryClinicId { get; set; }
+    public Guid? VeterinaryClinicId { get; set; }
 
-    public string FirstName { get; set; } = string.Empty;
+    public VeterinaryClinic? VeterinaryClinic { get; set; }
 
-    public string LastName { get; set; } = string.Empty;
+    public string FirstName { get; set; }
+        = string.Empty;
+
+    // Apellido paterno
+    public string LastName { get; set; }
+        = string.Empty;
+
+    // Apellido materno — opcional
+    public string? SecondLastName { get; set; }
 
     public string? Phone { get; set; }
 
@@ -20,8 +28,6 @@ public class Veterinarian
 
     public DateTime CreatedAt { get; set; }
 
-    public VeterinaryClinic VeterinaryClinic { get; set; } = null!;
-
     public ICollection<Reception> ReferredReceptions { get; set; }
-    = new List<Reception>();
+        = new List<Reception>();
 }

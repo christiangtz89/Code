@@ -1,25 +1,26 @@
-import { createBrowserRouter } from 'react-router-dom'
-import { ModulePlaceholderPage } from '../components/ui/ModulePlaceholderPage'
-import { AppLayout } from '../layouts/AppLayout'
-import { ApiTestPage } from '../pages/ApiTestPage'
-import { DashboardPage } from '../pages/DashboardPage'
-import { LoginPage } from '../pages/LoginPage'
-import { NotFoundPage } from '../pages/NotFoundPage'
-import { ProtectedRoute } from '../routes/ProtectedRoute'
-import { CustomersPage } from '../features/customers/pages/CustomersPage'
-import { PetsPage } from '../features/pets/pages/PetsPage'
-import { VeterinaryClinicsPage } from '../features/veterinary-clinics/pages/VeterinaryClinicsPage'
+import { createBrowserRouter } from "react-router-dom";
+import { ModulePlaceholderPage } from "../components/ui/ModulePlaceholderPage";
+import { AppLayout } from "../layouts/AppLayout";
+import { ApiTestPage } from "../pages/ApiTestPage";
+import { DashboardPage } from "../pages/DashboardPage";
+import { LoginPage } from "../pages/LoginPage";
+import { NotFoundPage } from "../pages/NotFoundPage";
+import { ProtectedRoute } from "../routes/ProtectedRoute";
+import { CustomersPage } from "../features/customers/pages/CustomersPage";
+import { PetsPage } from "../features/pets/pages/PetsPage";
+import { VeterinaryClinicsPage } from "../features/veterinary-clinics/pages/VeterinaryClinicsPage";
+import { VeterinariansPage } from "../features/veterinarians/pages/VeterinariansPage";
 
 export const router = createBrowserRouter([
   {
-    path: '/login',
+    path: "/login",
     element: <LoginPage />,
   },
   {
     element: <ProtectedRoute />,
     children: [
       {
-        path: '/',
+        path: "/",
         element: <AppLayout />,
         children: [
           {
@@ -27,28 +28,23 @@ export const router = createBrowserRouter([
             element: <DashboardPage />,
           },
           {
-            path: 'customers',
+            path: "customers",
             element: <CustomersPage />,
           },
           {
-            path: 'pets',
+            path: "pets",
             element: <PetsPage />,
           },
           {
-            path: 'veterinary-clinics',
+            path: "veterinary-clinics",
             element: <VeterinaryClinicsPage />,
           },
           {
-            path: 'veterinarians',
-            element: (
-              <ModulePlaceholderPage
-                title="Veterinarios"
-                description="Administra el directorio de médicos veterinarios."
-              />
-            ),
+            path: "veterinarians",
+            element: <VeterinariansPage />,
           },
           {
-            path: 'receptions',
+            path: "receptions",
             element: (
               <ModulePlaceholderPage
                 title="Recepciones"
@@ -57,7 +53,7 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'cremations',
+            path: "cremations",
             element: (
               <ModulePlaceholderPage
                 title="Cremaciones"
@@ -66,7 +62,7 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'api-test',
+            path: "api-test",
             element: <ApiTestPage />,
           },
         ],
@@ -74,7 +70,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '*',
+    path: "*",
     element: <NotFoundPage />,
   },
-])
+]);
