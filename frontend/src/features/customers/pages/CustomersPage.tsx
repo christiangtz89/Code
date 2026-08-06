@@ -3,14 +3,10 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query'
-import axios from 'axios'
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
-import toast from 'react-hot-toast'
+} from "@tanstack/react-query";
+import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import {
   createCustomer,
   deactivateCustomer,
@@ -18,105 +14,87 @@ import {
   restoreCustomer,
   searchCustomers,
   updateCustomer,
-} from '../api/customersApi'
-import { CustomerFormModal } from '../components/CustomerFormModal'
-import { CustomersTable } from '../components/CustomersTable'
-import type { CustomerFormValues } from '../schemas/customerSchema'
-import type {
-  Customer,
-  PaginatedCustomers,
-} from '../types/customer.types'
-import { CustomerPetsModal } from '../components/CustomerPetsModal'
-import { getCustomerFullName } from '../utils/customerName'
+} from "../api/customersApi";
+import { CustomerFormModal } from "../components/CustomerFormModal";
+import { CustomersTable } from "../components/CustomersTable";
+import type { CustomerFormValues } from "../schemas/customerSchema";
+import type { Customer, PaginatedCustomers } from "../types/customer.types";
+import { CustomerPetsModal } from "../components/CustomerPetsModal";
+import { getCustomerFullName } from "../utils/customerName";
 
-type CustomerStatusFilter = 'active' | 'inactive'
-type FormMode = 'create' | 'edit'
+type CustomerStatusFilter = "active" | "inactive";
+type FormMode = "create" | "edit";
 
 interface CustomerModalState {
-  mode: FormMode
-  customer: Customer | null
+  mode: FormMode;
+  customer: Customer | null;
 }
 
 interface ApiErrorResponse {
-  title?: string
-  detail?: string
-  message?: string
+  title?: string;
+  detail?: string;
+  message?: string;
 }
 
-function getApiErrorMessage(
-  error: unknown,
-  fallback: string,
-): string {
+function getApiErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) {
-    return fallback
+    return fallback;
   }
 
   if (!error.response) {
-    return 'No fue posible conectarse con el servidor.'
+    return "No fue posible conectarse con el servidor.";
   }
 
-  const data = error.response.data as
-    | ApiErrorResponse
-    | string
-    | undefined
+  const data = error.response.data as ApiErrorResponse | string | undefined;
 
-  if (typeof data === 'string' && data.trim()) {
-    return data
+  if (typeof data === "string" && data.trim()) {
+    return data;
   }
 
-  if (data && typeof data === 'object') {
-    return (
-      data.detail ??
-      data.message ??
-      data.title ??
-      fallback
-    )
+  if (data && typeof data === "object") {
+    return data.detail ?? data.message ?? data.title ?? fallback;
   }
 
-  return fallback
+  return fallback;
 }
 
 export function CustomersPage() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const [statusFilter, setStatusFilter] =
-    useState<CustomerStatusFilter>('active')
+    useState<CustomerStatusFilter>("active");
 
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const [searchInput, setSearchInput] = useState('')
-  const [debouncedSearch, setDebouncedSearch] =
-    useState('')
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const [modalState, setModalState] =
-    useState<CustomerModalState | null>(null)
+  const [modalState, setModalState] = useState<CustomerModalState | null>(null);
 
-  const [
-    selectedPetsCustomer,
-    setSelectedPetsCustomer,
-    ] = useState<Customer | null>(null)
+  const [selectedPetsCustomer, setSelectedPetsCustomer] =
+    useState<Customer | null>(null);
 
-  const isActive = statusFilter === 'active'
-  const normalizedSearch = debouncedSearch.trim()
+  const isActive = statusFilter === "active";
+  const normalizedSearch = debouncedSearch.trim();
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      setDebouncedSearch(searchInput)
-    }, 400)
+      setDebouncedSearch(searchInput);
+    }, 400);
 
     return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [searchInput])
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchInput]);
 
   useEffect(() => {
-    setPage(1)
-  }, [statusFilter, normalizedSearch, pageSize])
+    setPage(1);
+  }, [statusFilter, normalizedSearch, pageSize]);
 
   const customersQuery = useQuery({
     queryKey: [
-      'customers',
+      "customers",
       {
         page,
         pageSize,
@@ -130,7 +108,7 @@ export function CustomersPage() {
         const items = await searchCustomers({
           term: normalizedSearch,
           isActive,
-        })
+        });
 
         return {
           items,
@@ -138,21 +116,21 @@ export function CustomersPage() {
           pageSize: items.length,
           totalItems: items.length,
           totalPages: items.length > 0 ? 1 : 0,
-        }
+        };
       }
 
       return getCustomers({
         page,
         pageSize,
         isActive,
-      })
+      });
     },
 
     placeholderData: keepPreviousData,
-  })
+  });
 
   useEffect(() => {
-    const totalPages = customersQuery.data?.totalPages
+    const totalPages = customersQuery.data?.totalPages;
 
     if (
       !normalizedSearch &&
@@ -160,167 +138,142 @@ export function CustomersPage() {
       totalPages > 0 &&
       page > totalPages
     ) {
-      setPage(totalPages)
+      setPage(totalPages);
     }
-  }, [
-    customersQuery.data?.totalPages,
-    normalizedSearch,
-    page,
-  ])
+  }, [customersQuery.data?.totalPages, normalizedSearch, page]);
 
   async function refreshCustomers() {
     await queryClient.invalidateQueries({
-      queryKey: ['customers'],
-    })
+      queryKey: ["customers"],
+    });
   }
 
   const createMutation = useMutation({
     mutationFn: createCustomer,
 
     onSuccess: async () => {
-      await refreshCustomers()
-      toast.success('Cliente registrado correctamente.')
+      await refreshCustomers();
+      toast.success("Cliente registrado correctamente.");
     },
-  })
+  });
 
   const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      values,
-    }: {
-      id: string
-      values: CustomerFormValues
-    }) => updateCustomer(id, values),
+    mutationFn: ({ id, values }: { id: string; values: CustomerFormValues }) =>
+      updateCustomer(id, values),
 
     onSuccess: async () => {
-      await refreshCustomers()
-      toast.success('Cliente actualizado correctamente.')
+      await refreshCustomers();
+      toast.success("Cliente actualizado correctamente.");
     },
-  })
+  });
 
   const deactivateMutation = useMutation({
     mutationFn: deactivateCustomer,
 
     onSuccess: async () => {
-      await refreshCustomers()
-      toast.success('Cliente desactivado correctamente.')
+      await refreshCustomers();
+      toast.success("Cliente desactivado correctamente.");
     },
 
     onError: (error) => {
       toast.error(
-        getApiErrorMessage(
-          error,
-          'No fue posible desactivar el cliente.',
-        ),
-      )
+        getApiErrorMessage(error, "No fue posible desactivar el cliente."),
+      );
     },
-  })
+  });
 
   const restoreMutation = useMutation({
     mutationFn: restoreCustomer,
 
     onSuccess: async () => {
-      await refreshCustomers()
-      toast.success('Cliente restaurado correctamente.')
+      await refreshCustomers();
+      toast.success("Cliente restaurado correctamente.");
     },
 
     onError: (error) => {
       toast.error(
-        getApiErrorMessage(
-          error,
-          'No fue posible restaurar el cliente.',
-        ),
-      )
+        getApiErrorMessage(error, "No fue posible restaurar el cliente."),
+      );
     },
-  })
+  });
 
-  const isFormSubmitting =
-    createMutation.isPending ||
-    updateMutation.isPending
+  const isFormSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const pendingCustomerId = useMemo(() => {
     if (deactivateMutation.isPending) {
-      return deactivateMutation.variables
+      return deactivateMutation.variables;
     }
 
     if (restoreMutation.isPending) {
-      return restoreMutation.variables
+      return restoreMutation.variables;
     }
 
-    return null
+    return null;
   }, [
     deactivateMutation.isPending,
     deactivateMutation.variables,
     restoreMutation.isPending,
     restoreMutation.variables,
-  ])
+  ]);
 
-  async function handleFormSubmit(
-    values: CustomerFormValues,
-  ) {
+  async function handleFormSubmit(values: CustomerFormValues) {
     try {
-      if (modalState?.mode === 'edit') {
+      if (modalState?.mode === "edit") {
         if (!modalState.customer) {
-          return
+          return;
         }
 
         await updateMutation.mutateAsync({
           id: modalState.customer.id,
           values,
-        })
+        });
       } else {
-        await createMutation.mutateAsync(values)
+        await createMutation.mutateAsync(values);
       }
 
-      setModalState(null)
+      setModalState(null);
     } catch (error) {
       toast.error(
         getApiErrorMessage(
           error,
-          modalState?.mode === 'edit'
-            ? 'No fue posible actualizar el cliente.'
-            : 'No fue posible registrar el cliente.',
+          modalState?.mode === "edit"
+            ? "No fue posible actualizar el cliente."
+            : "No fue posible registrar el cliente.",
         ),
-      )
+      );
     }
   }
 
   function handleDeactivate(customer: Customer) {
     const confirmed = window.confirm(
       `¿Deseas desactivar a ${getCustomerFullName(customer)}?`,
-    )
+    );
 
     if (confirmed) {
-      deactivateMutation.mutate(customer.id)
+      deactivateMutation.mutate(customer.id);
     }
   }
 
   function handleRestore(customer: Customer) {
     const confirmed = window.confirm(
       `¿Deseas restaurar a ${getCustomerFullName(customer)}?`,
-    )
+    );
 
     if (confirmed) {
-      restoreMutation.mutate(customer.id)
+      restoreMutation.mutate(customer.id);
     }
   }
 
-  const customers = customersQuery.data?.items ?? []
-  const totalItems =
-    customersQuery.data?.totalItems ?? 0
+  const customers = customersQuery.data?.items ?? [];
+  const totalItems = customersQuery.data?.totalItems ?? 0;
 
-  const totalPages = Math.max(
-    customersQuery.data?.totalPages ?? 0,
-    1,
-  )
+  const totalPages = Math.max(customersQuery.data?.totalPages ?? 0, 1);
 
   return (
     <section>
       <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">
-            Operación
-          </p>
+          <p className="text-sm font-medium text-slate-500">Operación</p>
 
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
             Clientes
@@ -335,7 +288,7 @@ export function CustomersPage() {
           type="button"
           onClick={() =>
             setModalState({
-              mode: 'create',
+              mode: "create",
               customer: null,
             })
           }
@@ -350,26 +303,26 @@ export function CustomersPage() {
           <div className="flex rounded-xl bg-slate-100 p-1">
             <button
               type="button"
-              onClick={() => setStatusFilter('active')}
+              onClick={() => setStatusFilter("active")}
               className={[
-                'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none',
-                statusFilter === 'active'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900',
-              ].join(' ')}
+                "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none",
+                statusFilter === "active"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900",
+              ].join(" ")}
             >
               Activos
             </button>
 
             <button
               type="button"
-              onClick={() => setStatusFilter('inactive')}
+              onClick={() => setStatusFilter("inactive")}
               className={[
-                'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none',
-                statusFilter === 'inactive'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900',
-              ].join(' ')}
+                "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none",
+                statusFilter === "inactive"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900",
+              ].join(" ")}
             >
               Inactivos
             </button>
@@ -379,9 +332,7 @@ export function CustomersPage() {
             <input
               type="search"
               value={searchInput}
-              onChange={(event) =>
-                setSearchInput(event.target.value)
-              }
+              onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Buscar por nombre, teléfono o correo"
               className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 sm:w-80"
             />
@@ -389,9 +340,7 @@ export function CustomersPage() {
             {!normalizedSearch && (
               <select
                 value={pageSize}
-                onChange={(event) =>
-                  setPageSize(Number(event.target.value))
-                }
+                onChange={(event) => setPageSize(Number(event.target.value))}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none"
                 aria-label="Clientes por página"
               >
@@ -407,14 +356,14 @@ export function CustomersPage() {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
           {customersQuery.isFetching
-            ? 'Actualizando información...'
-            : `${totalItems} cliente${totalItems === 1 ? '' : 's'}`}
+            ? "Actualizando información..."
+            : `${totalItems} cliente${totalItems === 1 ? "" : "s"}`}
         </p>
 
         {normalizedSearch && (
           <button
             type="button"
-            onClick={() => setSearchInput('')}
+            onClick={() => setSearchInput("")}
             className="text-sm font-medium text-slate-600 hover:text-slate-900"
           >
             Limpiar búsqueda
@@ -453,7 +402,7 @@ export function CustomersPage() {
             onViewPets={setSelectedPetsCustomer}
             onEdit={(customer) =>
               setModalState({
-                mode: 'edit',
+                mode: "edit",
                 customer,
               })
             }
@@ -474,11 +423,7 @@ export function CustomersPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  setPage((current) =>
-                    Math.max(current - 1, 1),
-                  )
-                }
+                onClick={() => setPage((current) => Math.max(current - 1, 1))}
                 disabled={page <= 1}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -488,9 +433,7 @@ export function CustomersPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setPage((current) =>
-                    Math.min(current + 1, totalPages),
-                  )
+                  setPage((current) => Math.min(current + 1, totalPages))
                 }
                 disabled={page >= totalPages}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
@@ -503,12 +446,12 @@ export function CustomersPage() {
 
       <CustomerFormModal
         isOpen={modalState !== null}
-        mode={modalState?.mode ?? 'create'}
+        mode={modalState?.mode ?? "create"}
         customer={modalState?.customer ?? null}
         isSubmitting={isFormSubmitting}
         onClose={() => {
           if (!isFormSubmitting) {
-            setModalState(null)
+            setModalState(null);
           }
         }}
         onSubmit={handleFormSubmit}
@@ -519,5 +462,5 @@ export function CustomersPage() {
         onClose={() => setSelectedPetsCustomer(null)}
       />
     </section>
-  )
+  );
 }

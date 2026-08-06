@@ -1,15 +1,15 @@
-const ACCESS_TOKEN_KEY = 'pcms_access_token'
+const ACCESS_TOKEN_KEY = "pcms_access_token";
 
 export const tokenStorage = {
   get(): string | null {
-    return localStorage.getItem(ACCESS_TOKEN_KEY)
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
   },
 
   set(token: string): void {
-    localStorage.setItem(ACCESS_TOKEN_KEY, token)
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
   },
 
   remove(): void {
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
   },
-}
+};

@@ -1,13 +1,13 @@
-import { Navigate } from 'react-router-dom'
-import { LoginForm } from '../features/auth/components/LoginForm'
-import { isAccessTokenValid } from '../features/auth/utils/authToken'
-import { tokenStorage } from '../services/tokenStorage'
+import { Navigate } from "react-router-dom";
+import { LoginForm } from "../features/auth/components/LoginForm";
+import { isAccessTokenValid } from "../features/auth/utils/authToken";
+import { tokenStorage } from "../services/tokenStorage";
 
 export function LoginPage() {
-  const token = tokenStorage.get()
+  const token = tokenStorage.get();
 
   if (token && isAccessTokenValid(token)) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -28,5 +28,5 @@ export function LoginPage() {
         <LoginForm />
       </section>
     </main>
-  )
+  );
 }

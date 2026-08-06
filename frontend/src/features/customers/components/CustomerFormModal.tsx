@@ -1,21 +1,19 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import {
   customerSchema,
   type CustomerFormValues,
-} from '../schemas/customerSchema'
-import type { Customer } from '../types/customer.types'
+} from "../schemas/customerSchema";
+import type { Customer } from "../types/customer.types";
 
 interface CustomerFormModalProps {
-  isOpen: boolean
-  mode: 'create' | 'edit'
-  customer: Customer | null
-  isSubmitting: boolean
-  onClose: () => void
-  onSubmit: (
-    values: CustomerFormValues,
-  ) => Promise<void>
+  isOpen: boolean;
+  mode: "create" | "edit";
+  customer: Customer | null;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (values: CustomerFormValues) => Promise<void>;
 }
 
 export function CustomerFormModal({
@@ -34,35 +32,35 @@ export function CustomerFormModal({
   } = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      secondLastName: '',
-      phone: '',
-      email: '',
+      firstName: "",
+      lastName: "",
+      secondLastName: "",
+      phone: "",
+      email: "",
     },
-  })
+  });
 
   useEffect(() => {
     if (!isOpen) {
-      return
+      return;
     }
 
     reset({
-      firstName: customer?.firstName ?? '',
-      lastName: customer?.lastName ?? '',
-      secondLastName: customer?.secondLastName ?? '',
-      phone: customer?.phone ?? '',
-      email: customer?.email ?? '',
-    })
-  }, [customer, isOpen, reset])
+      firstName: customer?.firstName ?? "",
+      lastName: customer?.lastName ?? "",
+      secondLastName: customer?.secondLastName ?? "",
+      phone: customer?.phone ?? "",
+      email: customer?.email ?? "",
+    });
+  }, [customer, isOpen, reset]);
 
   if (!isOpen) {
-    return null
+    return null;
   }
 
   function handleBackdropClick() {
     if (!isSubmitting) {
-      onClose()
+      onClose();
     }
   }
 
@@ -77,23 +75,17 @@ export function CustomerFormModal({
         aria-modal="true"
         aria-labelledby="customer-form-title"
         className="max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
-        onMouseDown={(event) =>
-          event.stopPropagation()
-        }
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
-            <p className="text-sm font-medium text-slate-500">
-              Clientes
-            </p>
+            <p className="text-sm font-medium text-slate-500">Clientes</p>
 
             <h2
               id="customer-form-title"
               className="mt-1 text-xl font-semibold text-slate-900"
             >
-              {mode === 'create'
-                ? 'Registrar cliente'
-                : 'Editar cliente'}
+              {mode === "create" ? "Registrar cliente" : "Editar cliente"}
             </h2>
           </div>
 
@@ -126,7 +118,7 @@ export function CustomerFormModal({
               type="text"
               autoComplete="given-name"
               disabled={isSubmitting}
-              {...register('firstName')}
+              {...register("firstName")}
               className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             />
 
@@ -151,7 +143,7 @@ export function CustomerFormModal({
                 type="text"
                 autoComplete="family-name"
                 disabled={isSubmitting}
-                {...register('lastName')}
+                {...register("lastName")}
                 className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               />
 
@@ -178,7 +170,7 @@ export function CustomerFormModal({
                 type="text"
                 autoComplete="additional-name"
                 disabled={isSubmitting}
-                {...register('secondLastName')}
+                {...register("secondLastName")}
                 className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               />
 
@@ -204,7 +196,7 @@ export function CustomerFormModal({
               autoComplete="tel"
               placeholder="81 1234 5678"
               disabled={isSubmitting}
-              {...register('phone')}
+              {...register("phone")}
               className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             />
 
@@ -229,7 +221,7 @@ export function CustomerFormModal({
               autoComplete="email"
               placeholder="cliente@ejemplo.com"
               disabled={isSubmitting}
-              {...register('email')}
+              {...register("email")}
               className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             />
 
@@ -256,14 +248,14 @@ export function CustomerFormModal({
               className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
-                ? 'Guardando...'
-                : mode === 'create'
-                  ? 'Registrar cliente'
-                  : 'Guardar cambios'}
+                ? "Guardando..."
+                : mode === "create"
+                  ? "Registrar cliente"
+                  : "Guardar cambios"}
             </button>
           </footer>
         </form>
       </section>
     </div>
-  )
+  );
 }

@@ -1,32 +1,32 @@
-import axios from 'axios'
-import { env } from '../lib/env'
-import { tokenStorage } from './tokenStorage'
+import axios from "axios";
+import { env } from "../lib/env";
+import { tokenStorage } from "./tokenStorage";
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 15_000,
-})
+});
 
 apiClient.interceptors.request.use((config) => {
-  const token = tokenStorage.get()
+  const token = tokenStorage.get();
 
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
-  return config
-})
+  return config;
+});
 
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      tokenStorage.remove()
+      tokenStorage.remove();
     }
 
-    return Promise.reject(error)
+    return Promise.reject(error);
   },
-)
+);

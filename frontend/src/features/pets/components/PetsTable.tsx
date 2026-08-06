@@ -1,41 +1,31 @@
-import type { Pet } from '../types/pet.types'
+import type { Pet } from "../types/pet.types";
 
 interface PetsTableProps {
-  pets: Pet[]
-  showingActive: boolean
-  pendingPetId: string | null
-  onEdit: (pet: Pet) => void
-  onDeactivate: (pet: Pet) => void
-  onRestore: (pet: Pet) => void
+  pets: Pet[];
+  showingActive: boolean;
+  pendingPetId: string | null;
+  onEdit: (pet: Pet) => void;
+  onDeactivate: (pet: Pet) => void;
+  onRestore: (pet: Pet) => void;
 }
 
-const dateFormatter = new Intl.DateTimeFormat(
-  'es-MX',
-  {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  },
-)
+const dateFormatter = new Intl.DateTimeFormat("es-MX", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
-function formatDateOnly(
-  value: string,
-): string {
-  const datePart = value.slice(0, 10)
-  const parts = datePart.split('-').map(Number)
+function formatDateOnly(value: string): string {
+  const datePart = value.slice(0, 10);
+  const parts = datePart.split("-").map(Number);
 
-  if (
-    parts.length !== 3 ||
-    parts.some(Number.isNaN)
-  ) {
-    return 'Fecha no disponible'
+  if (parts.length !== 3 || parts.some(Number.isNaN)) {
+    return "Fecha no disponible";
   }
 
-  const [year, month, day] = parts
+  const [year, month, day] = parts;
 
-  return dateFormatter.format(
-    new Date(year, month - 1, day),
-  )
+  return dateFormatter.format(new Date(year, month - 1, day));
 }
 
 export function PetsTable({
@@ -59,11 +49,11 @@ export function PetsTable({
 
         <p className="mt-2 text-sm text-slate-500">
           {showingActive
-            ? 'No hay mascotas activas que coincidan con los filtros.'
-            : 'No hay mascotas inactivas que coincidan con los filtros.'}
+            ? "No hay mascotas activas que coincidan con los filtros."
+            : "No hay mascotas inactivas que coincidan con los filtros."}
         </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -100,18 +90,12 @@ export function PetsTable({
 
           <tbody className="divide-y divide-slate-100">
             {pets.map((pet) => {
-              const isPending =
-                pendingPetId === pet.id
+              const isPending = pendingPetId === pet.id;
 
               return (
-                <tr
-                  key={pet.id}
-                  className="transition hover:bg-slate-50"
-                >
+                <tr key={pet.id} className="transition hover:bg-slate-50">
                   <td className="whitespace-nowrap px-5 py-4">
-                    <p className="font-medium text-slate-900">
-                      {pet.name}
-                    </p>
+                    <p className="font-medium text-slate-900">{pet.name}</p>
 
                     <p className="mt-1 text-sm text-slate-500">
                       {pet.species} · {pet.breed}
@@ -120,8 +104,7 @@ export function PetsTable({
 
                   <td className="whitespace-nowrap px-5 py-4">
                     <p className="text-sm font-medium text-slate-700">
-                      {pet.customerName ||
-                        'Propietario no disponible'}
+                      {pet.customerName || "Propietario no disponible"}
                     </p>
                   </td>
 
@@ -132,30 +115,24 @@ export function PetsTable({
 
                     <p className="mt-1 text-sm text-slate-500">
                       {pet.weightKg.toFixed(2)} kg
-                      {pet.ageYears !== null
-                        ? ` · ${pet.ageYears} años`
-                        : ''}
+                      {pet.ageYears !== null ? ` · ${pet.ageYears} años` : ""}
                     </p>
                   </td>
 
                   <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">
-                    {formatDateOnly(
-                      pet.dateOfDeath,
-                    )}
+                    {formatDateOnly(pet.dateOfDeath)}
                   </td>
 
                   <td className="whitespace-nowrap px-5 py-4">
                     <span
                       className={[
-                        'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                        "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
                         pet.isActive
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-slate-100 text-slate-600',
-                      ].join(' ')}
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-600",
+                      ].join(" ")}
                     >
-                      {pet.isActive
-                        ? 'Activa'
-                        : 'Inactiva'}
+                      {pet.isActive ? "Activa" : "Inactiva"}
                     </span>
                   </td>
 
@@ -175,38 +152,30 @@ export function PetsTable({
                           <button
                             type="button"
                             disabled={isPending}
-                            onClick={() =>
-                              onDeactivate(pet)
-                            }
+                            onClick={() => onDeactivate(pet)}
                             className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
                           >
-                            {isPending
-                              ? 'Procesando...'
-                              : 'Desactivar'}
+                            {isPending ? "Procesando..." : "Desactivar"}
                           </button>
                         </>
                       ) : (
                         <button
                           type="button"
                           disabled={isPending}
-                          onClick={() =>
-                            onRestore(pet)
-                          }
+                          onClick={() => onRestore(pet)}
                           className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
                         >
-                          {isPending
-                            ? 'Restaurando...'
-                            : 'Restaurar'}
+                          {isPending ? "Restaurando..." : "Restaurar"}
                         </button>
                       )}
                     </div>
                   </td>
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>
       </div>
     </div>
-  )
+  );
 }

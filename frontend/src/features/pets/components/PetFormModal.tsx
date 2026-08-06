@@ -1,27 +1,25 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import type { Customer } from '../../customers/types/customer.types'
-import { petSchema, type PetFormValues, } from '../schemas/petSchema'
-import type { Pet } from '../types/pet.types'
-import {getLocalDateInputValue, toDateInputValue, } from '../utils/petDates'
-import { getCustomerFullName } from '../../customers/utils/customerName'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import type { Customer } from "../../customers/types/customer.types";
+import { petSchema, type PetFormValues } from "../schemas/petSchema";
+import type { Pet } from "../types/pet.types";
+import { getLocalDateInputValue, toDateInputValue } from "../utils/petDates";
+import { getCustomerFullName } from "../../customers/utils/customerName";
 
 interface PetFormModalProps {
-  isOpen: boolean
-  mode: 'create' | 'edit'
-  pet: Pet | null
-  customers: Customer[]
-  customersLoading: boolean
-  isSubmitting: boolean
-  onClose: () => void
-  onSubmit: (
-    values: PetFormValues,
-  ) => Promise<void>
+  isOpen: boolean;
+  mode: "create" | "edit";
+  pet: Pet | null;
+  customers: Customer[];
+  customersLoading: boolean;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (values: PetFormValues) => Promise<void>;
 }
 
 const inputClassName =
-  'mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100 disabled:text-slate-500'
+  "mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100 disabled:text-slate-500";
 
 export function PetFormModal({
   isOpen,
@@ -37,53 +35,45 @@ export function PetFormModal({
     register,
     reset,
     handleSubmit,
-    formState: {
-      errors,
-    },
+    formState: { errors },
   } = useForm<PetFormValues>({
     resolver: zodResolver(petSchema),
     defaultValues: {
-      customerId: '',
-      name: '',
-      species: '',
-      breed: '',
-      sex: '',
-      color: '',
-      weightKg: '',
-      ageYears: '',
-      dateOfDeath: '',
+      customerId: "",
+      name: "",
+      species: "",
+      breed: "",
+      sex: "",
+      color: "",
+      weightKg: "",
+      ageYears: "",
+      dateOfDeath: "",
     },
-  })
+  });
 
   useEffect(() => {
     if (!isOpen) {
-      return
+      return;
     }
 
     reset({
-      customerId: pet?.customerId ?? '',
-      name: pet?.name ?? '',
-      species: pet?.species ?? '',
-      breed: pet?.breed ?? '',
-      sex: pet?.sex ?? '',
-      color: pet?.color ?? '',
-      weightKg:
-        pet?.weightKg !== undefined
-          ? String(pet.weightKg)
-          : '',
+      customerId: pet?.customerId ?? "",
+      name: pet?.name ?? "",
+      species: pet?.species ?? "",
+      breed: pet?.breed ?? "",
+      sex: pet?.sex ?? "",
+      color: pet?.color ?? "",
+      weightKg: pet?.weightKg !== undefined ? String(pet.weightKg) : "",
       ageYears:
-        pet?.ageYears !== null &&
-        pet?.ageYears !== undefined
+        pet?.ageYears !== null && pet?.ageYears !== undefined
           ? String(pet.ageYears)
-          : '',
-      dateOfDeath: pet
-        ? toDateInputValue(pet.dateOfDeath)
-        : '',
-    })
-  }, [isOpen, pet, reset])
+          : "",
+      dateOfDeath: pet ? toDateInputValue(pet.dateOfDeath) : "",
+    });
+  }, [isOpen, pet, reset]);
 
   if (!isOpen) {
-    return null
+    return null;
   }
 
   return (
@@ -92,7 +82,7 @@ export function PetFormModal({
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 px-4 py-8"
       onMouseDown={() => {
         if (!isSubmitting) {
-          onClose()
+          onClose();
         }
       }}
     >
@@ -101,23 +91,17 @@ export function PetFormModal({
         aria-modal="true"
         aria-labelledby="pet-form-title"
         className="max-h-full w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
-        onMouseDown={(event) =>
-          event.stopPropagation()
-        }
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
-            <p className="text-sm font-medium text-slate-500">
-              Mascotas
-            </p>
+            <p className="text-sm font-medium text-slate-500">Mascotas</p>
 
             <h2
               id="pet-form-title"
               className="mt-1 text-xl font-semibold text-slate-900"
             >
-              {mode === 'create'
-                ? 'Registrar mascota'
-                : 'Editar mascota'}
+              {mode === "create" ? "Registrar mascota" : "Editar mascota"}
             </h2>
           </div>
 
@@ -145,27 +129,21 @@ export function PetFormModal({
               Propietario
             </label>
 
-            {mode === 'create' ? (
+            {mode === "create" ? (
               <select
                 id="pet-customer"
-                disabled={
-                  isSubmitting ||
-                  customersLoading
-                }
-                {...register('customerId')}
+                disabled={isSubmitting || customersLoading}
+                {...register("customerId")}
                 className={inputClassName}
               >
                 <option value="">
                   {customersLoading
-                    ? 'Cargando clientes...'
-                    : 'Selecciona un cliente'}
+                    ? "Cargando clientes..."
+                    : "Selecciona un cliente"}
                 </option>
 
                 {customers.map((customer) => (
-                  <option
-                    key={customer.id}
-                    value={customer.id}
-                  >
+                  <option key={customer.id} value={customer.id}>
                     {getCustomerFullName(customer)}
                     {customer.phone}
                   </option>
@@ -176,18 +154,12 @@ export function PetFormModal({
                 <input
                   id="pet-customer"
                   type="text"
-                  value={
-                    pet?.customerName ??
-                    'Propietario no disponible'
-                  }
+                  value={pet?.customerName ?? "Propietario no disponible"}
                   disabled
                   className={inputClassName}
                 />
 
-                <input
-                  type="hidden"
-                  {...register('customerId')}
-                />
+                <input type="hidden" {...register("customerId")} />
 
                 <p className="mt-2 text-xs text-slate-500">
                   El propietario no puede cambiarse después del registro.
@@ -215,7 +187,7 @@ export function PetFormModal({
                 id="pet-name"
                 type="text"
                 disabled={isSubmitting}
-                {...register('name')}
+                {...register("name")}
                 className={inputClassName}
               />
 
@@ -240,7 +212,7 @@ export function PetFormModal({
                 list="pet-species-options"
                 placeholder="Perro, gato..."
                 disabled={isSubmitting}
-                {...register('species')}
+                {...register("species")}
                 className={inputClassName}
               />
 
@@ -274,7 +246,7 @@ export function PetFormModal({
                 type="text"
                 placeholder="Mestizo, Labrador..."
                 disabled={isSubmitting}
-                {...register('breed')}
+                {...register("breed")}
                 className={inputClassName}
               />
 
@@ -296,21 +268,13 @@ export function PetFormModal({
               <select
                 id="pet-sex"
                 disabled={isSubmitting}
-                {...register('sex')}
+                {...register("sex")}
                 className={inputClassName}
               >
-                <option value="">
-                  Selecciona una opción
-                </option>
-                <option value="Macho">
-                  Macho
-                </option>
-                <option value="Hembra">
-                  Hembra
-                </option>
-                <option value="No especificado">
-                  No especificado
-                </option>
+                <option value="">Selecciona una opción</option>
+                <option value="Macho">Macho</option>
+                <option value="Hembra">Hembra</option>
+                <option value="No especificado">No especificado</option>
               </select>
 
               {errors.sex && (
@@ -333,7 +297,7 @@ export function PetFormModal({
                 type="text"
                 placeholder="Negro, café, blanco..."
                 disabled={isSubmitting}
-                {...register('color')}
+                {...register("color")}
                 className={inputClassName}
               />
 
@@ -360,7 +324,7 @@ export function PetFormModal({
                 step="0.01"
                 placeholder="12.50"
                 disabled={isSubmitting}
-                {...register('weightKg')}
+                {...register("weightKg")}
                 className={inputClassName}
               />
 
@@ -387,7 +351,7 @@ export function PetFormModal({
                 step="1"
                 placeholder="Opcional"
                 disabled={isSubmitting}
-                {...register('ageYears')}
+                {...register("ageYears")}
                 className={inputClassName}
               />
 
@@ -411,7 +375,7 @@ export function PetFormModal({
                 type="date"
                 max={getLocalDateInputValue()}
                 disabled={isSubmitting}
-                {...register('dateOfDeath')}
+                {...register("dateOfDeath")}
                 className={inputClassName}
               />
 
@@ -438,20 +402,19 @@ export function PetFormModal({
               disabled={
                 isSubmitting ||
                 customersLoading ||
-                (mode === 'create' &&
-                  customers.length === 0)
+                (mode === "create" && customers.length === 0)
               }
               className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
-                ? 'Guardando...'
-                : mode === 'create'
-                  ? 'Registrar mascota'
-                  : 'Guardar cambios'}
+                ? "Guardando..."
+                : mode === "create"
+                  ? "Registrar mascota"
+                  : "Guardar cambios"}
             </button>
           </footer>
         </form>
       </section>
     </div>
-  )
+  );
 }

@@ -1,30 +1,30 @@
-import type { Customer } from '../types/customer.types'
-import { getCustomerFullName } from '../utils/customerName'
+import type { Customer } from "../types/customer.types";
+import { getCustomerFullName } from "../utils/customerName";
 
 interface CustomersTableProps {
-  customers: Customer[]
-  showingActive: boolean
-  pendingCustomerId: string | null
-  onViewPets: (customer: Customer) => void
-  onEdit: (customer: Customer) => void
-  onDeactivate: (customer: Customer) => void
-  onRestore: (customer: Customer) => void
+  customers: Customer[];
+  showingActive: boolean;
+  pendingCustomerId: string | null;
+  onViewPets: (customer: Customer) => void;
+  onEdit: (customer: Customer) => void;
+  onDeactivate: (customer: Customer) => void;
+  onRestore: (customer: Customer) => void;
 }
 
-const dateFormatter = new Intl.DateTimeFormat('es-MX', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
+const dateFormatter = new Intl.DateTimeFormat("es-MX", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
 function formatDate(value: string): string {
-  const date = new Date(value)
+  const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return 'Fecha no disponible'
+    return "Fecha no disponible";
   }
 
-  return dateFormatter.format(date)
+  return dateFormatter.format(date);
 }
 
 export function CustomersTable({
@@ -49,11 +49,11 @@ export function CustomersTable({
 
         <p className="mt-2 text-sm text-slate-500">
           {showingActive
-            ? 'No hay clientes activos que coincidan con los filtros.'
-            : 'No hay clientes inactivos que coincidan con los filtros.'}
+            ? "No hay clientes activos que coincidan con los filtros."
+            : "No hay clientes inactivos que coincidan con los filtros."}
         </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -86,28 +86,20 @@ export function CustomersTable({
 
           <tbody className="divide-y divide-slate-100">
             {customers.map((customer) => {
-              const isPending =
-                pendingCustomerId === customer.id
+              const isPending = pendingCustomerId === customer.id;
 
               return (
-                <tr
-                  key={customer.id}
-                  className="transition hover:bg-slate-50"
-                >
+                <tr key={customer.id} className="transition hover:bg-slate-50">
                   <td className="whitespace-nowrap px-5 py-4">
                     <p className="font-medium text-slate-900">
                       {getCustomerFullName(customer)}
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-400">
-                      {customer.id}
-                    </p>
+                    <p className="mt-1 text-xs text-slate-400">{customer.id}</p>
                   </td>
 
                   <td className="px-5 py-4">
-                    <p className="text-sm text-slate-700">
-                      {customer.phone}
-                    </p>
+                    <p className="text-sm text-slate-700">{customer.phone}</p>
 
                     <p className="mt-1 text-sm text-slate-500">
                       {customer.email}
@@ -121,32 +113,29 @@ export function CustomersTable({
                   <td className="whitespace-nowrap px-5 py-4">
                     <span
                       className={[
-                        'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                        "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
                         customer.isActive
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-slate-100 text-slate-600',
-                      ].join(' ')}
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-600",
+                      ].join(" ")}
                     >
-                      {customer.isActive
-                        ? 'Activo'
-                        : 'Inactivo'}
+                      {customer.isActive ? "Activo" : "Inactivo"}
                     </span>
                   </td>
 
                   <td className="whitespace-nowrap px-5 py-4 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => onViewPets(customer)}
-                            disabled={isPending}
-                            className="rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
-                          >
-                            Ver mascotas
-                          </button>
-                          
+                      <button
+                        type="button"
+                        onClick={() => onViewPets(customer)}
+                        disabled={isPending}
+                        className="rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
+                      >
+                        Ver mascotas
+                      </button>
+
                       {showingActive ? (
                         <>
-
                           <button
                             type="button"
                             onClick={() => onEdit(customer)}
@@ -158,15 +147,11 @@ export function CustomersTable({
 
                           <button
                             type="button"
-                            onClick={() =>
-                              onDeactivate(customer)
-                            }
+                            onClick={() => onDeactivate(customer)}
                             disabled={isPending}
                             className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                           >
-                            {isPending
-                              ? 'Procesando...'
-                              : 'Desactivar'}
+                            {isPending ? "Procesando..." : "Desactivar"}
                           </button>
                         </>
                       ) : (
@@ -176,19 +161,17 @@ export function CustomersTable({
                           disabled={isPending}
                           className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
                         >
-                          {isPending
-                            ? 'Restaurando...'
-                            : 'Restaurar'}
+                          {isPending ? "Restaurando..." : "Restaurar"}
                         </button>
                       )}
                     </div>
                   </td>
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>
       </div>
     </div>
-  )
+  );
 }

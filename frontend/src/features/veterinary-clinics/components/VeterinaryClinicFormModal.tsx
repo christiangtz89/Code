@@ -1,21 +1,19 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import {
   veterinaryClinicSchema,
   type VeterinaryClinicFormValues,
-} from '../schemas/veterinaryClinicSchema'
-import type { VeterinaryClinic } from '../types/veterinaryClinic.types'
+} from "../schemas/veterinaryClinicSchema";
+import type { VeterinaryClinic } from "../types/veterinaryClinic.types";
 
 interface VeterinaryClinicFormModalProps {
-  isOpen: boolean
-  mode: 'create' | 'edit'
-  clinic: VeterinaryClinic | null
-  isSubmitting: boolean
-  onClose: () => void
-  onSubmit: (
-    values: VeterinaryClinicFormValues,
-  ) => Promise<void>
+  isOpen: boolean;
+  mode: "create" | "edit";
+  clinic: VeterinaryClinic | null;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (values: VeterinaryClinicFormValues) => Promise<void>;
 }
 
 export function VeterinaryClinicFormModal({
@@ -34,36 +32,35 @@ export function VeterinaryClinicFormModal({
   } = useForm<VeterinaryClinicFormValues>({
     resolver: zodResolver(veterinaryClinicSchema),
     defaultValues: {
-      name: '',
-      phone: '',
-      email: '',
-      address: '',
-      primaryContactName: '',
+      name: "",
+      phone: "",
+      email: "",
+      address: "",
+      primaryContactName: "",
     },
-  })
+  });
 
   useEffect(() => {
     if (!isOpen) {
-      return
+      return;
     }
 
     reset({
-      name: clinic?.name ?? '',
-      phone: clinic?.phone ?? '',
-      email: clinic?.email ?? '',
-      address: clinic?.address ?? '',
-      primaryContactName:
-        clinic?.primaryContactName ?? '',
-    })
-  }, [clinic, isOpen, reset])
+      name: clinic?.name ?? "",
+      phone: clinic?.phone ?? "",
+      email: clinic?.email ?? "",
+      address: clinic?.address ?? "",
+      primaryContactName: clinic?.primaryContactName ?? "",
+    });
+  }, [clinic, isOpen, reset]);
 
   if (!isOpen) {
-    return null
+    return null;
   }
 
   function handleBackdropClick() {
     if (!isSubmitting) {
-      onClose()
+      onClose();
     }
   }
 
@@ -78,23 +75,19 @@ export function VeterinaryClinicFormModal({
         aria-modal="true"
         aria-labelledby="veterinary-clinic-form-title"
         className="max-h-full w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
-        onMouseDown={(event) =>
-          event.stopPropagation()
-        }
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
-            <p className="text-sm font-medium text-slate-500">
-              Veterinarias
-            </p>
+            <p className="text-sm font-medium text-slate-500">Veterinarias</p>
 
             <h2
               id="veterinary-clinic-form-title"
               className="mt-1 text-xl font-semibold text-slate-900"
             >
-              {mode === 'create'
-                ? 'Registrar veterinaria'
-                : 'Editar veterinaria'}
+              {mode === "create"
+                ? "Registrar veterinaria"
+                : "Editar veterinaria"}
             </h2>
           </div>
 
@@ -126,14 +119,12 @@ export function VeterinaryClinicFormModal({
               id="clinic-name"
               type="text"
               disabled={isSubmitting}
-              {...register('name')}
+              {...register("name")}
               className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             />
 
             {errors.name && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.name.message}
-              </p>
+              <p className="mt-2 text-sm text-red-600">{errors.name.message}</p>
             )}
           </div>
 
@@ -154,7 +145,7 @@ export function VeterinaryClinicFormModal({
                 type="tel"
                 placeholder="81 1234 5678"
                 disabled={isSubmitting}
-                {...register('phone')}
+                {...register("phone")}
                 className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               />
 
@@ -181,7 +172,7 @@ export function VeterinaryClinicFormModal({
                 type="email"
                 placeholder="contacto@veterinaria.com"
                 disabled={isSubmitting}
-                {...register('email')}
+                {...register("email")}
                 className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               />
 
@@ -208,7 +199,7 @@ export function VeterinaryClinicFormModal({
               id="clinic-primary-contact"
               type="text"
               disabled={isSubmitting}
-              {...register('primaryContactName')}
+              {...register("primaryContactName")}
               className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             />
 
@@ -234,7 +225,7 @@ export function VeterinaryClinicFormModal({
               id="clinic-address"
               rows={3}
               disabled={isSubmitting}
-              {...register('address')}
+              {...register("address")}
               className="mt-2 block w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             />
 
@@ -261,14 +252,14 @@ export function VeterinaryClinicFormModal({
               className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
-                ? 'Guardando...'
-                : mode === 'create'
-                  ? 'Registrar veterinaria'
-                  : 'Guardar cambios'}
+                ? "Guardando..."
+                : mode === "create"
+                  ? "Registrar veterinaria"
+                  : "Guardar cambios"}
             </button>
           </footer>
         </form>
       </section>
     </div>
-  )
+  );
 }

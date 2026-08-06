@@ -1,11 +1,9 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 if (!apiBaseUrl) {
-  throw new Error(
-    'La variable VITE_API_BASE_URL no está configurada.',
-  )
+  throw new Error("La variable VITE_API_BASE_URL no está configurada.");
 }
 
 export const env = {
   apiBaseUrl,
-} as const
+} as const;

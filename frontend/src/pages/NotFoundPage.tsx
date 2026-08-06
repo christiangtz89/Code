@@ -1,12 +1,10 @@
-import { Link } from 'react-router-dom'
+import { Link } from "react-router-dom";
 
 export function NotFoundPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 px-6">
       <section className="text-center">
-        <p className="text-sm font-semibold text-slate-500">
-          Error 404
-        </p>
+        <p className="text-sm font-semibold text-slate-500">Error 404</p>
 
         <h1 className="mt-2 text-3xl font-semibold text-slate-900">
           Página no encontrada
@@ -20,5 +18,5 @@ export function NotFoundPage() {
         </Link>
       </section>
     </main>
-  )
+  );
 }
