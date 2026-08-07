@@ -1,5 +1,4 @@
 import { createBrowserRouter } from "react-router-dom";
-import { ModulePlaceholderPage } from "../components/ui/ModulePlaceholderPage";
 import { AppLayout } from "../layouts/AppLayout";
 import { ApiTestPage } from "../pages/ApiTestPage";
 import { DashboardPage } from "../pages/DashboardPage";
@@ -11,6 +10,7 @@ import { PetsPage } from "../features/pets/pages/PetsPage";
 import { VeterinaryClinicsPage } from "../features/veterinary-clinics/pages/VeterinaryClinicsPage";
 import { VeterinariansPage } from "../features/veterinarians/pages/VeterinariansPage";
 import { ReceptionsPage } from "../features/receptions/pages/ReceptionsPage";
+import { CremationsPage } from "../features/cremations/pages/CremationsPage";
 
 export const router = createBrowserRouter([
   {
@@ -50,12 +50,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "cremations",
-            element: (
-              <ModulePlaceholderPage
-                title="Cremaciones"
-                description="Administra los servicios y el flujo operativo de cremación."
-              />
-            ),
+            element: <CremationsPage />,
           },
           {
             path: "api-test",

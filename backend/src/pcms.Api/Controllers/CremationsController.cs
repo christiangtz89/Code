@@ -53,8 +53,9 @@ public class CremationsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedCremationsDto>> GetAll(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] bool isActive = true)
     {
         if (page < 1)
         {
@@ -77,9 +78,10 @@ public class CremationsController : ControllerBase
         }
 
         var cremations =
-            await _cremationService.GetAllAsync(
-                page,
-                pageSize);
+    await _cremationService.GetAllAsync(
+        page,
+        pageSize,
+        isActive);
 
         return Ok(cremations);
     }
@@ -280,8 +282,9 @@ public class CremationsController : ControllerBase
 
     [HttpGet("search")]
     public async Task<
-        ActionResult<IEnumerable<CremationDto>>> Search(
-        [FromQuery] string search)
+    ActionResult<IEnumerable<CremationDto>>> Search(
+    [FromQuery] string search,
+    [FromQuery] bool isActive = true)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -294,8 +297,36 @@ public class CremationsController : ControllerBase
         }
 
         var cremations =
-            await _cremationService.SearchAsync(search);
+    await _cremationService.SearchAsync(
+        search,
+        isActive);
 
         return Ok(cremations);
+    }
+
+    [HttpGet("options/receptions")]
+    public async Task<
+    ActionResult<
+        IEnumerable<CremationReceptionOptionDto>>>
+    GetAvailableReceptionOptions()
+    {
+        var receptions =
+            await _cremationService
+                .GetAvailableReceptionOptionsAsync();
+
+        return Ok(receptions);
+    }
+
+    [HttpGet("options/users")]
+    public async Task<
+        ActionResult<
+            IEnumerable<CremationUserOptionDto>>>
+        GetActiveUserOptions()
+    {
+        var users =
+            await _cremationService
+                .GetActiveUserOptionsAsync();
+
+        return Ok(users);
     }
 }

@@ -9,8 +9,9 @@ public interface ICremationService
         CreateCremationDto dto);
 
     Task<PagedCremationsDto> GetAllAsync(
-        int page,
-        int pageSize);
+    int page,
+    int pageSize,
+    bool isActive);
 
     Task<CremationDto?> GetByIdAsync(Guid id);
 
@@ -33,5 +34,12 @@ public interface ICremationService
     Task<bool> RestoreAsync(Guid id);
 
     Task<IEnumerable<CremationDto>> SearchAsync(
-        string search);
+    string search,
+    bool isActive);
+
+    Task<IEnumerable<CremationReceptionOptionDto>>
+    GetAvailableReceptionOptionsAsync();
+
+    Task<IEnumerable<CremationUserOptionDto>>
+        GetActiveUserOptionsAsync();
 }
