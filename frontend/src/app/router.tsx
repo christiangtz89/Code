@@ -10,6 +10,7 @@ import { CustomersPage } from "../features/customers/pages/CustomersPage";
 import { PetsPage } from "../features/pets/pages/PetsPage";
 import { VeterinaryClinicsPage } from "../features/veterinary-clinics/pages/VeterinaryClinicsPage";
 import { VeterinariansPage } from "../features/veterinarians/pages/VeterinariansPage";
+import { ReceptionsPage } from "../features/receptions/pages/ReceptionsPage";
 
 export const router = createBrowserRouter([
   {
@@ -45,12 +46,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "receptions",
-            element: (
-              <ModulePlaceholderPage
-                title="Recepciones"
-                description="Administra el ingreso, la cadena de custodia y las pertenencias."
-              />
-            ),
+            element: <ReceptionsPage />,
           },
           {
             path: "cremations",
