@@ -26,6 +26,12 @@ const modules = [
     abbreviation: "CR",
   },
   {
+    title: "Pagos",
+    description: "Anticipos, pagos parciales, saldos e historial financiero.",
+    to: "/payments",
+    abbreviation: "PA",
+  },
+  {
     title: "Veterinarias",
     description: "Directorio de clínicas veterinarias.",
     to: "/veterinary-clinics",
@@ -39,7 +45,13 @@ const modules = [
   },
 ];
 
-const workflow = ["Clientes", "Mascotas", "Recepciones", "Cremaciones"];
+const workflow = [
+  "Clientes",
+  "Mascotas",
+  "Recepciones",
+  "Cremaciones",
+  "Pagos",
+];
 
 export function DashboardPage() {
   return (

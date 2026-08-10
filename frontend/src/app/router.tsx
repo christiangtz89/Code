@@ -11,6 +11,7 @@ import { VeterinaryClinicsPage } from "../features/veterinary-clinics/pages/Vete
 import { VeterinariansPage } from "../features/veterinarians/pages/VeterinariansPage";
 import { ReceptionsPage } from "../features/receptions/pages/ReceptionsPage";
 import { CremationsPage } from "../features/cremations/pages/CremationsPage";
+import { PaymentsPage } from "../features/payments/pages/PaymentsPage";
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +52,10 @@ export const router = createBrowserRouter([
           {
             path: "cremations",
             element: <CremationsPage />,
+          },
+          {
+            path: "payments",
+            element: <PaymentsPage />,
           },
           {
             path: "api-test",

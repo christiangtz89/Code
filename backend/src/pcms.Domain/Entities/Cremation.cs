@@ -46,4 +46,6 @@ public class Cremation
     public Reception Reception { get; set; } = null!;
 
     public User? AssignedToUser { get; set; }
+
+    public PaymentAccount? PaymentAccount { get; set; }
 }
