@@ -11,6 +11,7 @@ using pcms.Application.Pets.Interfaces;
 using pcms.Application.Veterinarians.Interfaces;
 using pcms.Application.Cremations.Interfaces;
 using pcms.Application.Payments.Interfaces;
+using pcms.Application.VeterinaryRequests.Interfaces;
 
 namespace pcms.Infrastructure;
 
@@ -42,6 +43,10 @@ public static class DependencyInjection
         services.AddScoped<ICremationService, CremationService>();
 
         services.AddScoped<IPaymentService, PaymentService>();
+
+        services.AddScoped<
+            IVeterinaryRequestService,
+            VeterinaryRequestService>();
 
         return services;
     }

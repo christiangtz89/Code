@@ -36,6 +36,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Veterinarian> Veterinarians { get; set; }
 
+    public DbSet<VeterinaryRequest> VeterinaryRequests { get; set; }
+
 
     protected override void OnModelCreating(
      ModelBuilder modelBuilder)
@@ -447,6 +449,177 @@ public class AppDbContext : DbContext
 
         entity.HasIndex(v => v.ProfessionalLicenseNumber);
     });
+
+        // Veterinary request table configuration
+        modelBuilder.Entity<VeterinaryRequest>(entity =>
+        {
+            entity.ToTable("SolicitudesVeterinarias");
+
+            entity.HasKey(vr => vr.Id);
+
+            entity.Property(vr => vr.Id)
+                .HasColumnName("Id");
+
+            entity.Property(vr => vr.VeterinaryClinicId)
+                .HasColumnName("VeterinariaId");
+
+            entity.Property(vr => vr.ReferringVeterinarianId)
+                .HasColumnName("VeterinarioReferenteId");
+
+            entity.Property(vr => vr.SubmittedByUserId)
+                .HasColumnName("RegistradoPorUsuarioId")
+                .IsRequired();
+
+            entity.Property(vr => vr.ReviewedByUserId)
+                .HasColumnName("RevisadoPorUsuarioId");
+
+            entity.Property(vr => vr.ReceptionId)
+                .HasColumnName("RecepcionId");
+
+            entity.Property(vr => vr.Status)
+                .HasColumnName("Estado")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(vr => vr.OwnerFirstName)
+                .HasColumnName("NombrePropietario")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(vr => vr.OwnerLastName)
+                .HasColumnName("ApellidoPaternoPropietario")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(vr => vr.OwnerSecondLastName)
+                .HasColumnName("ApellidoMaternoPropietario")
+                .HasMaxLength(100);
+
+            entity.Property(vr => vr.OwnerPhone)
+                .HasColumnName("TelefonoPropietario")
+                .HasMaxLength(30)
+                .IsRequired();
+
+            entity.Property(vr => vr.OwnerEmail)
+                .HasColumnName("CorreoPropietario")
+                .HasMaxLength(150);
+
+            entity.Property(vr => vr.PetName)
+                .HasColumnName("NombreMascota")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(vr => vr.Species)
+                .HasColumnName("Especie")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(vr => vr.Breed)
+                .HasColumnName("Raza")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(vr => vr.Sex)
+                .HasColumnName("Sexo")
+                .HasMaxLength(30)
+                .IsRequired();
+
+            entity.Property(vr => vr.Color)
+                .HasColumnName("Color")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(vr => vr.ApproximateWeightKg)
+                .HasColumnName("PesoAproximadoKg")
+                .HasPrecision(10, 2)
+                .IsRequired();
+
+            entity.Property(vr => vr.AgeYears)
+                .HasColumnName("EdadAnios");
+
+            entity.Property(vr => vr.DateOfDeath)
+                .HasColumnName("FechaFallecimiento")
+                .IsRequired();
+
+            entity.Property(vr => vr.RequestedCremationType)
+                .HasColumnName("TipoCremacionSolicitado")
+                .HasConversion<int>();
+
+            entity.Property(vr => vr.RequestedPackageName)
+                .HasColumnName("NombrePaqueteSolicitado")
+                .HasMaxLength(150);
+
+            entity.Property(vr => vr.RequestNotes)
+                .HasColumnName("NotasSolicitud")
+                .HasMaxLength(1000);
+
+            entity.Property(vr => vr.InternalNotes)
+                .HasColumnName("NotasInternas")
+                .HasMaxLength(1000);
+
+            entity.Property(vr => vr.RejectionReason)
+                .HasColumnName("MotivoRechazo")
+                .HasMaxLength(1000);
+
+            entity.Property(vr => vr.SubmittedAt)
+                .HasColumnName("FechaSolicitud")
+                .IsRequired();
+
+            entity.Property(vr => vr.ReviewedAt)
+                .HasColumnName("FechaRevision");
+
+            entity.Property(vr => vr.ConvertedAt)
+                .HasColumnName("FechaConversion");
+
+            entity.Property(vr => vr.CreatedAt)
+                .HasColumnName("FechaCreacion")
+                .IsRequired();
+
+            entity.HasIndex(vr => vr.Status);
+
+            entity.HasIndex(vr => vr.VeterinaryClinicId);
+
+            entity.HasIndex(vr => vr.ReferringVeterinarianId);
+
+            entity.HasIndex(vr => vr.SubmittedByUserId);
+
+            entity.HasIndex(vr => vr.ReviewedByUserId);
+
+            entity.HasIndex(vr => vr.SubmittedAt);
+
+            entity.HasIndex(vr => vr.ReceptionId)
+                .IsUnique();
+
+            entity.HasOne(vr => vr.VeterinaryClinic)
+                .WithMany()
+                .HasForeignKey(vr => vr.VeterinaryClinicId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(vr => vr.ReferringVeterinarian)
+                .WithMany()
+                .HasForeignKey(vr => vr.ReferringVeterinarianId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(vr => vr.SubmittedByUser)
+                .WithMany()
+                .HasForeignKey(vr => vr.SubmittedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(vr => vr.ReviewedByUser)
+                .WithMany()
+                .HasForeignKey(vr => vr.ReviewedByUserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(vr => vr.Reception)
+                .WithOne()
+                .HasForeignKey<VeterinaryRequest>(
+                    vr => vr.ReceptionId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         // Cremation table configuration
         modelBuilder.Entity<Cremation>(entity =>

@@ -107,6 +107,23 @@ function VeterinarianIcon() {
   );
 }
 
+function VeterinaryRequestIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M6 3h12a2 2 0 0 1 2 2v16H4V5a2 2 0 0 1 2-2Z" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+      <path d="m15 17 2 2 4-4" />
+    </svg>
+  );
+}
+
 function ReceptionIcon() {
   return (
     <svg
@@ -232,6 +249,11 @@ const navigationGroups: NavigationGroup[] = [
         to: "/veterinarians",
         label: "Veterinarios",
         icon: <VeterinarianIcon />,
+      },
+      {
+        to: "/veterinary-requests",
+        label: "Solicitudes veterinarias",
+        icon: <VeterinaryRequestIcon />,
       },
     ],
   },
