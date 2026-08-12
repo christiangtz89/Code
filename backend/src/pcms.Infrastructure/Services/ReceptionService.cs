@@ -462,58 +462,19 @@ public class ReceptionService : IReceptionService
         }
 
         var referral =
-        await ValidateReferralSourceAsync(
-            dto.VeterinaryClinicId,
-            dto.ReferringVeterinarianId,
-            dto.ReferralNotes);
+    await ValidateReferralSourceAsync(
+        dto.VeterinaryClinicId,
+        dto.ReferringVeterinarianId,
+        dto.ReferralNotes);
 
-        if (!string.IsNullOrWhiteSpace(dto.ReferralNotes) &&
-            !dto.VeterinaryClinicId.HasValue)
-        {
-            throw new ArgumentException(
-                "A veterinary clinic must be selected when referral notes are provided.");
-        }
+        var veterinaryClinic =
+            referral.Clinic;
 
-        VeterinaryClinic? veterinaryClinic = null;
-        Veterinarian? referringVeterinarian = null;
-
-        if (dto.VeterinaryClinicId.HasValue)
-        {
-            veterinaryClinic = await _context.VeterinaryClinics
-                .FirstOrDefaultAsync(v =>
-                    v.Id == dto.VeterinaryClinicId.Value &&
-                    v.IsActive);
-
-            if (veterinaryClinic == null)
-            {
-                throw new InvalidOperationException(
-                    "Active veterinary clinic not found.");
-            }
-        }
-
-        if (dto.ReferringVeterinarianId.HasValue)
-        {
-            referringVeterinarian = await _context.Veterinarians
-                .FirstOrDefaultAsync(v =>
-                    v.Id == dto.ReferringVeterinarianId.Value &&
-                    v.IsActive);
-
-            if (referringVeterinarian == null)
-            {
-                throw new InvalidOperationException(
-                    "Active referring veterinarian not found.");
-            }
-
-            if (referringVeterinarian.VeterinaryClinicId !=
-                dto.VeterinaryClinicId!.Value)
-            {
-                throw new InvalidOperationException(
-                    "The referring veterinarian does not belong to the selected veterinary clinic.");
-            }
-        }
+        var referringVeterinarian =
+            referral.Veterinarian;
 
         reception.VeterinaryClinicId =
-        referral.Clinic?.Id;
+            referral.Clinic?.Id;
 
         reception.ReferringVeterinarianId =
             referral.Veterinarian?.Id;

@@ -13,6 +13,7 @@ import { ReceptionsPage } from "../features/receptions/pages/ReceptionsPage";
 import { CremationsPage } from "../features/cremations/pages/CremationsPage";
 import { PaymentsPage } from "../features/payments/pages/PaymentsPage";
 import { VeterinaryRequestsPage } from "../features/veterinary-requests/pages/VeterinaryRequestsPage";
+import { CollectionsPage } from "../features/collections/pages/CollectionsPage";
 
 export const router = createBrowserRouter([
   {
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
           {
             path: "veterinary-requests",
             element: <VeterinaryRequestsPage />,
+          },
+          {
+            path: "collections",
+            element: <CollectionsPage />,
           },
           {
             path: "receptions",

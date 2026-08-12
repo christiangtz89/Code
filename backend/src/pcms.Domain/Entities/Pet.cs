@@ -29,4 +29,6 @@ public class Pet
     public Customer Customer { get; set; } = null!;
 
     public Reception? Reception { get; set; }
+
+    public ICollection<Collection> Collections { get; set; } = new List<Collection>();
 }

@@ -141,6 +141,27 @@ function ReceptionIcon() {
   );
 }
 
+function CollectionIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M3 17h18" />
+      <path d="M5 17V9h11l3 4v4" />
+      <path d="M16 9v4h3" />
+      <circle cx="8" cy="18" r="2" />
+      <circle cx="17" cy="18" r="2" />
+      <path d="M7 6h6" />
+      <path d="m10 3 3 3-3 3" />
+    </svg>
+  );
+}
+
 function CremationIcon() {
   return (
     <svg
@@ -219,6 +240,11 @@ const navigationGroups: NavigationGroup[] = [
         to: "/pets",
         label: "Mascotas",
         icon: <PetsIcon />,
+      },
+      {
+        to: "/collections",
+        label: "Recolecciones",
+        icon: <CollectionIcon />,
       },
       {
         to: "/receptions",

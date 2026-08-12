@@ -8,6 +8,8 @@ public class Reception
 
     public Guid ReceivedByUserId { get; set; }
 
+    public Guid? CollectionId { get; set; }
+
     public Guid? VeterinaryClinicId { get; set; }
 
     public Guid? ReferringVeterinarianId { get; set; }
@@ -33,6 +35,8 @@ public class Reception
     public Pet Pet { get; set; } = null!;
 
     public User ReceivedByUser { get; set; } = null!;
+
+    public Collection? Collection { get; set; }
 
     public VeterinaryClinic? VeterinaryClinic { get; set; }
 

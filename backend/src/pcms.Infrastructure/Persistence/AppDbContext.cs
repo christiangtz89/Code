@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Pet> Pets { get; set; }
 
+    public DbSet<Collection> Collections { get; set; }
+
     public DbSet<Reception> Receptions { get; set; }
 
     public DbSet<ReceptionPhoto> ReceptionPhotos { get; set; }
@@ -115,6 +117,128 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // Collection table configuration
+        modelBuilder.Entity<Collection>(entity =>
+        {
+            entity.ToTable("Recolecciones");
+
+            entity.HasKey(c => c.Id);
+
+            entity.Property(c => c.Id)
+                .HasColumnName("Id");
+
+            entity.Property(c => c.PetId)
+                .HasColumnName("MascotaId")
+                .IsRequired();
+
+            entity.Property(c => c.CollectedByUserId)
+                .HasColumnName("RecolectadoPorUsuarioId")
+                .IsRequired();
+
+            entity.Property(c => c.LocationType)
+                .HasColumnName("TipoUbicacion")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(c => c.VeterinaryClinicId)
+                .HasColumnName("VeterinariaId");
+
+            entity.Property(c => c.ReferringVeterinarianId)
+                .HasColumnName("VeterinarioReferenteId");
+
+            entity.Property(c => c.Status)
+                .HasColumnName("Estado")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(c => c.QrCode)
+                .HasColumnName("CodigoQr")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(c => c.PickupAddress)
+                .HasColumnName("DireccionRecoleccion")
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(c => c.PickupContactName)
+                .HasColumnName("NombreContactoRecoleccion")
+                .HasMaxLength(150);
+
+            entity.Property(c => c.PickupContactPhone)
+                .HasColumnName("TelefonoContactoRecoleccion")
+                .HasMaxLength(30);
+
+            entity.Property(c => c.ApproximateWeightKg)
+                .HasColumnName("PesoAproximadoKg")
+                .HasPrecision(10, 2);
+
+            entity.Property(c => c.HasPersonalBelongings)
+                .HasColumnName("TieneObjetosPersonales")
+                .IsRequired();
+
+            entity.Property(c => c.PersonalBelongingsDescription)
+                .HasColumnName("DescripcionObjetosPersonales")
+                .HasMaxLength(500);
+
+            entity.Property(c => c.Notes)
+                .HasColumnName("Notas")
+                .HasMaxLength(1000);
+
+            entity.Property(c => c.CollectedAt)
+                .HasColumnName("FechaRecoleccion")
+                .IsRequired();
+
+            entity.Property(c => c.ReceivedAt)
+                .HasColumnName("FechaRecepcionInstalaciones");
+
+            entity.Property(c => c.CancelledAt)
+                .HasColumnName("FechaCancelacion");
+
+            entity.Property(c => c.IsActive)
+                .HasColumnName("Activo")
+                .IsRequired();
+
+            entity.Property(c => c.CreatedAt)
+                .HasColumnName("FechaCreacion")
+                .IsRequired();
+
+            entity.HasIndex(c => c.QrCode)
+                .IsUnique();
+
+            entity.HasIndex(c => c.PetId);
+
+            entity.HasIndex(c => c.CollectedByUserId);
+
+            entity.HasIndex(c => c.VeterinaryClinicId);
+
+            entity.HasIndex(c => c.ReferringVeterinarianId);
+
+            entity.HasIndex(c => c.Status);
+
+            entity.HasIndex(c => c.CollectedAt);
+
+            entity.HasOne(c => c.Pet)
+                .WithMany(p => p.Collections)
+                .HasForeignKey(c => c.PetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.CollectedByUser)
+                .WithMany()
+                .HasForeignKey(c => c.CollectedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.VeterinaryClinic)
+                .WithMany()
+                .HasForeignKey(c => c.VeterinaryClinicId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.ReferringVeterinarian)
+                .WithMany()
+                .HasForeignKey(c => c.ReferringVeterinarianId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // Reception table configuration
         modelBuilder.Entity<Reception>(entity =>
     {
@@ -132,6 +256,9 @@ public class AppDbContext : DbContext
         entity.Property(r => r.ReceivedByUserId)
             .HasColumnName("RecibidoPorUsuarioId")
             .IsRequired();
+
+        entity.Property(r => r.CollectionId)
+    .HasColumnName("RecoleccionId");
 
         entity.Property(r => r.VeterinaryClinicId)
             .HasColumnName("VeterinariaId");
@@ -185,14 +312,24 @@ public class AppDbContext : DbContext
         entity.HasIndex(r => r.ReferringVeterinarianId);
 
         entity.HasOne(r => r.Pet)
-            .WithOne(p => p.Reception)
-            .HasForeignKey<Reception>(r => r.PetId)
+    .WithOne(p => p.Reception)
+    .HasForeignKey<Reception>(
+        r => r.PetId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(r => r.Collection)
+            .WithOne(c => c.Reception)
+            .HasForeignKey<Reception>(
+                r => r.CollectionId)
             .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasOne(r => r.ReceivedByUser)
             .WithMany()
             .HasForeignKey(r => r.ReceivedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasIndex(r => r.CollectionId)
+    .IsUnique();
 
         entity.HasOne(r => r.VeterinaryClinic)
             .WithMany(v => v.ReferredReceptions)
