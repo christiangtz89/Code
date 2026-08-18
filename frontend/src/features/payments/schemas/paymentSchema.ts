@@ -17,7 +17,8 @@ export const paymentSchema = z
         error: "Ingresa el monto del pago.",
       })
       .finite("El monto del pago no es válido.")
-      .positive("El monto del pago debe ser mayor que cero.")
+      .min(0.01, "El monto del pago debe ser mayor que cero.")
+      .multipleOf(0.01, "El monto no puede tener más de dos decimales.")
       .max(9999999999.99, "El monto del pago excede el máximo permitido."),
 
     method: paymentMethodSchema,

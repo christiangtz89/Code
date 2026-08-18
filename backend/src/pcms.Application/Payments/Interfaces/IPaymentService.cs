@@ -22,10 +22,6 @@ public interface IPaymentService
     Task<PaymentAccountDto?> GetByCremationIdAsync(
         Guid cremationId);
 
-    Task<PaymentAccountDto?> UpdateAccountAsync(
-        Guid id,
-        UpdatePaymentAccountDto dto);
-
     Task<PaymentDto> AddPaymentAsync(
         Guid paymentAccountId,
         CreatePaymentDto dto,

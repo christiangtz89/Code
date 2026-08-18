@@ -8,7 +8,6 @@ import type {
   PaymentAccount,
   PaymentCremationOption,
   SearchPaymentAccountsParams,
-  UpdatePaymentAccountPayload,
 } from "../types/payment.types";
 
 const PAYMENTS_URL = "/Payments";
@@ -64,18 +63,6 @@ export async function createPaymentAccount(
 ): Promise<PaymentAccount> {
   const response = await apiClient.post<PaymentAccount>(
     `${PAYMENTS_URL}/accounts`,
-    payload,
-  );
-
-  return response.data;
-}
-
-export async function updatePaymentAccount(
-  id: string,
-  payload: UpdatePaymentAccountPayload,
-): Promise<PaymentAccount> {
-  const response = await apiClient.put<PaymentAccount>(
-    `${PAYMENTS_URL}/accounts/${id}`,
     payload,
   );
 

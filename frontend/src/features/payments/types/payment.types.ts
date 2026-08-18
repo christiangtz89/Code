@@ -40,6 +40,7 @@ export interface PaymentAccount {
   customerId: string;
   customerName: string;
   packageName: string;
+  isCremationActive: boolean;
   serviceTotal: number;
   amountPaid: number;
   balance: number;
@@ -51,11 +52,6 @@ export interface PaymentAccount {
 
 export interface CreatePaymentAccountPayload {
   cremationId: string;
-  serviceTotal: number;
-}
-
-export interface UpdatePaymentAccountPayload {
-  serviceTotal: number;
 }
 
 export interface CreatePaymentPayload {

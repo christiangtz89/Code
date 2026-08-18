@@ -53,4 +53,22 @@ public class CremationDto
     public bool IsActive { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    public Guid? CremationPackageId { get; set; }
+
+    public Guid? UrnId { get; set; }
+
+    public string? AccessoryDescription { get; set; }
+
+    public decimal? QuotedPrice { get; set; }
+
+    public decimal? QuotedWeightKg { get; set; }
+
+    public decimal? QuotedMinimumWeightKg { get; set; }
+
+    public decimal? QuotedMaximumWeightKg { get; set; }
+
+    public string? CremationPackageName { get; set; }
+
+    public string? UrnName { get; set; }
 }

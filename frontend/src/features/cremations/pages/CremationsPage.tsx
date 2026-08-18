@@ -201,6 +201,10 @@ export function CremationsPage() {
     onSuccess: async () => {
       await refreshCremations();
 
+      await queryClient.invalidateQueries({
+        queryKey: ["payments"],
+      });
+
       toast.success("Cremación actualizada correctamente.");
     },
   });

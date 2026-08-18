@@ -6,7 +6,6 @@ interface PaymentsTableProps {
   accounts: PaymentAccount[];
   onViewPayments: (account: PaymentAccount) => void;
   onAddPayment: (account: PaymentAccount) => void;
-  onEditTotal: (account: PaymentAccount) => void;
 }
 
 function getStatusClasses(status: PaymentAccount["status"]): string {
@@ -27,7 +26,6 @@ export function PaymentsTable({
   accounts,
   onViewPayments,
   onAddPayment,
-  onEditTotal,
 }: PaymentsTableProps) {
   if (accounts.length === 0) {
     return (
@@ -83,6 +81,8 @@ export function PaymentsTable({
             {accounts.map((account) => {
               const isPaid =
                 account.status === PaymentStatus.Paid || account.balance <= 0;
+
+              const canAddPayment = !isPaid && account.isCremationActive;
 
               return (
                 <tr key={account.id} className="align-top hover:bg-slate-50">
@@ -152,7 +152,7 @@ export function PaymentsTable({
                         Ver pagos
                       </button>
 
-                      {!isPaid && (
+                      {canAddPayment && (
                         <button
                           type="button"
                           onClick={() => onAddPayment(account)}
@@ -162,13 +162,11 @@ export function PaymentsTable({
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => onEditTotal(account)}
-                        className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                      >
-                        Editar total
-                      </button>
+                      {!account.isCremationActive && (
+                        <span className="px-3 py-1 text-right text-xs font-medium text-slate-500">
+                          Cremación inactiva
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>

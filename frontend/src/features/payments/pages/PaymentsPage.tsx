@@ -15,16 +15,12 @@ import {
   getPaymentAccountById,
   getPaymentAccounts,
   searchPaymentAccounts,
-  updatePaymentAccount,
 } from "../api/paymentsApi";
 import { PaymentAccountFormModal } from "../components/PaymentAccountFormModal";
 import { PaymentDetailsModal } from "../components/PaymentDetailsModal";
 import { PaymentFormModal } from "../components/PaymentFormModal";
 import { PaymentsTable } from "../components/PaymentsTable";
-import type {
-  CreatePaymentAccountFormValues,
-  UpdatePaymentAccountFormValues,
-} from "../schemas/paymentAccountSchema";
+import type { CreatePaymentAccountFormValues } from "../schemas/paymentAccountSchema";
 import type { PaymentFormValues } from "../schemas/paymentSchema";
 import {
   PaymentStatus,
@@ -35,17 +31,9 @@ import {
 import {
   createPaymentAccountPayload,
   createPaymentPayload,
-  updatePaymentAccountPayload,
 } from "../utils/paymentForm";
 
 type PaymentStatusFilter = "all" | PaymentStatusValue;
-
-type PaymentAccountFormMode = "create" | "edit";
-
-interface PaymentAccountModalState {
-  mode: PaymentAccountFormMode;
-  account: PaymentAccount | null;
-}
 
 interface ApiErrorResponse {
   title?: string;
@@ -87,8 +75,7 @@ export function PaymentsPage() {
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const [accountModalState, setAccountModalState] =
-    useState<PaymentAccountModalState | null>(null);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
   const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(
     null,
@@ -180,7 +167,7 @@ export function PaymentsPage() {
 
     queryFn: getAvailablePaymentCremations,
 
-    enabled: accountModalState?.mode === "create",
+    enabled: isAccountModalOpen,
   });
 
   const detailsAccountId = detailsAccount?.id ?? "";
@@ -206,18 +193,6 @@ export function PaymentsPage() {
     onSuccess: refreshPayments,
   });
 
-  const updateAccountMutation = useMutation({
-    mutationFn: ({
-      id,
-      values,
-    }: {
-      id: string;
-      values: UpdatePaymentAccountFormValues;
-    }) => updatePaymentAccount(id, updatePaymentAccountPayload(values)),
-
-    onSuccess: refreshPayments,
-  });
-
   const addPaymentMutation = useMutation({
     mutationFn: ({
       accountId,
@@ -230,14 +205,13 @@ export function PaymentsPage() {
     onSuccess: refreshPayments,
   });
 
-  const accountFormIsSubmitting =
-    createAccountMutation.isPending || updateAccountMutation.isPending;
+  const isAccountSubmitting = createAccountMutation.isPending;
 
   async function handleCreateAccount(values: CreatePaymentAccountFormValues) {
     try {
       await createAccountMutation.mutateAsync(values);
 
-      setAccountModalState(null);
+      setIsAccountModalOpen(false);
 
       toast.success("Cuenta de pago registrada correctamente.");
     } catch (error) {
@@ -245,32 +219,6 @@ export function PaymentsPage() {
         getApiErrorMessage(
           error,
           "No fue posible registrar la cuenta de pago.",
-        ),
-      );
-    }
-  }
-
-  async function handleUpdateAccount(values: UpdatePaymentAccountFormValues) {
-    const account = accountModalState?.account;
-
-    if (!account) {
-      return;
-    }
-
-    try {
-      await updateAccountMutation.mutateAsync({
-        id: account.id,
-        values,
-      });
-
-      setAccountModalState(null);
-
-      toast.success("Total del servicio actualizado correctamente.");
-    } catch (error) {
-      toast.error(
-        getApiErrorMessage(
-          error,
-          "No fue posible actualizar el total del servicio.",
         ),
       );
     }
@@ -323,12 +271,7 @@ export function PaymentsPage() {
 
         <button
           type="button"
-          onClick={() =>
-            setAccountModalState({
-              mode: "create",
-              account: null,
-            })
-          }
+          onClick={() => setIsAccountModalOpen(true)}
           className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
           + Registrar cuenta de pago
@@ -428,12 +371,6 @@ export function PaymentsPage() {
           accounts={accounts}
           onViewPayments={setDetailsAccount}
           onAddPayment={setPaymentAccount}
-          onEditTotal={(account) =>
-            setAccountModalState({
-              mode: "edit",
-              account,
-            })
-          }
         />
       )}
 
@@ -468,19 +405,16 @@ export function PaymentsPage() {
       )}
 
       <PaymentAccountFormModal
-        isOpen={accountModalState !== null}
-        mode={accountModalState?.mode ?? "create"}
-        account={accountModalState?.account ?? null}
+        isOpen={isAccountModalOpen}
         cremations={availableCremationsQuery.data ?? []}
         isLoadingCremations={availableCremationsQuery.isLoading}
-        isSubmitting={accountFormIsSubmitting}
+        isSubmitting={isAccountSubmitting}
         onClose={() => {
-          if (!accountFormIsSubmitting) {
-            setAccountModalState(null);
+          if (!isAccountSubmitting) {
+            setIsAccountModalOpen(false);
           }
         }}
         onCreate={handleCreateAccount}
-        onUpdate={handleUpdateAccount}
       />
 
       <PaymentFormModal

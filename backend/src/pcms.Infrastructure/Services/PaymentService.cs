@@ -26,22 +26,24 @@ public class PaymentService : IPaymentService
                 "La cremación es requerida.");
         }
 
-        if (dto.ServiceTotal <= 0)
+        var cremation =
+    await _context.Cremations
+        .AsNoTracking()
+        .FirstOrDefaultAsync(c =>
+            c.Id == dto.CremationId &&
+            c.IsActive);
+
+        if (cremation == null)
         {
             throw new InvalidOperationException(
-                "El total del servicio debe ser mayor que cero.");
+                "No se encontró una cremación activa.");
         }
 
-        var cremationExists = await _context.Cremations
-            .AsNoTracking()
-            .AnyAsync(c =>
-                c.Id == dto.CremationId &&
-                c.IsActive);
-
-        if (!cremationExists)
+        if (cremation.QuotedPrice is not decimal quotedPrice ||
+    quotedPrice <= 0)
         {
-            throw new KeyNotFoundException(
-                "No se encontró una cremación activa con el identificador proporcionado.");
+            throw new InvalidOperationException(
+                "La cremación no tiene una cotización histórica válida.");
         }
 
         var accountExists = await _context.PaymentAccounts
@@ -59,7 +61,9 @@ public class PaymentService : IPaymentService
         {
             Id = Guid.NewGuid(),
             CremationId = dto.CremationId,
-            ServiceTotal = dto.ServiceTotal,
+
+            ServiceTotal =
+    quotedPrice,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -79,6 +83,8 @@ public class PaymentService : IPaymentService
             .AsNoTracking()
             .Where(c =>
                 c.IsActive &&
+                c.QuotedPrice.HasValue &&
+                c.QuotedPrice.Value > 0m &&
                 !_context.PaymentAccounts.Any(pa =>
                     pa.CremationId == c.Id))
             .OrderByDescending(c => c.CreatedAt)
@@ -177,51 +183,27 @@ public class PaymentService : IPaymentService
         return await GetByIdAsync(id.Value);
     }
 
-    public async Task<PaymentAccountDto?> UpdateAccountAsync(
-        Guid id,
-        UpdatePaymentAccountDto dto)
-    {
-        var account = await _context.PaymentAccounts
-            .Include(pa => pa.Payments)
-            .FirstOrDefaultAsync(pa => pa.Id == id);
-
-        if (account is null)
-        {
-            return null;
-        }
-
-        if (dto.ServiceTotal <= 0)
-        {
-            throw new InvalidOperationException(
-                "El total del servicio debe ser mayor que cero.");
-        }
-
-        var amountPaid = account.Payments.Sum(
-            payment => payment.Amount);
-
-        if (dto.ServiceTotal < amountPaid)
-        {
-            throw new InvalidOperationException(
-                $"El total del servicio no puede ser menor que el monto ya pagado ({amountPaid:C2}).");
-        }
-
-        account.ServiceTotal = dto.ServiceTotal;
-        account.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return await GetByIdAsync(account.Id);
-    }
-
     public async Task<PaymentDto> AddPaymentAsync(
         Guid paymentAccountId,
         CreatePaymentDto dto,
         Guid recordedByUserId)
     {
-        if (dto.Amount <= 0)
+        if (dto.Amount < 0.01m)
         {
             throw new InvalidOperationException(
                 "El monto del pago debe ser mayor que cero.");
+        }
+
+        if (decimal.Round(dto.Amount, 2) != dto.Amount)
+        {
+            throw new InvalidOperationException(
+                "El monto del pago no puede tener más de dos decimales.");
+        }
+
+        if (dto.Amount > 9999999999.99m)
+        {
+            throw new InvalidOperationException(
+                "El monto del pago excede el máximo permitido.");
         }
 
         if (!Enum.IsDefined(
@@ -536,6 +518,7 @@ public class PaymentService : IPaymentService
                 customer.LastName,
                 customer.SecondLastName),
             PackageName = cremation.PackageName,
+            IsCremationActive = cremation.IsActive,
             ServiceTotal = account.ServiceTotal,
             AmountPaid = amountPaid,
             Balance = balance,

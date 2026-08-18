@@ -145,42 +145,6 @@ public class PaymentsController : ControllerBase
         return Ok(account);
     }
 
-    [HttpPut("accounts/{id:guid}")]
-    public async Task<ActionResult<PaymentAccountDto>>
-        UpdateAccount(
-            Guid id,
-            UpdatePaymentAccountDto dto)
-    {
-        try
-        {
-            var account =
-                await _paymentService
-                    .UpdateAccountAsync(
-                        id,
-                        dto);
-
-            if (account == null)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    message =
-                        "La cuenta de pago no fue encontrada."
-                });
-            }
-
-            return Ok(account);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new
-            {
-                success = false,
-                message = ex.Message
-            });
-        }
-    }
-
     [HttpPost(
         "accounts/{id:guid}/payments")]
     public async Task<ActionResult<PaymentDto>>

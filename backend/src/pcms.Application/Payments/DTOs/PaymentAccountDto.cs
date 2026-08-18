@@ -22,6 +22,8 @@ public class PaymentAccountDto
 
     public string PackageName { get; set; } = string.Empty;
 
+    public bool IsCremationActive { get; set; }
+
     public decimal ServiceTotal { get; set; }
 
     public decimal AmountPaid { get; set; }

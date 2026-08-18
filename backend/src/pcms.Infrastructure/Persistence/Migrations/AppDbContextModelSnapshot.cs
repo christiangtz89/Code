@@ -141,6 +141,11 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("Id");
 
+                    b.Property<string>("AccessoryDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("DescripcionAccesorio");
+
                     b.Property<Guid?>("AssignedToUserId")
                         .HasColumnType("uuid")
                         .HasColumnName("AsignadoAUsuarioId");
@@ -152,6 +157,10 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("FechaCreacion");
+
+                    b.Property<Guid?>("CremationPackageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("PaqueteCremacionId");
 
                     b.Property<int>("CremationType")
                         .HasColumnType("integer")
@@ -188,6 +197,22 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(150)")
                         .HasColumnName("NombrePaquete");
 
+                    b.Property<decimal?>("QuotedMaximumWeightKg")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("PesoMaximoCotizadoKg");
+
+                    b.Property<decimal?>("QuotedMinimumWeightKg")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("PesoMinimoCotizadoKg");
+
+                    b.Property<decimal?>("QuotedPrice")
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("PrecioCotizado");
+
+                    b.Property<decimal?>("QuotedWeightKg")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("PesoCotizadoKg");
+
                     b.Property<DateTime?>("ReadyForDeliveryAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("FechaListaParaEntrega");
@@ -218,9 +243,15 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("DescripcionUrna");
 
+                    b.Property<Guid?>("UrnId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("UrnaId");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssignedToUserId");
+
+                    b.HasIndex("CremationPackageId");
 
                     b.HasIndex("ReceptionId")
                         .IsUnique();
@@ -229,7 +260,220 @@ namespace pcms.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status");
 
+                    b.HasIndex("UrnId");
+
                     b.ToTable("Cremaciones", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationPackage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("Id");
+
+                    b.Property<string>("AccessoryDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("DescripcionAccesorio");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaCreacion");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("Descripcion");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("OrdenVisualizacion");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("UrlImagen");
+
+                    b.Property<bool>("IncludesCertificate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IncluyeCertificado");
+
+                    b.Property<bool>("IncludesPawPrint")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IncluyeHuella");
+
+                    b.Property<bool>("IncludesUrn")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IncluyeUrna");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Activo");
+
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("boolean")
+                        .HasColumnName("EsPublico");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("Nombre");
+
+                    b.Property<int>("PackageType")
+                        .HasColumnType("integer")
+                        .HasColumnName("TipoPaquete");
+
+                    b.Property<string>("ShortDescription")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("DescripcionCorta");
+
+                    b.Property<int?>("Tier")
+                        .HasColumnType("integer")
+                        .HasColumnName("Nivel");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaActualizacion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DisplayOrder");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("IsPublic");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("PaquetesCremacion", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationPackageUrn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaCreacion");
+
+                    b.Property<Guid>("CremationPackageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("PaqueteCremacionId");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Activo");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaActualizacion");
+
+                    b.Property<Guid>("UrnId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("UrnaId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("UrnId");
+
+                    b.HasIndex("CremationPackageId", "UrnId")
+                        .IsUnique();
+
+                    b.ToTable("PaquetesCremacionUrnas", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationPrice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaCreacion");
+
+                    b.Property<Guid>("CremationPackageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("PaqueteCremacionId");
+
+                    b.Property<int>("CremationType")
+                        .HasColumnType("integer")
+                        .HasColumnName("TipoCremacion");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Activo");
+
+                    b.Property<bool>("IsPublic")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("EsPublico");
+
+                    b.Property<decimal>("MaximumWeightKg")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("PesoMaximoKg");
+
+                    b.Property<decimal>("MinimumWeightKg")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("PesoMinimoKg");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("Precio");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaActualizacion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("CremationPackageId", "CremationType", "MinimumWeightKg", "MaximumWeightKg")
+                        .IsUnique();
+
+                    b.ToTable("PreciosCremacion", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationPricingConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("Id");
+
+                    b.Property<bool>("AllowIndividualNoAshes")
+                        .HasColumnType("boolean")
+                        .HasColumnName("PermitirIndividualSinCenizas");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaCreacion");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaActualizacion");
+
+                    b.Property<int>("WeightInterval")
+                        .HasColumnType("integer")
+                        .HasColumnName("IntervaloPesoKg");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ConfiguracionPreciosCremacion", (string)null);
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Customer", b =>
@@ -615,6 +859,77 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.Urn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("Id");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Color");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaCreacion");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("Descripcion");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("OrdenVisualizacion");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("UrlImagen");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Activo");
+
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Publico");
+
+                    b.Property<string>("Material")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("Material");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("Nombre");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("Precio");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaActualizacion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DisplayOrder");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("IsPublic");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Urnas", (string)null);
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -982,15 +1297,59 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .HasForeignKey("AssignedToUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("pcms.Domain.Entities.CremationPackage", "CremationPackage")
+                        .WithMany("Cremations")
+                        .HasForeignKey("CremationPackageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("pcms.Domain.Entities.Reception", "Reception")
                         .WithOne("Cremation")
                         .HasForeignKey("pcms.Domain.Entities.Cremation", "ReceptionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("pcms.Domain.Entities.Urn", "Urn")
+                        .WithMany("Cremations")
+                        .HasForeignKey("UrnId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("AssignedToUser");
 
+                    b.Navigation("CremationPackage");
+
                     b.Navigation("Reception");
+
+                    b.Navigation("Urn");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationPackageUrn", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.CremationPackage", "CremationPackage")
+                        .WithMany("UrnOptions")
+                        .HasForeignKey("CremationPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.Urn", "Urn")
+                        .WithMany("PackageOptions")
+                        .HasForeignKey("UrnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CremationPackage");
+
+                    b.Navigation("Urn");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationPrice", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.CremationPackage", "CremationPackage")
+                        .WithMany("Prices")
+                        .HasForeignKey("CremationPackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CremationPackage");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Payment", b =>
@@ -1171,6 +1530,15 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("PaymentAccount");
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.CremationPackage", b =>
+                {
+                    b.Navigation("Cremations");
+
+                    b.Navigation("Prices");
+
+                    b.Navigation("UrnOptions");
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.Customer", b =>
                 {
                     b.Navigation("Pets");
@@ -1198,6 +1566,13 @@ namespace pcms.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("pcms.Domain.Entities.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Urn", b =>
+                {
+                    b.Navigation("Cremations");
+
+                    b.Navigation("PackageOptions");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.User", b =>

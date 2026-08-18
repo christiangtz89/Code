@@ -4,16 +4,21 @@ using pcms.Application.Cremations.Interfaces;
 using pcms.Domain.Entities;
 using pcms.Domain.Enums;
 using pcms.Infrastructure.Persistence;
+using pcms.Application.CremationPricing.Interfaces;
 
 namespace pcms.Infrastructure.Services;
 
 public class CremationService : ICremationService
 {
     private readonly AppDbContext _context;
+    private readonly ICremationPricingService _cremationPricingService;
 
-    public CremationService(AppDbContext context)
+    public CremationService(
+        AppDbContext context,
+        ICremationPricingService cremationPricingService)
     {
         _context = context;
+        _cremationPricingService = cremationPricingService;
     }
 
     private static string BuildCustomerName(
@@ -37,27 +42,16 @@ public class CremationService : ICremationService
     public async Task<CremationDto> CreateAsync(
     CreateCremationDto dto)
     {
-        if (!Enum.IsDefined(
-                typeof(CremationType),
-                dto.CremationType))
+        if (dto.ReceptionId == Guid.Empty)
         {
             throw new ArgumentException(
-                "El tipo de cremación no es válido.");
+                "Debe seleccionar una recepción válida.");
         }
 
-        var packageName = dto.PackageName.Trim();
-
-        if (string.IsNullOrWhiteSpace(packageName))
+        if (dto.CremationPackageId == Guid.Empty)
         {
             throw new ArgumentException(
-                "El nombre del paquete es obligatorio.");
-        }
-
-        if (dto.IncludesUrn &&
-            string.IsNullOrWhiteSpace(dto.UrnDescription))
-        {
-            throw new ArgumentException(
-                "Debe proporcionar una descripción de la urna.");
+                "Debe seleccionar un paquete o servicio válido.");
         }
 
         var reception = await _context.Receptions
@@ -74,6 +68,12 @@ public class CremationService : ICremationService
                 "No se encontró una recepción activa.");
         }
 
+        if (reception.VerifiedWeightKg <= 0)
+        {
+            throw new InvalidOperationException(
+                "La recepción no tiene un peso verificado válido.");
+        }
+
         var cremationExists = await _context.Cremations
             .AnyAsync(c =>
                 c.ReceptionId == dto.ReceptionId);
@@ -83,6 +83,77 @@ public class CremationService : ICremationService
             throw new InvalidOperationException(
                 "La recepción ya tiene una cremación registrada.");
         }
+
+        var package = await _context.CremationPackages
+    .AsNoTracking()
+    .FirstOrDefaultAsync(p =>
+        p.Id == dto.CremationPackageId &&
+        p.IsActive);
+
+        if (package == null)
+        {
+            throw new InvalidOperationException(
+                "No se encontró un paquete o servicio de cremación activo.");
+        }
+
+        var cremationType =
+        package.PackageType switch
+        {
+            CremationPackageType.AshesReturn =>
+                CremationType.Individual,
+
+            CremationPackageType.NoAshes =>
+                CremationType.Communal,
+
+            _ => throw new InvalidOperationException(
+                "El tipo de paquete de cremación no es válido.")
+        };
+
+        Urn? urn = null;
+
+        if (package.IncludesUrn)
+        {
+            if (!dto.UrnId.HasValue)
+            {
+                throw new ArgumentException(
+                    "Debe seleccionar una urna para este paquete.");
+            }
+
+            urn = await _context.CremationPackageUrns
+                .AsNoTracking()
+                .Where(option =>
+                    option.CremationPackageId == package.Id &&
+                    option.UrnId == dto.UrnId.Value &&
+                    option.IsActive &&
+                    option.Urn.IsActive)
+                .Select(option => option.Urn)
+                .FirstOrDefaultAsync();
+
+            if (urn == null)
+            {
+                throw new InvalidOperationException(
+                    "La urna seleccionada no está permitida para este paquete o está inactiva.");
+            }
+        }
+        else if (dto.UrnId.HasValue)
+        {
+            throw new ArgumentException(
+                "El paquete seleccionado no incluye urna.");
+        }
+
+        var accessoryDescription =
+            package.IncludesPawPrint
+                ? string.IsNullOrWhiteSpace(
+                    dto.AccessoryDescription)
+                    ? package.AccessoryDescription
+                    : dto.AccessoryDescription.Trim()
+                : null;
+
+        var quote =
+    await _cremationPricingService.GetQuoteAsync(
+        package.Id,
+        reception.VerifiedWeightKg,
+        cremationType);
 
         if (dto.ScheduledAt.HasValue &&
             dto.ScheduledAt.Value < reception.ReceivedAt)
@@ -115,22 +186,35 @@ public class CremationService : ICremationService
             Id = Guid.NewGuid(),
             ReceptionId = reception.Id,
             AssignedToUserId = assignedUser?.Id,
-            CremationType = dto.CremationType,
+            CremationPackageId = package.Id,
+            UrnId = urn?.Id,
+
+            CremationType = cremationType,
 
             Status = dto.ScheduledAt.HasValue
                 ? CremationStatus.Scheduled
                 : CremationStatus.Pending,
 
-            PackageName = packageName,
+            PackageName = package.Name,
 
-            IncludesUrn = dto.IncludesUrn,
+            IncludesUrn = package.IncludesUrn,
 
-            UrnDescription = dto.IncludesUrn
-                ? dto.UrnDescription?.Trim()
-                : null,
+            UrnDescription = urn?.Name,
 
-            IncludesPawPrint = dto.IncludesPawPrint,
-            IncludesCertificate = dto.IncludesCertificate,
+            IncludesPawPrint = package.IncludesPawPrint,
+            AccessoryDescription = accessoryDescription,
+            IncludesCertificate = package.IncludesCertificate,
+            QuotedPrice =
+    quote.Price,
+
+            QuotedWeightKg =
+    quote.WeightKg,
+
+            QuotedMinimumWeightKg =
+    quote.MinimumWeightKg,
+
+            QuotedMaximumWeightKg =
+    quote.MaximumWeightKg,
             ScheduledAt = dto.ScheduledAt,
 
             SpecialInstructions =
@@ -175,13 +259,30 @@ public class CremationService : ICremationService
 
             CremationType = cremation.CremationType,
             Status = cremation.Status,
+            CremationPackageId = package.Id,
+            CremationPackageName = package.Name,
             PackageName = cremation.PackageName,
 
+            UrnId = urn?.Id,
+            UrnName = urn?.Name,
             IncludesUrn = cremation.IncludesUrn,
             UrnDescription = cremation.UrnDescription,
             IncludesPawPrint = cremation.IncludesPawPrint,
+            AccessoryDescription =
+    cremation.AccessoryDescription,
             IncludesCertificate =
                 cremation.IncludesCertificate,
+            QuotedPrice =
+    cremation.QuotedPrice,
+
+            QuotedWeightKg =
+    cremation.QuotedWeightKg,
+
+            QuotedMinimumWeightKg =
+    cremation.QuotedMinimumWeightKg,
+
+            QuotedMaximumWeightKg =
+    cremation.QuotedMaximumWeightKg,
 
             ScheduledAt = cremation.ScheduledAt,
             StartedAt = cremation.StartedAt,
@@ -247,6 +348,25 @@ public class CremationService : ICremationService
                 Status = c.Status,
                 PackageName = c.PackageName,
 
+                CremationPackageId =
+    c.CremationPackageId,
+
+                CremationPackageName =
+    c.CremationPackage != null
+        ? c.CremationPackage.Name
+        : c.PackageName,
+
+                UrnId =
+    c.UrnId,
+
+                UrnName =
+    c.Urn != null
+        ? c.Urn.Name
+        : c.UrnDescription,
+
+                AccessoryDescription =
+    c.AccessoryDescription,
+
                 IncludesUrn = c.IncludesUrn,
                 UrnDescription = c.UrnDescription,
 
@@ -255,6 +375,18 @@ public class CremationService : ICremationService
 
                 IncludesCertificate =
                     c.IncludesCertificate,
+
+                QuotedPrice =
+    c.QuotedPrice,
+
+                QuotedWeightKg =
+    c.QuotedWeightKg,
+
+                QuotedMinimumWeightKg =
+    c.QuotedMinimumWeightKg,
+
+                QuotedMaximumWeightKg =
+    c.QuotedMaximumWeightKg,
 
                 ScheduledAt = c.ScheduledAt,
                 StartedAt = c.StartedAt,
@@ -325,6 +457,25 @@ public class CremationService : ICremationService
                 Status = c.Status,
                 PackageName = c.PackageName,
 
+                CremationPackageId =
+    c.CremationPackageId,
+
+                CremationPackageName =
+    c.CremationPackage != null
+        ? c.CremationPackage.Name
+        : c.PackageName,
+
+                UrnId =
+    c.UrnId,
+
+                UrnName =
+    c.Urn != null
+        ? c.Urn.Name
+        : c.UrnDescription,
+
+                AccessoryDescription =
+    c.AccessoryDescription,
+
                 IncludesUrn = c.IncludesUrn,
                 UrnDescription = c.UrnDescription,
 
@@ -333,6 +484,11 @@ public class CremationService : ICremationService
 
                 IncludesCertificate =
                     c.IncludesCertificate,
+
+                QuotedPrice = c.QuotedPrice,
+                QuotedWeightKg = c.QuotedWeightKg,
+                QuotedMinimumWeightKg = c.QuotedMinimumWeightKg,
+                QuotedMaximumWeightKg = c.QuotedMaximumWeightKg,
 
                 ScheduledAt = c.ScheduledAt,
                 StartedAt = c.StartedAt,
@@ -394,6 +550,25 @@ public class CremationService : ICremationService
                 Status = c.Status,
                 PackageName = c.PackageName,
 
+                CremationPackageId =
+    c.CremationPackageId,
+
+                CremationPackageName =
+    c.CremationPackage != null
+        ? c.CremationPackage.Name
+        : c.PackageName,
+
+                UrnId =
+    c.UrnId,
+
+                UrnName =
+    c.Urn != null
+        ? c.Urn.Name
+        : c.UrnDescription,
+
+                AccessoryDescription =
+    c.AccessoryDescription,
+
                 IncludesUrn = c.IncludesUrn,
                 UrnDescription = c.UrnDescription,
 
@@ -402,6 +577,18 @@ public class CremationService : ICremationService
 
                 IncludesCertificate =
                     c.IncludesCertificate,
+
+                QuotedPrice =
+    c.QuotedPrice,
+
+                QuotedWeightKg =
+    c.QuotedWeightKg,
+
+                QuotedMinimumWeightKg =
+    c.QuotedMinimumWeightKg,
+
+                QuotedMaximumWeightKg =
+    c.QuotedMaximumWeightKg,
 
                 ScheduledAt = c.ScheduledAt,
                 StartedAt = c.StartedAt,
@@ -472,6 +659,25 @@ public class CremationService : ICremationService
                 Status = c.Status,
                 PackageName = c.PackageName,
 
+                CremationPackageId =
+    c.CremationPackageId,
+
+                CremationPackageName =
+    c.CremationPackage != null
+        ? c.CremationPackage.Name
+        : c.PackageName,
+
+                UrnId =
+    c.UrnId,
+
+                UrnName =
+    c.Urn != null
+        ? c.Urn.Name
+        : c.UrnDescription,
+
+                AccessoryDescription =
+    c.AccessoryDescription,
+
                 IncludesUrn = c.IncludesUrn,
                 UrnDescription = c.UrnDescription,
 
@@ -480,6 +686,11 @@ public class CremationService : ICremationService
 
                 IncludesCertificate =
                     c.IncludesCertificate,
+
+                QuotedPrice = c.QuotedPrice,
+                QuotedWeightKg = c.QuotedWeightKg,
+                QuotedMinimumWeightKg = c.QuotedMinimumWeightKg,
+                QuotedMaximumWeightKg = c.QuotedMaximumWeightKg,
 
                 ScheduledAt = c.ScheduledAt,
                 StartedAt = c.StartedAt,
@@ -504,27 +715,10 @@ public class CremationService : ICremationService
     Guid id,
     UpdateCremationDto dto)
     {
-        if (!Enum.IsDefined(
-                typeof(CremationType),
-                dto.CremationType))
+        if (dto.CremationPackageId == Guid.Empty)
         {
             throw new ArgumentException(
-                "El tipo de cremación no es válido.");
-        }
-
-        var packageName = dto.PackageName.Trim();
-
-        if (string.IsNullOrWhiteSpace(packageName))
-        {
-            throw new ArgumentException(
-                "El nombre del paquete es obligatorio.");
-        }
-
-        if (dto.IncludesUrn &&
-            string.IsNullOrWhiteSpace(dto.UrnDescription))
-        {
-            throw new ArgumentException(
-                "Debe proporcionar una descripción de la urna.");
+                "Debe seleccionar un paquete o servicio válido.");
         }
 
         var cremation = await _context.Cremations
@@ -538,6 +732,195 @@ public class CremationService : ICremationService
         if (cremation == null)
         {
             return null;
+        }
+
+        if (cremation.Reception.VerifiedWeightKg <= 0)
+        {
+            throw new InvalidOperationException(
+                "La recepción no tiene un peso verificado válido.");
+        }
+
+        var packageChanged =
+    cremation.CremationPackageId !=
+    dto.CremationPackageId;
+
+        var urnChanged =
+            cremation.UrnId != dto.UrnId;
+
+        var canInitializeLegacyQuote =
+            cremation.CremationPackageId is null &&
+            cremation.QuotedPrice is null &&
+            !await _context.PaymentAccounts
+                .AsNoTracking()
+                .AnyAsync(account =>
+                    account.CremationId == cremation.Id);
+
+        if (cremation.Status is
+            CremationStatus.InProgress or
+            CremationStatus.Cooling or
+            CremationStatus.ProcessingRemains or
+            CremationStatus.Completed or
+            CremationStatus.ReadyForDelivery or
+            CremationStatus.Delivered)
+        {
+            if (cremation.CremationPackageId !=
+                dto.CremationPackageId ||
+                cremation.UrnId != dto.UrnId)
+            {
+                if (!canInitializeLegacyQuote)
+                {
+                    throw new InvalidOperationException(
+                        "No se puede cambiar el paquete o la urna después de iniciar la cremación.");
+                }
+            }
+        }
+
+        var package = await _context.CremationPackages
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p =>
+                p.Id == dto.CremationPackageId);
+
+        if (package == null)
+        {
+            throw new InvalidOperationException(
+                "No se encontró el paquete o servicio de cremación.");
+        }
+
+        if (packageChanged && !package.IsActive)
+        {
+            throw new InvalidOperationException(
+                "No se puede seleccionar un paquete o servicio de cremación inactivo.");
+        }
+
+        var cremationType = packageChanged
+            ? package.PackageType switch
+              {
+                  CremationPackageType.AshesReturn =>
+                      CremationType.Individual,
+
+                  CremationPackageType.NoAshes =>
+                      CremationType.Communal,
+
+                  _ => throw new InvalidOperationException(
+                      "El tipo de paquete de cremación no es válido.")
+              }
+            : cremation.CremationType;
+
+        var includesUrn = packageChanged
+            ? package.IncludesUrn
+            : cremation.IncludesUrn;
+
+        Urn? urn = null;
+
+        if (includesUrn)
+        {
+            if (!dto.UrnId.HasValue)
+            {
+                throw new ArgumentException(
+                    "Debe seleccionar una urna para este paquete.");
+            }
+
+            if (packageChanged || urnChanged)
+            {
+                urn = await _context.CremationPackageUrns
+                    .AsNoTracking()
+                    .Where(option =>
+                        option.CremationPackageId == package.Id &&
+                        option.UrnId == dto.UrnId.Value &&
+                        option.IsActive &&
+                        option.Urn.IsActive)
+                    .Select(option => option.Urn)
+                    .FirstOrDefaultAsync();
+            }
+            else
+            {
+                urn = await _context.Urns
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u =>
+                        u.Id == dto.UrnId.Value);
+            }
+
+            if (urn == null)
+            {
+                throw new InvalidOperationException(
+                    packageChanged || urnChanged
+                        ? "La urna seleccionada no está permitida para este paquete o está inactiva."
+                        : "No se encontró la urna asociada a la cremación.");
+            }
+        }
+        else if (dto.UrnId.HasValue)
+        {
+            throw new ArgumentException(
+                "El paquete seleccionado no incluye urna.");
+        }
+
+        var accessoryDescription =
+            cremation.AccessoryDescription;
+
+        if (packageChanged)
+        {
+            accessoryDescription =
+                package.IncludesPawPrint
+                    ? string.IsNullOrWhiteSpace(
+                        dto.AccessoryDescription)
+                        ? package.AccessoryDescription
+                        : dto.AccessoryDescription.Trim()
+                    : null;
+        }
+        else if (cremation.IncludesPawPrint &&
+                 !string.IsNullOrWhiteSpace(
+                     dto.AccessoryDescription))
+        {
+            accessoryDescription =
+                dto.AccessoryDescription.Trim();
+        }
+
+        if (packageChanged)
+        {
+            var updatedQuote =
+                await _cremationPricingService.GetQuoteAsync(
+                    package.Id,
+                    cremation.Reception.VerifiedWeightKg,
+                    cremationType);
+
+            var paymentAccount =
+                await _context.PaymentAccounts
+                    .Include(account => account.Payments)
+                    .FirstOrDefaultAsync(account =>
+                        account.CremationId ==
+                        cremation.Id);
+
+            if (paymentAccount is not null)
+            {
+                var amountPaid =
+                    paymentAccount.Payments.Sum(
+                        payment => payment.Amount);
+
+                if (updatedQuote.Price < amountPaid)
+                {
+                    throw new InvalidOperationException(
+                        $"El nuevo precio cotizado ({updatedQuote.Price:C2}) " +
+                        $"no puede ser menor que el monto ya pagado ({amountPaid:C2}).");
+                }
+
+                paymentAccount.ServiceTotal =
+                    updatedQuote.Price;
+
+                paymentAccount.UpdatedAt =
+                    DateTime.UtcNow;
+            }
+
+            cremation.QuotedPrice =
+                updatedQuote.Price;
+
+            cremation.QuotedWeightKg =
+                updatedQuote.WeightKg;
+
+            cremation.QuotedMinimumWeightKg =
+                updatedQuote.MinimumWeightKg;
+
+            cremation.QuotedMaximumWeightKg =
+                updatedQuote.MaximumWeightKg;
         }
 
         if (dto.ScheduledAt.HasValue &&
@@ -566,27 +949,40 @@ public class CremationService : ICremationService
         }
 
         cremation.AssignedToUserId =
-            dto.AssignedToUserId;
+    assignedUser?.Id;
 
-        cremation.CremationType =
-            dto.CremationType;
+        cremation.CremationPackageId =
+            package.Id;
 
-        cremation.PackageName =
-            packageName;
+        cremation.UrnId =
+            urn?.Id;
 
-        cremation.IncludesUrn =
-            dto.IncludesUrn;
+        if (packageChanged)
+        {
+            cremation.CremationType =
+                cremationType;
 
-        cremation.UrnDescription =
-            dto.IncludesUrn
-                ? dto.UrnDescription?.Trim()
-                : null;
+            cremation.PackageName =
+                package.Name;
 
-        cremation.IncludesPawPrint =
-            dto.IncludesPawPrint;
+            cremation.IncludesUrn =
+                package.IncludesUrn;
 
-        cremation.IncludesCertificate =
-            dto.IncludesCertificate;
+            cremation.IncludesPawPrint =
+                package.IncludesPawPrint;
+
+            cremation.IncludesCertificate =
+                package.IncludesCertificate;
+        }
+
+        cremation.AccessoryDescription =
+            accessoryDescription;
+
+        if (packageChanged || urnChanged)
+        {
+            cremation.UrnDescription =
+                urn?.Name;
+        }
 
         cremation.ScheduledAt =
             dto.ScheduledAt;
@@ -641,23 +1037,39 @@ public class CremationService : ICremationService
                     : assignedUser.FirstName + " " +
                       assignedUser.LastName,
 
-            CremationType =
-                cremation.CremationType,
-
+            CremationType = cremation.CremationType,
             Status = cremation.Status,
+
             PackageName = cremation.PackageName,
 
-            IncludesUrn =
-                cremation.IncludesUrn,
+            CremationPackageId = package.Id,
+            CremationPackageName = package.Name,
 
-            UrnDescription =
-                cremation.UrnDescription,
+            UrnId = urn?.Id,
+            UrnName = urn?.Name,
 
-            IncludesPawPrint =
-                cremation.IncludesPawPrint,
+            IncludesUrn = cremation.IncludesUrn,
+            UrnDescription = cremation.UrnDescription,
+
+            IncludesPawPrint = cremation.IncludesPawPrint,
+
+            AccessoryDescription =
+    cremation.AccessoryDescription,
 
             IncludesCertificate =
-                cremation.IncludesCertificate,
+    cremation.IncludesCertificate,
+
+            QuotedPrice =
+    cremation.QuotedPrice,
+
+            QuotedWeightKg =
+    cremation.QuotedWeightKg,
+
+            QuotedMinimumWeightKg =
+    cremation.QuotedMinimumWeightKg,
+
+            QuotedMaximumWeightKg =
+    cremation.QuotedMaximumWeightKg,
 
             ScheduledAt =
                 cremation.ScheduledAt,
@@ -832,6 +1244,25 @@ public class CremationService : ICremationService
             Status = cremation.Status,
             PackageName = cremation.PackageName,
 
+            CremationPackageId =
+    cremation.CremationPackageId,
+
+            CremationPackageName =
+    cremation.CremationPackage != null
+        ? cremation.CremationPackage.Name
+        : cremation.PackageName,
+
+            UrnId =
+    cremation.UrnId,
+
+            UrnName =
+    cremation.Urn != null
+        ? cremation.Urn.Name
+        : cremation.UrnDescription,
+
+            AccessoryDescription =
+    cremation.AccessoryDescription,
+
             IncludesUrn =
                 cremation.IncludesUrn,
 
@@ -843,6 +1274,18 @@ public class CremationService : ICremationService
 
             IncludesCertificate =
                 cremation.IncludesCertificate,
+
+            QuotedPrice =
+    cremation.QuotedPrice,
+
+            QuotedWeightKg =
+    cremation.QuotedWeightKg,
+
+            QuotedMinimumWeightKg =
+    cremation.QuotedMinimumWeightKg,
+
+            QuotedMaximumWeightKg =
+    cremation.QuotedMaximumWeightKg,
 
             ScheduledAt =
                 cremation.ScheduledAt,
@@ -1008,6 +1451,25 @@ public class CremationService : ICremationService
                 Status = c.Status,
                 PackageName = c.PackageName,
 
+                CremationPackageId =
+    c.CremationPackageId,
+
+                CremationPackageName =
+    c.CremationPackage != null
+        ? c.CremationPackage.Name
+        : c.PackageName,
+
+                UrnId =
+    c.UrnId,
+
+                UrnName =
+    c.Urn != null
+        ? c.Urn.Name
+        : c.UrnDescription,
+
+                AccessoryDescription =
+    c.AccessoryDescription,
+
                 IncludesUrn = c.IncludesUrn,
                 UrnDescription = c.UrnDescription,
 
@@ -1016,6 +1478,18 @@ public class CremationService : ICremationService
 
                 IncludesCertificate =
                     c.IncludesCertificate,
+
+                QuotedPrice =
+    c.QuotedPrice,
+
+                QuotedWeightKg =
+    c.QuotedWeightKg,
+
+                QuotedMinimumWeightKg =
+    c.QuotedMinimumWeightKg,
+
+                QuotedMaximumWeightKg =
+    c.QuotedMaximumWeightKg,
 
                 ScheduledAt = c.ScheduledAt,
                 StartedAt = c.StartedAt,

@@ -38,13 +38,29 @@ export interface Cremation {
   cremationType: CremationType;
   status: CremationStatus;
 
+  cremationPackageId: string | null;
+  cremationPackageName: string | null;
+
   packageName: string;
+
+  urnId: string | null;
+  urnName: string | null;
 
   includesUrn: boolean;
   urnDescription: string | null;
 
   includesPawPrint: boolean;
+  accessoryDescription: string | null;
+
   includesCertificate: boolean;
+
+  quotedPrice: number | null;
+
+  quotedWeightKg: number | null;
+
+  quotedMinimumWeightKg: number | null;
+
+  quotedMaximumWeightKg: number | null;
 
   scheduledAt: string | null;
   startedAt: string | null;
@@ -61,21 +77,13 @@ export interface Cremation {
 
 export interface CreateCremationPayload {
   receptionId: string;
-
   assignedToUserId: string | null;
 
-  cremationType: CremationType;
-
-  packageName: string;
-
-  includesUrn: boolean;
-  urnDescription: string | null;
-
-  includesPawPrint: boolean;
-  includesCertificate: boolean;
+  cremationPackageId: string;
+  urnId: string | null;
+  accessoryDescription: string | null;
 
   scheduledAt: string | null;
-
   specialInstructions: string | null;
   notes: string | null;
 }
@@ -83,18 +91,11 @@ export interface CreateCremationPayload {
 export interface UpdateCremationPayload {
   assignedToUserId: string | null;
 
-  cremationType: CremationType;
-
-  packageName: string;
-
-  includesUrn: boolean;
-  urnDescription: string | null;
-
-  includesPawPrint: boolean;
-  includesCertificate: boolean;
+  cremationPackageId: string;
+  urnId: string | null;
+  accessoryDescription: string | null;
 
   scheduledAt: string | null;
-
   specialInstructions: string | null;
   notes: string | null;
 }

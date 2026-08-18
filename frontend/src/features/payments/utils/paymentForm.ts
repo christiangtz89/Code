@@ -2,12 +2,8 @@ import {
   PaymentMethod,
   type CreatePaymentAccountPayload,
   type CreatePaymentPayload,
-  type UpdatePaymentAccountPayload,
 } from "../types/payment.types";
-import type {
-  CreatePaymentAccountFormValues,
-  UpdatePaymentAccountFormValues,
-} from "../schemas/paymentAccountSchema";
+import type { CreatePaymentAccountFormValues } from "../schemas/paymentAccountSchema";
 import type { PaymentFormValues } from "../schemas/paymentSchema";
 
 function normalizeOptional(value: string): string | null {
@@ -45,15 +41,6 @@ export function createPaymentAccountPayload(
 ): CreatePaymentAccountPayload {
   return {
     cremationId: values.cremationId,
-    serviceTotal: values.serviceTotal,
-  };
-}
-
-export function updatePaymentAccountPayload(
-  values: UpdatePaymentAccountFormValues,
-): UpdatePaymentAccountPayload {
-  return {
-    serviceTotal: values.serviceTotal,
   };
 }
 

@@ -30,6 +30,18 @@ public class AppDbContext : DbContext
 
     public DbSet<Cremation> Cremations { get; set; }
 
+    public DbSet<CremationPackage> CremationPackages { get; set; }
+
+    public DbSet<Urn> Urns { get; set; }
+
+    public DbSet<CremationPackageUrn> CremationPackageUrns { get; set; }
+
+    public DbSet<CremationPricingConfiguration> CremationPricingConfigurations =>
+        Set<CremationPricingConfiguration>();
+
+    public DbSet<CremationPrice> CremationPrices =>
+        Set<CremationPrice>();
+
     public DbSet<PaymentAccount> PaymentAccounts { get; set; }
 
     public DbSet<Payment> Payments { get; set; }
@@ -758,6 +770,280 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // Cremation package catalog configuration
+        modelBuilder.Entity<CremationPackage>(entity =>
+        {
+            entity.ToTable("PaquetesCremacion");
+
+            entity.HasKey(p => p.Id);
+
+            entity.Property(p => p.Id)
+                .HasColumnName("Id");
+
+            entity.Property(p => p.Name)
+                .HasColumnName("Nombre")
+                .HasMaxLength(150)
+                .IsRequired();
+
+            entity.Property(p => p.ShortDescription)
+                .HasColumnName("DescripcionCorta")
+                .HasMaxLength(250);
+
+            entity.Property(p => p.Description)
+                .HasColumnName("Descripcion")
+                .HasMaxLength(1000);
+
+            entity.Property(p => p.IncludesUrn)
+                .HasColumnName("IncluyeUrna")
+                .IsRequired();
+
+            entity.Property(p => p.IncludesPawPrint)
+                .HasColumnName("IncluyeHuella")
+                .IsRequired();
+
+            entity.Property(p => p.AccessoryDescription)
+                .HasColumnName("DescripcionAccesorio")
+                .HasMaxLength(500);
+
+            entity.Property(p => p.IncludesCertificate)
+                .HasColumnName("IncluyeCertificado")
+                .IsRequired();
+
+            entity.Property(p => p.ImageUrl)
+                .HasColumnName("UrlImagen")
+                .HasMaxLength(500);
+
+            entity.Property(p => p.IsPublic)
+                .HasColumnName("EsPublico")
+                .IsRequired();
+
+            entity.Property(p => p.DisplayOrder)
+                .HasColumnName("OrdenVisualizacion")
+                .IsRequired();
+
+            entity.Property(p => p.IsActive)
+                .HasColumnName("Activo")
+                .IsRequired();
+
+            entity.Property(p => p.CreatedAt)
+                .HasColumnName("FechaCreacion")
+                .IsRequired();
+
+            entity.Property(p => p.UpdatedAt)
+                .HasColumnName("FechaActualizacion");
+
+            entity.Property(e => e.PackageType)
+            .HasColumnName("TipoPaquete")
+            .HasConversion<int>();
+
+            entity.Property(e => e.Tier)
+        .HasColumnName("Nivel");
+
+            entity.HasIndex(p => p.Name);
+
+            entity.HasIndex(p => p.IsActive);
+
+            entity.HasIndex(p => p.IsPublic);
+
+            entity.HasIndex(p => p.DisplayOrder);
+        });
+
+        // Cremation Pricing configuration
+        modelBuilder.Entity<CremationPricingConfiguration>(entity =>
+        {
+            entity.ToTable("ConfiguracionPreciosCremacion");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnName("Id");
+
+            entity.Property(e => e.WeightInterval)
+                .HasColumnName("IntervaloPesoKg")
+                .HasConversion<int>();
+
+            entity.Property(e => e.AllowIndividualNoAshes)
+                .HasColumnName("PermitirIndividualSinCenizas");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("FechaCreacion");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("FechaActualizacion");
+        });
+
+        // Cremation Price
+        modelBuilder.Entity<CremationPrice>(entity =>
+        {
+            entity.ToTable("PreciosCremacion");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Id)
+                .HasColumnName("Id");
+
+            entity.Property(e => e.CremationPackageId)
+                .HasColumnName("PaqueteCremacionId");
+
+            entity.Property(e => e.CremationType)
+                .HasColumnName("TipoCremacion")
+                .HasConversion<int>();
+
+            entity.Property(e => e.MinimumWeightKg)
+                .HasColumnName("PesoMinimoKg")
+                .HasPrecision(10, 2);
+
+            entity.Property(e => e.MaximumWeightKg)
+                .HasColumnName("PesoMaximoKg")
+                .HasPrecision(10, 2);
+
+            entity.Property(e => e.Price)
+                .HasColumnName("Precio")
+                .HasPrecision(12, 2);
+
+            entity.Property(x => x.IsPublic)
+            .HasColumnName("EsPublico")
+            .HasDefaultValue(true);
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("Activo");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("FechaCreacion");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("FechaActualizacion");
+
+            entity.HasOne(e => e.CremationPackage)
+                .WithMany(e => e.Prices)
+                .HasForeignKey(e => e.CremationPackageId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new
+            {
+                e.CremationPackageId,
+                e.CremationType,
+                e.MinimumWeightKg,
+                e.MaximumWeightKg
+            })
+                .IsUnique();
+
+            entity.HasIndex(e => e.IsActive);
+        });
+
+        // Urn catalog configuration
+        modelBuilder.Entity<Urn>(entity =>
+        {
+            entity.ToTable("Urnas");
+
+            entity.HasKey(u => u.Id);
+
+            entity.Property(u => u.Id)
+                .HasColumnName("Id");
+
+            entity.Property(u => u.Name)
+                .HasColumnName("Nombre")
+                .HasMaxLength(150)
+                .IsRequired();
+
+            entity.Property(u => u.Description)
+                .HasColumnName("Descripcion")
+                .HasMaxLength(1000);
+
+            entity.Property(u => u.Price)
+                .HasColumnName("Precio")
+                .HasPrecision(12, 2)
+                .IsRequired();
+
+            entity.Property(u => u.Material)
+                .HasColumnName("Material")
+                .HasMaxLength(100);
+
+            entity.Property(u => u.Color)
+                .HasColumnName("Color")
+                .HasMaxLength(100);
+
+            entity.Property(u => u.ImageUrl)
+                .HasColumnName("UrlImagen")
+                .HasMaxLength(500);
+
+            entity.Property(u => u.IsPublic)
+                .HasColumnName("Publico")
+                .IsRequired();
+
+            entity.Property(u => u.DisplayOrder)
+                .HasColumnName("OrdenVisualizacion")
+                .IsRequired();
+
+            entity.Property(u => u.IsActive)
+                .HasColumnName("Activo")
+                .IsRequired();
+
+            entity.Property(u => u.CreatedAt)
+                .HasColumnName("FechaCreacion")
+                .IsRequired();
+
+            entity.Property(u => u.UpdatedAt)
+                .HasColumnName("FechaActualizacion");
+
+            entity.HasIndex(u => u.Name);
+
+            entity.HasIndex(u => u.IsActive);
+
+            entity.HasIndex(u => u.IsPublic);
+
+            entity.HasIndex(u => u.DisplayOrder);
+        });
+
+        // Allowed urns per cremation package
+        modelBuilder.Entity<CremationPackageUrn>(entity =>
+        {
+            entity.ToTable("PaquetesCremacionUrnas");
+
+            entity.HasKey(option => option.Id);
+
+            entity.Property(option => option.Id)
+                .HasColumnName("Id");
+
+            entity.Property(option => option.CremationPackageId)
+                .HasColumnName("PaqueteCremacionId")
+                .IsRequired();
+
+            entity.Property(option => option.UrnId)
+                .HasColumnName("UrnaId")
+                .IsRequired();
+
+            entity.Property(option => option.IsActive)
+                .HasColumnName("Activo")
+                .IsRequired();
+
+            entity.Property(option => option.CreatedAt)
+                .HasColumnName("FechaCreacion")
+                .IsRequired();
+
+            entity.Property(option => option.UpdatedAt)
+                .HasColumnName("FechaActualizacion");
+
+            entity.HasOne(option => option.CremationPackage)
+                .WithMany(package => package.UrnOptions)
+                .HasForeignKey(option => option.CremationPackageId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(option => option.Urn)
+                .WithMany(urn => urn.PackageOptions)
+                .HasForeignKey(option => option.UrnId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(option => new
+            {
+                option.CremationPackageId,
+                option.UrnId
+            })
+                .IsUnique();
+
+            entity.HasIndex(option => option.IsActive);
+        });
+
         // Cremation table configuration
         modelBuilder.Entity<Cremation>(entity =>
         {
@@ -774,6 +1060,12 @@ public class AppDbContext : DbContext
 
             entity.Property(c => c.AssignedToUserId)
                 .HasColumnName("AsignadoAUsuarioId");
+
+            entity.Property(c => c.CremationPackageId)
+    .HasColumnName("PaqueteCremacionId");
+
+            entity.Property(c => c.UrnId)
+                .HasColumnName("UrnaId");
 
             entity.Property(c => c.CremationType)
                 .HasColumnName("TipoCremacion")
@@ -802,9 +1094,29 @@ public class AppDbContext : DbContext
                 .HasColumnName("IncluyeHuella")
                 .IsRequired();
 
+            entity.Property(c => c.AccessoryDescription)
+    .HasColumnName("DescripcionAccesorio")
+    .HasMaxLength(500);
+
             entity.Property(c => c.IncludesCertificate)
                 .HasColumnName("IncluyeCertificado")
                 .IsRequired();
+
+            entity.Property(x => x.QuotedPrice)
+    .HasColumnName("PrecioCotizado")
+    .HasColumnType("numeric(12,2)");
+
+            entity.Property(x => x.QuotedWeightKg)
+                .HasColumnName("PesoCotizadoKg")
+                .HasColumnType("numeric(10,2)");
+
+            entity.Property(x => x.QuotedMinimumWeightKg)
+                .HasColumnName("PesoMinimoCotizadoKg")
+                .HasColumnType("numeric(10,2)");
+
+            entity.Property(x => x.QuotedMaximumWeightKg)
+                .HasColumnName("PesoMaximoCotizadoKg")
+                .HasColumnType("numeric(10,2)");
 
             entity.Property(c => c.ScheduledAt)
                 .HasColumnName("FechaProgramada");
@@ -846,6 +1158,10 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(c => c.ScheduledAt);
 
+            entity.HasIndex(c => c.CremationPackageId);
+
+            entity.HasIndex(c => c.UrnId);
+
             entity.HasOne(c => c.Reception)
                 .WithOne(r => r.Cremation)
                 .HasForeignKey<Cremation>(c => c.ReceptionId)
@@ -855,6 +1171,17 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(c => c.AssignedToUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.CremationPackage)
+    .WithMany(p => p.Cremations)
+    .HasForeignKey(c => c.CremationPackageId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.Urn)
+                .WithMany(u => u.Cremations)
+                .HasForeignKey(c => c.UrnId)
+                .OnDelete(DeleteBehavior.Restrict);
+
         });
 
         // Payment account table configuration

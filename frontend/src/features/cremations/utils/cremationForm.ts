@@ -1,20 +1,17 @@
-import {
-  CremationType,
-  type CreateCremationPayload,
-  type Cremation,
-  type UpdateCremationPayload,
+import type {
+  CreateCremationPayload,
+  Cremation,
+  UpdateCremationPayload,
 } from "../types/cremation.types";
+
 import type { CremationFormValues } from "../schemas/cremationSchema";
 
 export const defaultCremationFormValues: CremationFormValues = {
   receptionId: "",
   assignedToUserId: "",
-  cremationType: CremationType.Individual,
-  packageName: "",
-  includesUrn: false,
-  urnDescription: "",
-  includesPawPrint: false,
-  includesCertificate: false,
+  cremationPackageId: "",
+  urnId: "",
+  accessoryDescription: "",
   scheduledAt: "",
   specialInstructions: "",
   notes: "",
@@ -66,19 +63,11 @@ export function createCremationPayload(
 
     assignedToUserId: normalizeOptional(values.assignedToUserId),
 
-    cremationType: values.cremationType,
+    cremationPackageId: values.cremationPackageId,
 
-    packageName: values.packageName.trim(),
+    urnId: values.urnId || null,
 
-    includesUrn: values.includesUrn,
-
-    urnDescription: values.includesUrn
-      ? normalizeOptional(values.urnDescription)
-      : null,
-
-    includesPawPrint: values.includesPawPrint,
-
-    includesCertificate: values.includesCertificate,
+    accessoryDescription: values.accessoryDescription.trim() || null,
 
     scheduledAt: localDateTimeToIso(values.scheduledAt),
 
@@ -94,19 +83,11 @@ export function updateCremationPayload(
   return {
     assignedToUserId: normalizeOptional(values.assignedToUserId),
 
-    cremationType: values.cremationType,
+    cremationPackageId: values.cremationPackageId,
 
-    packageName: values.packageName.trim(),
+    urnId: values.urnId || null,
 
-    includesUrn: values.includesUrn,
-
-    urnDescription: values.includesUrn
-      ? normalizeOptional(values.urnDescription)
-      : null,
-
-    includesPawPrint: values.includesPawPrint,
-
-    includesCertificate: values.includesCertificate,
+    accessoryDescription: values.accessoryDescription.trim() || null,
 
     scheduledAt: localDateTimeToIso(values.scheduledAt),
 
@@ -124,17 +105,11 @@ export function cremationToFormValues(
 
     assignedToUserId: cremation.assignedToUserId ?? "",
 
-    cremationType: cremation.cremationType,
+    cremationPackageId: cremation.cremationPackageId ?? "",
 
-    packageName: cremation.packageName,
+    urnId: cremation.urnId ?? "",
 
-    includesUrn: cremation.includesUrn,
-
-    urnDescription: cremation.urnDescription ?? "",
-
-    includesPawPrint: cremation.includesPawPrint,
-
-    includesCertificate: cremation.includesCertificate,
+    accessoryDescription: cremation.accessoryDescription ?? "",
 
     scheduledAt: isoToLocalDateTime(cremation.scheduledAt),
 

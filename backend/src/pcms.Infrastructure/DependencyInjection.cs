@@ -13,6 +13,9 @@ using pcms.Application.Cremations.Interfaces;
 using pcms.Application.Payments.Interfaces;
 using pcms.Application.VeterinaryRequests.Interfaces;
 using pcms.Application.Collections.Interfaces;
+using pcms.Application.CremationPackages.Interfaces;
+using pcms.Application.Urns.Interfaces;
+using pcms.Application.CremationPricing.Interfaces;
 
 namespace pcms.Infrastructure;
 
@@ -47,7 +50,13 @@ public static class DependencyInjection
 
         services.AddScoped<ICremationService, CremationService>();
 
+        services.AddScoped<ICremationPackageService, CremationPackageService>();
+
+        services.AddScoped<IUrnService, UrnService>();
+
         services.AddScoped<IPaymentService, PaymentService>();
+
+        services.AddScoped<ICremationPricingService, CremationPricingService>();
 
         services.AddScoped<
             IVeterinaryRequestService,

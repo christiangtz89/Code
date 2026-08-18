@@ -9,6 +9,10 @@ import {
 } from "../utils/cremationDisplay";
 import { isTerminalCremationStatus } from "../utils/cremationStatus";
 import { CremationStatus, type Cremation } from "../types/cremation.types";
+import {
+  formatCurrency,
+  formatWeightRange,
+} from "../../cremation-pricing/utils";
 
 interface CremationsTableProps {
   cremations: Cremation[];
@@ -106,6 +110,10 @@ export function CremationsTable({
               </th>
 
               <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Cotización
+              </th>
+
+              <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Programación
               </th>
 
@@ -185,6 +193,46 @@ export function CremationsTable({
                     {cremation.includesUrn && cremation.urnDescription && (
                       <p className="mt-2 max-w-48 text-xs text-slate-500">
                         {cremation.urnDescription}
+                      </p>
+                    )}
+                  </td>
+
+                  <td className="min-w-56 px-5 py-4">
+                    {cremation.quotedPrice !== null &&
+                    cremation.quotedWeightKg !== null &&
+                    cremation.quotedMinimumWeightKg !== null &&
+                    cremation.quotedMaximumWeightKg !== null ? (
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between gap-4">
+                          <span className="text-slate-500">Precio</span>
+
+                          <span className="font-semibold text-slate-900">
+                            {formatCurrency(cremation.quotedPrice)}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span className="text-slate-500">Peso utilizado</span>
+
+                          <span className="font-medium text-slate-700">
+                            {cremation.quotedWeightKg.toFixed(2)} kg
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span className="text-slate-500">Rango aplicado</span>
+
+                          <span className="font-medium text-slate-700">
+                            {formatWeightRange(
+                              cremation.quotedMinimumWeightKg,
+                              cremation.quotedMaximumWeightKg,
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">
+                        Cotización histórica no disponible.
                       </p>
                     )}
                   </td>

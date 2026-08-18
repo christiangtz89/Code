@@ -14,6 +14,9 @@ import { CremationsPage } from "../features/cremations/pages/CremationsPage";
 import { PaymentsPage } from "../features/payments/pages/PaymentsPage";
 import { VeterinaryRequestsPage } from "../features/veterinary-requests/pages/VeterinaryRequestsPage";
 import { CollectionsPage } from "../features/collections/pages/CollectionsPage";
+import { CremationPackagesPage } from "../features/cremation-packages/pages";
+import { UrnsPage } from "../features/urns/pages";
+import { CremationPricingPage } from "../features/cremation-pricing/pages";
 
 export const router = createBrowserRouter([
   {
@@ -62,6 +65,18 @@ export const router = createBrowserRouter([
           {
             path: "cremations",
             element: <CremationsPage />,
+          },
+          {
+            path: "cremation-packages",
+            element: <CremationPackagesPage />,
+          },
+          {
+            path: "urns",
+            element: <UrnsPage />,
+          },
+          {
+            path: "cremation-pricing",
+            element: <CremationPricingPage />,
           },
           {
             path: "payments",

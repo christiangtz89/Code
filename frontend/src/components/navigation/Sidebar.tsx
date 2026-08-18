@@ -72,6 +72,59 @@ function PetsIcon() {
   );
 }
 
+function PackageIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M4 7.5 12 3l8 4.5-8 4.5-8-4.5Z" />
+      <path d="M4 7.5V16l8 5 8-5V7.5" />
+      <path d="M12 12v9" />
+    </svg>
+  );
+}
+
+function UrnIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M8 4h8" />
+      <path d="M9 4c0 2-2 3-2 6 0 2 1 4 2 6" />
+      <path d="M15 4c0 2 2 3 2 6 0 2-1 4-2 6" />
+      <path d="M9 16h6" />
+      <path d="M10 16v3h4v-3" />
+      <path d="M9 20h6" />
+    </svg>
+  );
+}
+
+function PricingIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M12 3v18" />
+      <path d="M17 7.5c0-1.9-2.1-3-5-3s-5 1.1-5 3 1.7 2.8 5 3.5 5 1.6 5 3.5-2.1 3-5 3-5-1.1-5-3" />
+    </svg>
+  );
+}
+
 function BuildingIcon() {
   return (
     <svg
@@ -260,6 +313,26 @@ const navigationGroups: NavigationGroup[] = [
         to: "/payments",
         label: "Pagos",
         icon: <PaymentIcon />,
+      },
+    ],
+  },
+  {
+    title: "Catálogo y precios",
+    items: [
+      {
+        to: "/cremation-packages",
+        label: "Paquetes",
+        icon: <PackageIcon />,
+      },
+      {
+        to: "/urns",
+        label: "Urnas",
+        icon: <UrnIcon />,
+      },
+      {
+        to: "/cremation-pricing",
+        label: "Precios",
+        icon: <PricingIcon />,
       },
     ],
   },

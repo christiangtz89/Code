@@ -15,15 +15,33 @@ public class Cremation
     public CremationStatus Status { get; set; }
         = CremationStatus.Pending;
 
+    public Guid? CremationPackageId { get; set; }
+
+    public CremationPackage? CremationPackage { get; set; }
+
     public string PackageName { get; set; } = string.Empty;
 
     public bool IncludesUrn { get; set; }
+
+    public Guid? UrnId { get; set; }
+
+    public Urn? Urn { get; set; }
 
     public string? UrnDescription { get; set; }
 
     public bool IncludesPawPrint { get; set; }
 
+    public string? AccessoryDescription { get; set; }
+
     public bool IncludesCertificate { get; set; }
+
+    public decimal? QuotedPrice { get; set; }
+
+    public decimal? QuotedWeightKg { get; set; }
+
+    public decimal? QuotedMinimumWeightKg { get; set; }
+
+    public decimal? QuotedMaximumWeightKg { get; set; }
 
     public DateTime? ScheduledAt { get; set; }
 
