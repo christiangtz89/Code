@@ -6,13 +6,21 @@ import type {
 
 import type { CremationFormValues } from "../schemas/cremationSchema";
 
+export const CREMATION_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hours = Math.floor(index / 2);
+  const minutes = index % 2 === 0 ? "00" : "30";
+
+  return `${hours.toString().padStart(2, "0")}:${minutes}`;
+});
+
 export const defaultCremationFormValues: CremationFormValues = {
   receptionId: "",
   assignedToUserId: "",
   cremationPackageId: "",
   urnId: "",
   accessoryDescription: "",
-  scheduledAt: "",
+  scheduledDate: "",
+  scheduledTime: "",
   specialInstructions: "",
   notes: "",
 };
@@ -37,6 +45,14 @@ export function localDateTimeToIso(value: string): string | null {
   return date.toISOString();
 }
 
+function scheduledDateTimeToIso(date: string, time: string): string | null {
+  if (!date || !time) {
+    return null;
+  }
+
+  return localDateTimeToIso(`${date}T${time}`);
+}
+
 export function isoToLocalDateTime(value: string | null): string {
   if (!value) {
     return "";
@@ -55,6 +71,27 @@ export function isoToLocalDateTime(value: string | null): string {
   return localDate.toISOString().slice(0, 16);
 }
 
+function splitScheduledDateTime(value: string | null): {
+  scheduledDate: string;
+  scheduledTime: string;
+} {
+  const localValue = isoToLocalDateTime(value);
+
+  if (!localValue) {
+    return {
+      scheduledDate: "",
+      scheduledTime: "",
+    };
+  }
+
+  const [scheduledDate, time = ""] = localValue.split("T");
+
+  return {
+    scheduledDate,
+    scheduledTime: time.slice(0, 5),
+  };
+}
+
 export function createCremationPayload(
   values: CremationFormValues,
 ): CreateCremationPayload {
@@ -69,7 +106,10 @@ export function createCremationPayload(
 
     accessoryDescription: values.accessoryDescription.trim() || null,
 
-    scheduledAt: localDateTimeToIso(values.scheduledAt),
+    scheduledAt: scheduledDateTimeToIso(
+      values.scheduledDate,
+      values.scheduledTime,
+    ),
 
     specialInstructions: normalizeOptional(values.specialInstructions),
 
@@ -89,7 +129,10 @@ export function updateCremationPayload(
 
     accessoryDescription: values.accessoryDescription.trim() || null,
 
-    scheduledAt: localDateTimeToIso(values.scheduledAt),
+    scheduledAt: scheduledDateTimeToIso(
+      values.scheduledDate,
+      values.scheduledTime,
+    ),
 
     specialInstructions: normalizeOptional(values.specialInstructions),
 
@@ -100,6 +143,7 @@ export function updateCremationPayload(
 export function cremationToFormValues(
   cremation: Cremation,
 ): CremationFormValues {
+  const schedule = splitScheduledDateTime(cremation.scheduledAt);
   return {
     receptionId: cremation.receptionId,
 
@@ -111,7 +155,9 @@ export function cremationToFormValues(
 
     accessoryDescription: cremation.accessoryDescription ?? "",
 
-    scheduledAt: isoToLocalDateTime(cremation.scheduledAt),
+    scheduledDate: schedule.scheduledDate,
+
+    scheduledTime: schedule.scheduledTime,
 
     specialInstructions: cremation.specialInstructions ?? "",
 

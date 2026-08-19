@@ -155,6 +155,8 @@ public class CremationService : ICremationService
         reception.VerifiedWeightKg,
         cremationType);
 
+        ValidateScheduledAt(dto.ScheduledAt);
+
         if (dto.ScheduledAt.HasValue &&
             dto.ScheduledAt.Value < reception.ReceivedAt)
         {
@@ -794,16 +796,16 @@ public class CremationService : ICremationService
 
         var cremationType = packageChanged
             ? package.PackageType switch
-              {
-                  CremationPackageType.AshesReturn =>
-                      CremationType.Individual,
+            {
+                CremationPackageType.AshesReturn =>
+                    CremationType.Individual,
 
-                  CremationPackageType.NoAshes =>
-                      CremationType.Communal,
+                CremationPackageType.NoAshes =>
+                    CremationType.Communal,
 
-                  _ => throw new InvalidOperationException(
-                      "El tipo de paquete de cremación no es válido.")
-              }
+                _ => throw new InvalidOperationException(
+                    "El tipo de paquete de cremación no es válido.")
+            }
             : cremation.CremationType;
 
         var includesUrn = packageChanged
@@ -922,6 +924,8 @@ public class CremationService : ICremationService
             cremation.QuotedMaximumWeightKg =
                 updatedQuote.MaximumWeightKg;
         }
+
+        ValidateScheduledAt(dto.ScheduledAt);
 
         if (dto.ScheduledAt.HasValue &&
             dto.ScheduledAt.Value <
@@ -1554,5 +1558,25 @@ public class CremationService : ICremationService
                     Name = u.FirstName + " " + u.LastName
                 })
             .ToListAsync();
+    }
+
+    private static void ValidateScheduledAt(
+    DateTime? scheduledAt)
+    {
+        if (!scheduledAt.HasValue)
+        {
+            return;
+        }
+
+        var value = scheduledAt.Value;
+
+        if ((value.Minute != 0 &&
+             value.Minute != 30) ||
+            value.Second != 0 ||
+            value.Millisecond != 0)
+        {
+            throw new ArgumentException(
+                "La hora programada debe estar en intervalos de 30 minutos.");
+        }
     }
 }

@@ -12,6 +12,7 @@ import type {
   CremationUserOption,
 } from "../types/cremationForm.types";
 import {
+  CREMATION_TIME_OPTIONS,
   cremationToFormValues,
   defaultCremationFormValues,
 } from "../utils/cremationForm";
@@ -679,27 +680,58 @@ export function CremationFormModal({
                   </span>
                 </label>
 
-                <input
-                  id="cremation-scheduled-at"
-                  type="datetime-local"
-                  disabled={isSubmitting}
-                  {...register("scheduledAt")}
-                  className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
-                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="scheduledDate"
+                      className="mb-1.5 block text-sm font-medium text-slate-700"
+                    >
+                      Fecha programada
+                    </label>
 
-                {errors.scheduledAt && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {errors.scheduledAt.message}
-                  </p>
-                )}
+                    <input
+                      id="scheduledDate"
+                      type="date"
+                      {...register("scheduledDate")}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    />
 
-                {mode === "create" && (
-                  <p className="mt-2 text-xs text-slate-500">
-                    Si agregas una fecha, la cremación se registrará
-                    inicialmente como Programada. Sin fecha se registrará como
-                    Pendiente.
-                  </p>
-                )}
+                    {errors.scheduledDate && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.scheduledDate.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="scheduledTime"
+                      className="mb-1.5 block text-sm font-medium text-slate-700"
+                    >
+                      Hora
+                    </label>
+
+                    <select
+                      id="scheduledTime"
+                      {...register("scheduledTime")}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                    >
+                      <option value="">Selecciona una hora</option>
+
+                      {CREMATION_TIME_OPTIONS.map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
+
+                    {errors.scheduledTime && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.scheduledTime.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div>
