@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using pcms.Application.CremationPackages.DTOs;
 using pcms.Application.CremationPackages.Interfaces;
 
@@ -112,6 +113,15 @@ public class CremationPackagesController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message =
+                    "El paquete cambió mientras se estaba actualizando. " +
+                    "Recarga la información e inténtalo nuevamente."
+            });
         }
     }
 }

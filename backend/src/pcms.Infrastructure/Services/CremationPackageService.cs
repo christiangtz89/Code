@@ -126,8 +126,7 @@ public class CremationPackageService : ICremationPackageService
         UpdateCremationPackageDto dto)
     {
         var package = await _dbContext.CremationPackages
-            .Include(existingPackage => existingPackage.UrnOptions)
-            .FirstOrDefaultAsync(p => p.Id == id);
+    .FirstOrDefaultAsync(p => p.Id == id);
 
         if (package is null)
         {
@@ -182,6 +181,11 @@ public class CremationPackageService : ICremationPackageService
 
         await _dbContext.SaveChangesAsync();
 
+        await _dbContext.Entry(package)
+            .Collection(existingPackage =>
+                existingPackage.UrnOptions)
+            .LoadAsync();
+
         return MapToDto(package);
     }
 
@@ -209,57 +213,75 @@ public class CremationPackageService : ICremationPackageService
     }
 
     private async Task SynchronizeAllowedUrnsAsync(
-        CremationPackage package,
-        IReadOnlyCollection<Guid> allowedUrnIds)
+    CremationPackage package,
+    IReadOnlyCollection<Guid> allowedUrnIds)
     {
-        var allowedUrnIdSet = allowedUrnIds.ToHashSet();
-        var existingUrnIdSet = package.UrnOptions
+        await ValidateActiveUrnsAsync(allowedUrnIds);
+
+        var existingUrnIds = await _dbContext.CremationPackageUrns
+            .AsNoTracking()
+            .Where(option =>
+                option.CremationPackageId == package.Id)
             .Select(option => option.UrnId)
-            .ToHashSet();
+            .ToListAsync();
 
-        var activeExistingUrnIdSet = package.UrnOptions
-            .Where(option => option.IsActive)
-            .Select(option => option.UrnId)
-            .ToHashSet();
-
-        var urnIdsRequiringValidation = allowedUrnIds
-            .Where(urnId =>
-                !activeExistingUrnIdSet.Contains(urnId))
-            .ToList();
-
-        var newUrnIds = allowedUrnIds
-            .Where(urnId => !existingUrnIdSet.Contains(urnId))
-            .ToList();
-
-        await ValidateActiveUrnsAsync(
-            urnIdsRequiringValidation);
+        var existingUrnIdSet =
+            existingUrnIds.ToHashSet();
 
         var now = DateTime.UtcNow;
 
-        foreach (var option in package.UrnOptions)
+        // First deactivate all currently active assignments.
+        // ExecuteUpdateAsync performs the operation directly in the
+        // database instead of relying on individually tracked rows.
+        await _dbContext.CremationPackageUrns
+            .Where(option =>
+                option.CremationPackageId == package.Id &&
+                option.IsActive)
+            .ExecuteUpdateAsync(setters =>
+                setters
+                    .SetProperty(
+                        option => option.IsActive,
+                        false)
+                    .SetProperty(
+                        option => option.UpdatedAt,
+                        now));
+
+        if (allowedUrnIds.Count > 0)
         {
-            var shouldBeActive = allowedUrnIdSet.Contains(
-                option.UrnId);
-
-            if (option.IsActive == shouldBeActive)
-            {
-                continue;
-            }
-
-            option.IsActive = shouldBeActive;
-            option.UpdatedAt = now;
+            // Reactivate assignments that already exist.
+            await _dbContext.CremationPackageUrns
+                .Where(option =>
+                    option.CremationPackageId == package.Id &&
+                    allowedUrnIds.Contains(option.UrnId))
+                .ExecuteUpdateAsync(setters =>
+                    setters
+                        .SetProperty(
+                            option => option.IsActive,
+                            true)
+                        .SetProperty(
+                            option => option.UpdatedAt,
+                            now));
         }
 
-        foreach (var urnId in newUrnIds)
+        var newUrnOptions = allowedUrnIds
+            .Where(urnId =>
+                !existingUrnIdSet.Contains(urnId))
+            .Select(urnId =>
+                new CremationPackageUrn
+                {
+                    Id = Guid.NewGuid(),
+                    CremationPackageId = package.Id,
+                    UrnId = urnId,
+                    IsActive = true,
+                    CreatedAt = now,
+                    UpdatedAt = null
+                })
+            .ToList();
+
+        if (newUrnOptions.Count > 0)
         {
-            package.UrnOptions.Add(new CremationPackageUrn
-            {
-                Id = Guid.NewGuid(),
-                CremationPackageId = package.Id,
-                UrnId = urnId,
-                IsActive = true,
-                CreatedAt = now
-            });
+            _dbContext.CremationPackageUrns
+                .AddRange(newUrnOptions);
         }
     }
 
