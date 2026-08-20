@@ -87,7 +87,7 @@ export function CremationPriceFormModal({
         cremationType: price.cremationType,
         minimumWeightKg: price.minimumWeightKg,
         maximumWeightKg: price.maximumWeightKg,
-        price: price.price,
+        price: price.price.toString(),
         isPublic: price.isPublic,
         isActive: price.isActive,
       });
@@ -288,12 +288,10 @@ export function CremationPriceFormModal({
             </span>
 
             <input
-              type="number"
-              min={0.01}
-              step="0.01"
-              {...register("price", {
-                valueAsNumber: true,
-              })}
+              type="text"
+              inputMode="decimal"
+              placeholder="Ej. 1500.00"
+              {...register("price")}
               className="w-full rounded-lg border border-slate-300 px-3 py-2"
             />
 

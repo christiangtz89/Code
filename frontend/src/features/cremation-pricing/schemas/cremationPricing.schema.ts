@@ -26,10 +26,22 @@ export const cremationPriceSchema = z
       .max(100, "El peso máximo no puede exceder 100 kg."),
 
     price: z
-      .number()
-      .min(0.01, "El precio debe ser mayor que cero.")
-      .multipleOf(0.01, "El precio no puede tener más de dos decimales.")
-      .max(9999999999.99, "El precio excede el máximo permitido."),
+      .string()
+      .trim()
+      .min(1, "El precio es obligatorio.")
+      .refine(
+        (value) => /^\d+(?:[.,]\d{1,2})?$/.test(value),
+        "Ingresa un precio válido con máximo dos decimales.",
+      )
+      .refine((value) => {
+        const numericValue = Number(value.replace(",", "."));
+
+        return Number.isFinite(numericValue) && numericValue >= 0;
+      }, "El precio no puede ser negativo.")
+      .refine(
+        (value) => Number(value.replace(",", ".")) <= 9999999999.99,
+        "El precio excede el máximo permitido.",
+      ),
 
     isPublic: z.boolean(),
 

@@ -24,7 +24,7 @@ export const DEFAULT_CREMATION_PRICE_FORM_VALUES: CremationPriceFormValues = {
   cremationType: CremationType.Individual,
   minimumWeightKg: 0,
   maximumWeightKg: 5,
-  price: 0,
+  price: "",
   isPublic: true,
   isActive: true,
 };
@@ -38,11 +38,16 @@ export function pricingConfigurationFormToPayload(
   };
 }
 
+function parsePrice(value: string): number {
+  return Number(value.replace(",", "."));
+}
+
 export function cremationPriceFormToCreatePayload(
   values: CremationPriceFormValues,
 ): CreateCremationPricePayload {
   return {
     ...values,
+    price: parsePrice(values.price),
   };
 }
 
@@ -51,5 +56,6 @@ export function cremationPriceFormToUpdatePayload(
 ): UpdateCremationPricePayload {
   return {
     ...values,
+    price: parsePrice(values.price),
   };
 }
