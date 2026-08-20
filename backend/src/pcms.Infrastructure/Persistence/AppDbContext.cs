@@ -950,11 +950,6 @@ public class AppDbContext : DbContext
                 .HasColumnName("Descripcion")
                 .HasMaxLength(1000);
 
-            entity.Property(u => u.Price)
-                .HasColumnName("Precio")
-                .HasPrecision(12, 2)
-                .IsRequired();
-
             entity.Property(u => u.Material)
                 .HasColumnName("Material")
                 .HasMaxLength(100);

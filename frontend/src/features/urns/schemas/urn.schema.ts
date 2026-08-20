@@ -13,12 +13,6 @@ export const urnSchema = z.object({
     .max(1000, "La descripción no puede exceder 1000 caracteres.")
     .nullable(),
 
-  price: z
-    .number()
-    .min(0, "El precio no puede ser negativo.")
-    .multipleOf(0.01, "El precio no puede tener más de dos decimales.")
-    .max(9999999999.99, "El precio excede el máximo permitido."),
-
   material: z
     .string()
     .trim()

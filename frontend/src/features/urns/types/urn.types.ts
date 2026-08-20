@@ -5,8 +5,6 @@ export interface Urn {
 
   description: string | null;
 
-  price: number;
-
   material: string | null;
 
   color: string | null;
@@ -28,8 +26,6 @@ export interface CreateUrnPayload {
   name: string;
 
   description: string | null;
-
-  price: number;
 
   material: string | null;
 

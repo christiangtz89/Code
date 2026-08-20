@@ -11,9 +11,6 @@ public class CreateUrnDto
     [MaxLength(1000)]
     public string? Description { get; set; }
 
-    [Range(typeof(decimal), "0", "9999999999.99")]
-    public decimal Price { get; set; }
-
     [MaxLength(100)]
     public string? Material { get; set; }
 

@@ -1,5 +1,4 @@
 import type { Urn } from "../types";
-import { formatCurrency } from "../../cremation-pricing/utils";
 
 interface UrnCardProps {
   urn: Urn;
@@ -27,10 +26,6 @@ export function UrnCard({ urn, onEdit }: UrnCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">{urn.name}</h2>
-
-            <p className="mt-1 text-xl font-semibold text-slate-900">
-              {formatCurrency(urn.price)}
-            </p>
           </div>
 
           <div className="flex flex-wrap justify-end gap-2">

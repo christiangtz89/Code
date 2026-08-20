@@ -5,7 +5,6 @@ import type { UrnFormValues } from "../schemas";
 export const DEFAULT_URN_FORM_VALUES: UrnFormValues = {
   name: "",
   description: null,
-  price: 0,
   material: null,
   color: null,
   imageUrl: null,
@@ -18,7 +17,6 @@ export function urnToFormValues(urn: Urn): UrnFormValues {
   return {
     name: urn.name,
     description: urn.description,
-    price: urn.price,
     material: urn.material,
     color: urn.color,
     imageUrl: urn.imageUrl,

@@ -8,7 +8,6 @@ namespace pcms.Infrastructure.Services;
 
 public class UrnService : IUrnService
 {
-    private const decimal MaximumPrice = 9_999_999_999.99m;
 
     private readonly AppDbContext _dbContext;
 
@@ -58,7 +57,6 @@ public class UrnService : IUrnService
     {
         Validate(
             dto.Name,
-            dto.Price,
             dto.DisplayOrder);
 
         var now = DateTime.UtcNow;
@@ -68,7 +66,6 @@ public class UrnService : IUrnService
             Id = Guid.NewGuid(),
             Name = dto.Name.Trim(),
             Description = NormalizeOptional(dto.Description),
-            Price = dto.Price,
             Material = NormalizeOptional(dto.Material),
             Color = NormalizeOptional(dto.Color),
             ImageUrl = NormalizeOptional(dto.ImageUrl),
@@ -99,12 +96,10 @@ public class UrnService : IUrnService
 
         Validate(
             dto.Name,
-            dto.Price,
             dto.DisplayOrder);
 
         urn.Name = dto.Name.Trim();
         urn.Description = NormalizeOptional(dto.Description);
-        urn.Price = dto.Price;
         urn.Material = NormalizeOptional(dto.Material);
         urn.Color = NormalizeOptional(dto.Color);
         urn.ImageUrl = NormalizeOptional(dto.ImageUrl);
@@ -120,31 +115,12 @@ public class UrnService : IUrnService
 
     private static void Validate(
         string name,
-        decimal price,
         int displayOrder)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException(
                 "El nombre de la urna es obligatorio.");
-        }
-
-        if (price < 0)
-        {
-            throw new ArgumentException(
-                "El precio de la urna no puede ser negativo.");
-        }
-
-        if (price > MaximumPrice)
-        {
-            throw new ArgumentException(
-                $"El precio de la urna no puede exceder {MaximumPrice:0.00}.");
-        }
-
-        if (decimal.Round(price, 2) != price)
-        {
-            throw new ArgumentException(
-                "El precio de la urna no puede tener más de dos decimales.");
         }
 
         if (displayOrder < 0)
@@ -168,7 +144,6 @@ public class UrnService : IUrnService
             Id = urn.Id,
             Name = urn.Name,
             Description = urn.Description,
-            Price = urn.Price,
             Material = urn.Material,
             Color = urn.Color,
             ImageUrl = urn.ImageUrl,
