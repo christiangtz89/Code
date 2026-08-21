@@ -75,6 +75,8 @@ export function CremationFormModal({
 
   const selectedReceptionId = watch("receptionId");
 
+  const selectedUrnId = watch("urnId");
+
   const packagesQuery = useCremationPackages(true);
 
   const urnsQuery = useUrns(true);
@@ -133,6 +135,53 @@ export function CremationFormModal({
     return urn.isActive && allowedUrnIds.includes(urn.id);
   });
 
+  function handlePackageSelection(packageId: string) {
+    const packageChanged = packageId !== selectedPackageId;
+
+    setValue("cremationPackageId", packageId, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    if (packageChanged) {
+      const isRestoringOriginalPackage =
+        mode === "edit" &&
+        cremation !== null &&
+        packageId === cremation.cremationPackageId;
+
+      setValue(
+        "urnId",
+        isRestoringOriginalPackage ? (cremation.urnId ?? "") : "",
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        },
+      );
+
+      setValue(
+        "accessoryDescription",
+        isRestoringOriginalPackage
+          ? (cremation.accessoryDescription ?? "")
+          : "",
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        },
+      );
+    }
+
+    clearErrors(["cremationPackageId", "urnId"]);
+  }
+
+  function handleUrnSelection(urnId: string) {
+    setValue("urnId", urnId, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    clearErrors("urnId");
+  }
+
   const quoteParams =
     selectedPackage &&
     selectedReception &&
@@ -147,6 +196,25 @@ export function CremationFormModal({
   const priceQuoteQuery = useCremationPriceQuote(quoteParams);
 
   const priceQuote = priceQuoteQuery.data ?? null;
+
+  const quotedWeightKg = cremation?.quotedWeightKg ?? null;
+  const quotedMinimumWeightKg = cremation?.quotedMinimumWeightKg ?? null;
+  const quotedMaximumWeightKg = cremation?.quotedMaximumWeightKg ?? null;
+  const currentVerifiedWeightKg = selectedReception?.verifiedWeightKg ?? null;
+
+  const hasVerifiedWeightMismatch =
+    mode === "edit" &&
+    quotedWeightKg !== null &&
+    currentVerifiedWeightKg !== null &&
+    Math.abs(currentVerifiedWeightKg - quotedWeightKg) >= 0.01;
+
+  const isCurrentWeightOutsideQuotedRange =
+    hasVerifiedWeightMismatch &&
+    quotedMinimumWeightKg !== null &&
+    quotedMaximumWeightKg !== null &&
+    currentVerifiedWeightKg !== null &&
+    (currentVerifiedWeightKg < quotedMinimumWeightKg ||
+      currentVerifiedWeightKg > quotedMaximumWeightKg);
 
   useEffect(() => {
     if (!isOpen) {
@@ -187,8 +255,6 @@ export function CremationFormModal({
 
     await onSubmit(values);
   }
-
-  const packageRegistration = register("cremationPackageId");
 
   return (
     <div
@@ -336,71 +402,116 @@ export function CremationFormModal({
 
             <div className="mt-4 space-y-5">
               <div>
-                <label
-                  htmlFor="cremation-package"
-                  className="block text-sm font-medium text-slate-700"
-                >
-                  Paquete o servicio
-                </label>
+                <input type="hidden" {...register("cremationPackageId")} />
 
-                <select
-                  id="cremation-package"
-                  disabled={isSubmitting || packagesQuery.isLoading}
-                  {...packageRegistration}
-                  onChange={(event) => {
-                    const nextPackageId = event.target.value;
+                <p className="text-sm font-medium text-slate-700">
+                  Paquete o servicio *
+                </p>
 
-                    const packageChanged = nextPackageId !== selectedPackageId;
+                <p className="mt-1 text-sm text-slate-500">
+                  Selecciona el servicio que corresponde a esta cremación.
+                </p>
 
-                    void packageRegistration.onChange(event);
+                {packagesQuery.isLoading ? (
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">
+                      Cargando paquetes...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {selectablePackages.map((cremationPackage) => {
+                      const isSelected =
+                        selectedPackageId === cremationPackage.id;
 
-                    if (packageChanged) {
-                      const isRestoringOriginalPackage =
-                        mode === "edit" &&
-                        cremation !== null &&
-                        nextPackageId === cremation.cremationPackageId;
+                      return (
+                        <button
+                          key={cremationPackage.id}
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() =>
+                            handlePackageSelection(cremationPackage.id)
+                          }
+                          className={[
+                            "overflow-hidden rounded-xl border text-left transition",
+                            isSelected
+                              ? "border-slate-900 ring-2 ring-slate-900/10"
+                              : "border-slate-200 hover:border-slate-400",
+                            isSubmitting ? "cursor-not-allowed opacity-60" : "",
+                          ].join(" ")}
+                        >
+                          <div className="aspect-[16/9] bg-slate-100">
+                            {cremationPackage.imageUrl ? (
+                              <img
+                                src={cremationPackage.imageUrl}
+                                alt={cremationPackage.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-400">
+                                Sin imagen
+                              </div>
+                            )}
+                          </div>
 
-                      setValue(
-                        "urnId",
-                        isRestoringOriginalPackage
-                          ? (cremation.urnId ?? "")
-                          : "",
-                        {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        },
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-slate-900">
+                                  {cremationPackage.name}
+                                </p>
+
+                                {cremationPackage.tier && (
+                                  <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    Nivel {cremationPackage.tier}
+                                  </p>
+                                )}
+                              </div>
+
+                              {isSelected && (
+                                <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
+                                  Seleccionado
+                                </span>
+                              )}
+                            </div>
+
+                            {cremationPackage.shortDescription && (
+                              <p className="mt-3 text-sm text-slate-600">
+                                {cremationPackage.shortDescription}
+                              </p>
+                            )}
+
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {cremationPackage.includesUrn && (
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                                  Incluye urna
+                                </span>
+                              )}
+
+                              {cremationPackage.includesPawPrint && (
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                                  Accesorio
+                                </span>
+                              )}
+
+                              {cremationPackage.includesCertificate && (
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                                  Certificado
+                                </span>
+                              )}
+
+                              {!cremationPackage.isActive && (
+                                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">
+                                  Inactivo
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
                       );
-
-                      setValue(
-                        "accessoryDescription",
-                        isRestoringOriginalPackage
-                          ? (cremation.accessoryDescription ?? "")
-                          : "",
-                        {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        },
-                      );
-
-                      clearErrors("urnId");
-                    }
-                  }}
-                  className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
-                >
-                  <option value="">Selecciona un paquete</option>
-
-                  {selectablePackages.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {mode === "edit" &&
-                      item.id === cremation?.cremationPackageId
-                        ? cremation.packageName
-                        : item.name}
-                      {!item.isPublic ? " — Interno" : ""}
-                      {!item.isActive ? " — Inactivo" : ""}
-                    </option>
-                  ))}
-                </select>
-
+                    })}
+                  </div>
+                )}
                 {isOriginalPackage && cremation && (
                   <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                     <p className="text-sm font-medium text-emerald-800">
@@ -441,6 +552,79 @@ export function CremationFormModal({
                       Esta cotización se conserva mientras no cambies el
                       paquete.
                     </p>
+                  </div>
+                )}
+
+                {isOriginalPackage && hasVerifiedWeightMismatch && (
+                  <div
+                    className={[
+                      "mt-4 rounded-xl border p-4",
+                      isCurrentWeightOutsideQuotedRange
+                        ? "border-red-200 bg-red-50"
+                        : "border-amber-200 bg-amber-50",
+                    ].join(" ")}
+                  >
+                    <p
+                      className={[
+                        "text-sm font-semibold",
+                        isCurrentWeightOutsideQuotedRange
+                          ? "text-red-900"
+                          : "text-amber-900",
+                      ].join(" ")}
+                    >
+                      {isCurrentWeightOutsideQuotedRange
+                        ? "El peso verificado pertenece a un rango diferente"
+                        : "El peso verificado cambió"}
+                    </p>
+
+                    <div
+                      className={[
+                        "mt-3 grid gap-3 text-sm sm:grid-cols-2",
+                        isCurrentWeightOutsideQuotedRange
+                          ? "text-red-800"
+                          : "text-amber-800",
+                      ].join(" ")}
+                    >
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide opacity-70">
+                          Peso utilizado en la cotización
+                        </p>
+
+                        <p className="mt-1 font-semibold">
+                          {quotedWeightKg?.toFixed(2)} kg
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide opacity-70">
+                          Peso verificado actual
+                        </p>
+
+                        <p className="mt-1 font-semibold">
+                          {currentVerifiedWeightKg?.toFixed(2)} kg
+                        </p>
+                      </div>
+                    </div>
+
+                    {isCurrentWeightOutsideQuotedRange ? (
+                      <>
+                        <p className="mt-3 text-sm text-red-800">
+                          El peso actual ya no se encuentra dentro del rango
+                          utilizado para calcular la cotización guardada.
+                        </p>
+
+                        <p className="mt-2 text-sm font-medium text-red-900">
+                          Revisa el precio antes de continuar. PCMS no modificó
+                          automáticamente la cotización ni el total del
+                          servicio.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-3 text-sm text-amber-800">
+                        El peso cambió, pero continúa dentro del mismo rango de
+                        la cotización. El precio guardado se conserva.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -580,45 +764,101 @@ export function CremationFormModal({
 
               {packageIncludesUrn && (
                 <div>
-                  <label
-                    htmlFor="cremation-urn"
-                    className="block text-sm font-medium text-slate-700"
-                  >
-                    Urna
-                  </label>
+                  <input type="hidden" {...register("urnId")} />
 
-                  <select
-                    id="cremation-urn"
-                    disabled={isSubmitting || urnsQuery.isLoading}
-                    {...register("urnId", {
-                      onChange: () => clearErrors("urnId"),
-                    })}
-                    className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
-                  >
-                    <option value="">Selecciona una urna</option>
+                  <p className="text-sm font-medium text-slate-700">
+                    Urna incluida *
+                  </p>
 
-                    {selectableUrns.map((urn) => (
-                      <option key={urn.id} value={urn.id}>
-                        {isOriginalPackage && urn.id === cremation?.urnId
-                          ? (cremation.urnDescription ?? urn.name)
-                          : urn.name}
-                        {!urn.isActive ? " — Inactiva" : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Selecciona una de las urnas disponibles para este paquete.
+                  </p>
 
-                  {!urnsQuery.isLoading &&
-                    !urnsQuery.isError &&
-                    selectableUrns.length === 0 && (
-                      <p className="mt-2 text-sm text-amber-700">
-                        Este paquete no tiene urnas permitidas disponibles.
+                  {urnsQuery.isLoading ? (
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">
+                        Cargando urnas...
                       </p>
-                    )}
+                    </div>
+                  ) : urnsQuery.isError ? (
+                    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                      <p className="text-sm text-red-700">
+                        No fue posible cargar las urnas permitidas.
+                      </p>
+                    </div>
+                  ) : selectableUrns.length === 0 ? (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-sm text-amber-800">
+                        Este paquete no tiene urnas disponibles. Revisa la
+                        configuración del paquete.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {selectableUrns.map((urn) => {
+                        const isSelected = selectedUrnId === urn.id;
 
-                  {urnsQuery.isError && (
-                    <p className="mt-2 text-sm text-red-600">
-                      No fue posible cargar las urnas permitidas.
-                    </p>
+                        return (
+                          <button
+                            key={urn.id}
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleUrnSelection(urn.id)}
+                            className={[
+                              "overflow-hidden rounded-xl border text-left transition",
+                              isSelected
+                                ? "border-slate-900 ring-2 ring-slate-900/10"
+                                : "border-slate-200 hover:border-slate-400",
+                              isSubmitting
+                                ? "cursor-not-allowed opacity-60"
+                                : "",
+                            ].join(" ")}
+                          >
+                            <div className="aspect-square bg-slate-100">
+                              {urn.imageUrl ? (
+                                <img
+                                  src={urn.imageUrl}
+                                  alt={urn.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-400">
+                                  Sin imagen
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="p-4">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-semibold text-slate-900">
+                                  {urn.name}
+                                </p>
+
+                                {isSelected && (
+                                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">
+                                    Seleccionada
+                                  </span>
+                                )}
+                              </div>
+
+                              {(urn.material || urn.color) && (
+                                <p className="mt-2 text-sm text-slate-500">
+                                  {[urn.material, urn.color]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </p>
+                              )}
+
+                              {urn.description && (
+                                <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                                  {urn.description}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
 
                   {errors.urnId && (

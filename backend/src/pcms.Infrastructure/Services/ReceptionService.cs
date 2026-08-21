@@ -3,16 +3,24 @@ using pcms.Application.Receptions.DTOs;
 using pcms.Application.Receptions.Interfaces;
 using pcms.Domain.Entities;
 using pcms.Infrastructure.Persistence;
+using pcms.Application.CremationPricing.Interfaces;
+using pcms.Domain.Enums;
+using pcms.Application.Receptions.Exceptions;
 
 namespace pcms.Infrastructure.Services;
 
 public class ReceptionService : IReceptionService
 {
+    private const decimal WeightCorrectionTolerance = 0.10m;
     private readonly AppDbContext _context;
+    private readonly ICremationPricingService _cremationPricingService;
 
-    public ReceptionService(AppDbContext context)
+    public ReceptionService(
+        AppDbContext context,
+        ICremationPricingService cremationPricingService)
     {
         _context = context;
+        _cremationPricingService = cremationPricingService;
     }
 
     public async Task<ReceptionDto> CreateAsync(
@@ -431,8 +439,8 @@ public class ReceptionService : IReceptionService
 
 
     public async Task<ReceptionDto?> UpdateAsync(
-        Guid id,
-        UpdateReceptionDto dto)
+    Guid id,
+    UpdateReceptionDto dto)
     {
         if (dto.VerifiedWeightKg <= 0)
         {
@@ -461,11 +469,201 @@ public class ReceptionService : IReceptionService
             return null;
         }
 
+        var originalWeightKg =
+            reception.VerifiedWeightKg;
+
+        var weightChanged =
+            Math.Abs(
+                dto.VerifiedWeightKg -
+                originalWeightKg) >= 0.01m;
+
+        if (weightChanged)
+        {
+            var minimumAllowedWeightKg =
+                originalWeightKg *
+                (1m - WeightCorrectionTolerance);
+
+            var maximumAllowedWeightKg =
+                originalWeightKg *
+                (1m + WeightCorrectionTolerance);
+
+            if (dto.VerifiedWeightKg <
+                    minimumAllowedWeightKg ||
+                dto.VerifiedWeightKg >
+                    maximumAllowedWeightKg)
+            {
+                throw new InvalidOperationException(
+                    $"Verifica que sea la mascota correcta. " +
+                    $"El peso ingresado " +
+                    $"({dto.VerifiedWeightKg:F2} kg) " +
+                    $"está fuera de la tolerancia permitida " +
+                    $"de ±10% respecto al peso registrado " +
+                    $"({originalWeightKg:F2} kg). " +
+                    $"El rango permitido es de " +
+                    $"{minimumAllowedWeightKg:F2} a " +
+                    $"{maximumAllowedWeightKg:F2} kg.");
+            }
+
+            var pricingConfiguration =
+                await _context.CremationPricingConfigurations
+                    .AsNoTracking()
+                    .OrderBy(configuration =>
+                        configuration.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+            if (pricingConfiguration is null)
+            {
+                throw new InvalidOperationException(
+                    "No existe una configuración activa de rangos de peso.");
+            }
+
+            var currentRange =
+                GetWeightRange(
+                    originalWeightKg,
+                    pricingConfiguration.WeightInterval);
+
+            var newRange =
+                GetWeightRange(
+                    dto.VerifiedWeightKg,
+                    pricingConfiguration.WeightInterval);
+
+            var rangeDifference =
+                Math.Abs(
+                    newRange.Index -
+                    currentRange.Index);
+
+            if (rangeDifference > 1)
+            {
+                throw new InvalidOperationException(
+                    "Verifica que sea la mascota correcta. " +
+                    "El nuevo peso provocaría un cambio de dos o más " +
+                    "rangos de precio. No se realizó ningún cambio.");
+            }
+
+            var cremation =
+                await _context.Cremations
+                    .FirstOrDefaultAsync(c =>
+                        c.ReceptionId == reception.Id &&
+                        c.IsActive);
+
+            if (cremation is not null &&
+                cremation.Status != CremationStatus.Pending &&
+                cremation.Status != CremationStatus.Scheduled)
+            {
+                throw new InvalidOperationException(
+                    "El peso verificado no puede modificarse " +
+                    "mediante el flujo normal porque la cremación " +
+                    "ya fue iniciada. La corrección requiere una " +
+                    "revisión administrativa.");
+            }
+
+            decimal? previousPrice = null;
+            decimal? newPrice = null;
+
+            pcms.Application.CremationPricing.DTOs
+                .CremationPriceQuoteDto? newQuote = null;
+
+            if (cremation?.CremationPackageId.HasValue == true)
+            {
+                newQuote =
+                    await _cremationPricingService
+                        .GetQuoteAsync(
+                            cremation.CremationPackageId.Value,
+                            dto.VerifiedWeightKg,
+                            cremation.CremationType);
+
+                previousPrice =
+                    cremation.QuotedPrice;
+
+                newPrice =
+                    newQuote.Price;
+            }
+
+            var rangeChanged =
+                rangeDifference == 1;
+
+            if (rangeChanged &&
+                !dto.ConfirmWeightRangeChange)
+            {
+                throw new WeightRangeChangeConfirmationRequiredException(
+                    originalWeightKg,
+                    dto.VerifiedWeightKg,
+                    currentRange.MinimumWeightKg,
+                    currentRange.MaximumWeightKg,
+                    newRange.MinimumWeightKg,
+                    newRange.MaximumWeightKg,
+                    previousPrice,
+                    newPrice);
+            }
+
+            if (cremation is not null)
+            {
+                if (!rangeChanged)
+                {
+                    if (cremation.CremationPackageId.HasValue)
+                    {
+                        // Same bracket:
+                        // update only the verified quote weight.
+                        // Preserve historical price and payment total.
+                        cremation.QuotedWeightKg =
+                            dto.VerifiedWeightKg;
+                    }
+                }
+                else if (newQuote is not null)
+                {
+                    var paymentAccount =
+                        await _context.PaymentAccounts
+                            .Include(account =>
+                                account.Payments)
+                            .FirstOrDefaultAsync(account =>
+                                account.CremationId ==
+                                cremation.Id);
+
+                    if (paymentAccount is not null)
+                    {
+                        var amountPaid =
+                            paymentAccount.Payments.Sum(
+                                payment =>
+                                    payment.Amount);
+
+                        if (newQuote.Price < amountPaid)
+                        {
+                            throw new InvalidOperationException(
+                                $"La nueva cotización " +
+                                $"({newQuote.Price:C2}) " +
+                                $"no puede ser menor que el monto " +
+                                $"ya pagado ({amountPaid:C2}). " +
+                                "La corrección requiere una " +
+                                "revisión administrativa.");
+                        }
+
+                        paymentAccount.ServiceTotal =
+                            newQuote.Price;
+
+                        paymentAccount.UpdatedAt =
+                            DateTime.UtcNow;
+                    }
+
+                    cremation.QuotedPrice =
+                        newQuote.Price;
+
+                    cremation.QuotedWeightKg =
+                        newQuote.WeightKg;
+
+                    cremation.QuotedMinimumWeightKg =
+                        newQuote.MinimumWeightKg;
+
+                    cremation.QuotedMaximumWeightKg =
+                        newQuote.MaximumWeightKg;
+                }
+            }
+        }
+
         var referral =
-    await ValidateReferralSourceAsync(
-        dto.VeterinaryClinicId,
-        dto.ReferringVeterinarianId,
-        dto.ReferralNotes);
+            await ValidateReferralSourceAsync(
+                dto.VeterinaryClinicId,
+                dto.ReferringVeterinarianId,
+                dto.ReferralNotes);
 
         var veterinaryClinic =
             referral.Clinic;
@@ -480,7 +678,8 @@ public class ReceptionService : IReceptionService
             referral.Veterinarian?.Id;
 
         reception.ReferralNotes =
-            string.IsNullOrWhiteSpace(dto.ReferralNotes)
+            string.IsNullOrWhiteSpace(
+                dto.ReferralNotes)
                 ? null
                 : dto.ReferralNotes.Trim();
 
@@ -509,7 +708,9 @@ public class ReceptionService : IReceptionService
             PetId = reception.PetId,
             PetName = reception.Pet.Name,
 
-            CustomerId = reception.Pet.CustomerId,
+            CustomerId =
+                reception.Pet.CustomerId,
+
             CustomerName =
                 reception.Pet.Customer.FirstName + " " +
                 reception.Pet.Customer.LastName,
@@ -533,11 +734,15 @@ public class ReceptionService : IReceptionService
             ReferringVeterinarianName =
                 referringVeterinarian == null
                     ? null
-                    : referringVeterinarian.FirstName + " " +
+                    : referringVeterinarian.FirstName +
+                      " " +
                       referringVeterinarian.LastName,
 
-            ReceivedAt = reception.ReceivedAt,
-            QrCode = reception.QrCode,
+            ReceivedAt =
+                reception.ReceivedAt,
+
+            QrCode =
+                reception.QrCode,
 
             VerifiedWeightKg =
                 reception.VerifiedWeightKg,
@@ -551,9 +756,14 @@ public class ReceptionService : IReceptionService
             ReferralNotes =
                 reception.ReferralNotes,
 
-            Notes = reception.Notes,
-            IsActive = reception.IsActive,
-            CreatedAt = reception.CreatedAt
+            Notes =
+                reception.Notes,
+
+            IsActive =
+                reception.IsActive,
+
+            CreatedAt =
+                reception.CreatedAt
         };
     }
 
@@ -680,6 +890,39 @@ public class ReceptionService : IReceptionService
                 CreatedAt = r.CreatedAt
             })
             .ToListAsync();
+    }
+
+    private sealed record WeightRangeInfo(
+    int Index,
+    decimal MinimumWeightKg,
+    decimal MaximumWeightKg);
+
+    private static WeightRangeInfo GetWeightRange(
+        decimal weightKg,
+        WeightPricingInterval interval)
+    {
+        var intervalKg = (decimal)(int)interval;
+
+        var index =
+            (int)Math.Ceiling(weightKg / intervalKg);
+
+        if (index < 1)
+        {
+            index = 1;
+        }
+
+        var maximumWeightKg =
+            index * intervalKg;
+
+        var minimumWeightKg =
+            index == 1
+                ? 0.01m
+                : ((index - 1) * intervalKg) + 0.01m;
+
+        return new WeightRangeInfo(
+            index,
+            minimumWeightKg,
+            maximumWeightKg);
     }
 
     private async Task<

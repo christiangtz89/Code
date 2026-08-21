@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using pcms.Application.Receptions.DTOs;
 using pcms.Application.Receptions.Interfaces;
+using pcms.Application.Receptions.Exceptions;
 
 namespace pcms.Api.Controllers;
 
@@ -129,46 +130,85 @@ public class ReceptionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-public async Task<ActionResult<ReceptionDto>> Update(
+    public async Task<ActionResult<ReceptionDto>> Update(
     Guid id,
     UpdateReceptionDto dto)
-{
-    try
     {
-        var reception =
-            await _receptionService.UpdateAsync(
-                id,
-                dto);
-
-        if (reception == null)
+        try
         {
-            return NotFound(new
+            var reception =
+                await _receptionService.UpdateAsync(
+                    id,
+                    dto);
+
+            if (reception == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message =
+                        "Recepción no encontrada."
+                });
+            }
+
+            return Ok(reception);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
             {
                 success = false,
-                message =
-                    "Recepción no encontrada."
+                message = ex.Message
             });
         }
+        catch (WeightRangeChangeConfirmationRequiredException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
 
-        return Ok(reception);
-    }
-    catch (ArgumentException ex)
-    {
-        return BadRequest(new
+                code =
+                    "WEIGHT_RANGE_CHANGE_CONFIRMATION_REQUIRED",
+
+                message = ex.Message,
+
+                weightChange = new
+                {
+                    previousWeightKg =
+                        ex.PreviousWeightKg,
+
+                    newWeightKg =
+                        ex.NewWeightKg,
+
+                    previousMinimumWeightKg =
+                        ex.PreviousMinimumWeightKg,
+
+                    previousMaximumWeightKg =
+                        ex.PreviousMaximumWeightKg,
+
+                    newMinimumWeightKg =
+                        ex.NewMinimumWeightKg,
+
+                    newMaximumWeightKg =
+                        ex.NewMaximumWeightKg,
+
+                    previousPrice =
+                        ex.PreviousPrice,
+
+                    newPrice =
+                        ex.NewPrice
+                }
+            });
+        }
+        catch (InvalidOperationException ex)
         {
-            success = false,
-            message = ex.Message
-        });
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
     }
-    catch (InvalidOperationException ex)
-    {
-        return Conflict(new
-        {
-            success = false,
-            message = ex.Message
-        });
-    }
-}
 
 
     [HttpDelete("{id:guid}")]

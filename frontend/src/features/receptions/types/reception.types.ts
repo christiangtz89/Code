@@ -56,6 +56,28 @@ export interface UpdateReceptionPayload {
   personalBelongingsDescription: string | null;
   referralNotes: string | null;
   notes: string | null;
+  confirmWeightRangeChange: boolean;
+}
+
+export interface WeightRangeChangeDetails {
+  previousWeightKg: number;
+  newWeightKg: number;
+
+  previousMinimumWeightKg: number;
+  previousMaximumWeightKg: number;
+
+  newMinimumWeightKg: number;
+  newMaximumWeightKg: number;
+
+  previousPrice: number | null;
+  newPrice: number | null;
+}
+
+export interface WeightRangeChangeConfirmationResponse {
+  success: false;
+  code: "WEIGHT_RANGE_CHANGE_CONFIRMATION_REQUIRED";
+  message: string;
+  weightChange: WeightRangeChangeDetails;
 }
 
 export interface ReceptionListParams {

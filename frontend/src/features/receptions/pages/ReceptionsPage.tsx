@@ -15,12 +15,15 @@ import {
   updateReception,
 } from "../api/receptionsApi";
 import { ReceptionFormModal } from "../components/ReceptionFormModal";
+import { WeightRangeChangeConfirmationModal } from "../components/WeightRangeChangeConfirmationModal";
 import { ReceptionsTable } from "../components/ReceptionsTable";
 import type { ReceptionFormValues } from "../schemas/receptionSchema";
 import type {
   PagedReceptions,
   Reception,
   UpdateReceptionPayload,
+  WeightRangeChangeConfirmationResponse,
+  WeightRangeChangeDetails,
 } from "../types/reception.types";
 import {
   createReceptionPayload,
@@ -32,6 +35,12 @@ type ReceptionFormMode = "create" | "edit";
 interface ReceptionModalState {
   mode: ReceptionFormMode;
   reception: Reception | null;
+}
+
+interface WeightRangeChangeConfirmationState {
+  reception: Reception;
+  values: ReceptionFormValues;
+  details: WeightRangeChangeDetails;
 }
 
 interface ApiErrorResponse {
@@ -62,6 +71,31 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function getWeightRangeChangeConfirmation(
+  error: unknown,
+): WeightRangeChangeConfirmationResponse | null {
+  if (!axios.isAxiosError(error) || error.response?.status !== 409) {
+    return null;
+  }
+
+  const data = error.response.data;
+
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const response = data as Partial<WeightRangeChangeConfirmationResponse>;
+
+  if (
+    response.code !== "WEIGHT_RANGE_CHANGE_CONFIRMATION_REQUIRED" ||
+    !response.weightChange
+  ) {
+    return null;
+  }
+
+  return response as WeightRangeChangeConfirmationResponse;
+}
+
 export function ReceptionsPage() {
   const queryClient = useQueryClient();
 
@@ -74,6 +108,9 @@ export function ReceptionsPage() {
   const [modalState, setModalState] = useState<ReceptionModalState | null>(
     null,
   );
+
+  const [weightRangeChangeConfirmation, setWeightRangeChangeConfirmation] =
+    useState<WeightRangeChangeConfirmationState | null>(null);
 
   const normalizedSearch = debouncedSearch.trim();
 
@@ -215,12 +252,55 @@ export function ReceptionsPage() {
 
       setModalState(null);
     } catch (error) {
+      const confirmation = getWeightRangeChangeConfirmation(error);
+
+      if (
+        confirmation &&
+        modalState?.mode === "edit" &&
+        modalState.reception !== null
+      ) {
+        setWeightRangeChangeConfirmation({
+          reception: modalState.reception,
+          values,
+          details: confirmation.weightChange,
+        });
+
+        return;
+      }
+
       toast.error(
         getApiErrorMessage(
           error,
           modalState?.mode === "edit"
             ? "No fue posible actualizar la recepción."
             : "No fue posible registrar la recepción.",
+        ),
+      );
+    }
+  }
+
+  async function handleConfirmWeightRangeChange() {
+    if (!weightRangeChangeConfirmation) {
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        id: weightRangeChangeConfirmation.reception.id,
+
+        payload: updateReceptionPayload(
+          weightRangeChangeConfirmation.values,
+          true,
+        ),
+      });
+
+      setWeightRangeChangeConfirmation(null);
+      setModalState(null);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "No fue posible confirmar la corrección de peso.",
         ),
       );
     }
@@ -394,6 +474,19 @@ export function ReceptionsPage() {
         }}
         onSubmit={handleFormSubmit}
       />
+      {weightRangeChangeConfirmation && (
+        <WeightRangeChangeConfirmationModal
+          petName={weightRangeChangeConfirmation.reception.petName}
+          customerName={weightRangeChangeConfirmation.reception.customerName}
+          qrCode={weightRangeChangeConfirmation.reception.qrCode}
+          details={weightRangeChangeConfirmation.details}
+          isSubmitting={updateMutation.isPending}
+          onCancel={() => setWeightRangeChangeConfirmation(null)}
+          onConfirm={() => {
+            void handleConfirmWeightRangeChange();
+          }}
+        />
+      )}
     </section>
   );
 }

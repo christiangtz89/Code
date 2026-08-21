@@ -41,6 +41,10 @@ export function createReceptionPayload(
 
 export function updateReceptionPayload(
   values: ReceptionFormValues,
+  confirmWeightRangeChange = false,
 ): UpdateReceptionPayload {
-  return createCommonPayload(values);
+  return {
+    ...createCommonPayload(values),
+    confirmWeightRangeChange,
+  };
 }
