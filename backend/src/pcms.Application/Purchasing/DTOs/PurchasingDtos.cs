@@ -1,0 +1,15 @@
+using pcms.Domain.Enums;
+namespace pcms.Application.Purchasing.DTOs;
+public record SupplierSupplyItemDto(Guid Id,Guid SupplierId,string SupplierName,Guid SupplyItemId,string SupplyItemName,string? SupplierSku,decimal CurrentUnitCost,string PurchaseUnit,decimal InventoryUnitsPerPurchaseUnit,string Currency,bool IsPreferred,bool IsActive,DateTime CreatedAt,DateTime? UpdatedAt);
+public record SupplierSupplyItemInput(Guid SupplierId,Guid SupplyItemId,string? SupplierSku,decimal CurrentUnitCost,string PurchaseUnit,decimal InventoryUnitsPerPurchaseUnit,string Currency,bool IsPreferred);
+public record CostHistoryDto(Guid Id,decimal UnitCost,string Currency,DateTime EffectiveAt,DateTime? EndedAt);
+public record PurchaseLotInput(string ScanCode,decimal InitialQuantity,string? ManufacturerLotNumber);
+public record PurchaseItemInput(Guid SupplyItemId,Guid? SupplierSupplyItemId,decimal Quantity);
+public record PurchaseInput(Guid SupplierId,DateTime PurchaseDate,string? InvoiceReference,string Currency,decimal Tax,string? Notes,IReadOnlyList<PurchaseItemInput> Items);
+public record ReceiptItemInput(Guid PurchaseItemId,decimal Quantity,IReadOnlyList<PurchaseLotInput>? Lots=null);
+public record ReceiptInput(DateTime ReceivedAt,string? Reference,string? Notes,IReadOnlyList<ReceiptItemInput> Items);
+public record PurchaseItemDto(Guid Id,Guid SupplyItemId,string SupplyItemName,string DescriptionSnapshot,string? SupplierSkuSnapshot,string PurchaseUnitSnapshot,decimal Quantity,decimal ReceivedQuantity,decimal RemainingQuantity,decimal UnitCost,decimal LineSubtotal,decimal NormalizedReceivedQuantity,string Currency);
+public record PurchaseReceiptItemDto(Guid Id,Guid PurchaseItemId,string SupplyItemName,decimal QuantityReceived,decimal NormalizedReceivedQuantity,decimal UnitCostSnapshot,string CurrencySnapshot);
+public record PurchaseReceiptDto(Guid Id,DateTime ReceivedAt,string? ReceivedByUserName,string? Reference,string? Notes,DateTime CreatedAt,IReadOnlyList<PurchaseReceiptItemDto> Items);
+public record PurchaseDto(Guid Id,Guid SupplierId,string SupplierName,PurchaseStatus Status,DateTime PurchaseDate,string? InvoiceReference,decimal Subtotal,decimal Tax,decimal Total,string Currency,string? Notes,DateTime CreatedAt,IReadOnlyList<PurchaseItemDto> Items,IReadOnlyList<PurchaseReceiptDto> Receipts);
+public record PagedPurchasesDto(IEnumerable<PurchaseDto> Items,int Page,int PageSize,int TotalItems,int TotalPages);

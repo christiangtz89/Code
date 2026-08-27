@@ -57,4 +57,7 @@ public class Collection
     public Veterinarian? ReferringVeterinarian { get; set; }
 
     public Reception? Reception { get; set; }
+
+    public ICollection<CollectionPhoto> Photos { get; set; }
+        = new List<CollectionPhoto>();
 }

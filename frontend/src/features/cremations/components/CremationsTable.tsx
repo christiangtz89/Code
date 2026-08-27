@@ -26,6 +26,7 @@ interface CremationsTableProps {
   onDeactivate: (cremation: Cremation) => void;
 
   onRestore: (cremation: Cremation) => void;
+  onInventory: (cremation: Cremation) => void;
 }
 
 function getStatusClasses(cremation: Cremation): string {
@@ -70,6 +71,7 @@ export function CremationsTable({
   onChangeStatus,
   onDeactivate,
   onRestore,
+  onInventory,
 }: CremationsTableProps) {
   if (cremations.length === 0) {
     return (
@@ -268,6 +270,7 @@ export function CremationsTable({
                           >
                             Editar
                           </button>
+                          <button type="button" onClick={() => onInventory(cremation)} className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Inventario</button>
 
                           {!terminalStatus && (
                             <button

@@ -7,4 +7,19 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+
+  server: {
+    host: '0.0.0.0',
+
+    allowedHosts: [
+      '.trycloudflare.com',
+    ],
+
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5187',
+        changeOrigin: true,
+      },
+    },
+  },
 })

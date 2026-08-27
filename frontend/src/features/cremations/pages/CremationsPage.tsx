@@ -22,6 +22,7 @@ import {
 import { CremationFormModal } from "../components/CremationFormModal";
 import { CremationsTable } from "../components/CremationsTable";
 import { CremationStatusModal } from "../components/CremationStatusModal";
+import { CremationInventoryPanel } from "../components/CremationInventoryPanel";
 import type { CremationFormValues } from "../schemas/cremationSchema";
 import type {
   ChangeCremationStatusPayload,
@@ -87,6 +88,7 @@ export function CremationsPage() {
 
   const [selectedStatusCremation, setSelectedStatusCremation] =
     useState<Cremation | null>(null);
+  const [selectedInventoryCremation, setSelectedInventoryCremation] = useState<Cremation | null>(null);
 
   const isActive = statusFilter === "active";
   const normalizedSearch = debouncedSearch.trim();
@@ -476,8 +478,11 @@ export function CremationsPage() {
           onChangeStatus={setSelectedStatusCremation}
           onDeactivate={handleDeactivate}
           onRestore={handleRestore}
+          onInventory={setSelectedInventoryCremation}
         />
       )}
+
+      {selectedInventoryCremation && <CremationInventoryPanel id={selectedInventoryCremation.id} />}
 
       {!normalizedSearch && totalPages > 1 && (
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

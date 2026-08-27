@@ -1,0 +1,4 @@
+using pcms.Application.Purchasing.DTOs;
+namespace pcms.Application.Purchasing.Interfaces;
+public interface ISupplierSupplyItemService { Task<IEnumerable<SupplierSupplyItemDto>> GetAllAsync(Guid? supplierId,Guid? supplyItemId,bool active); Task<IEnumerable<CostHistoryDto>> GetHistoryAsync(Guid id); Task<SupplierSupplyItemDto> CreateAsync(SupplierSupplyItemInput input); Task<SupplierSupplyItemDto?> UpdateAsync(Guid id,SupplierSupplyItemInput input); Task<bool> DeactivateAsync(Guid id); }
+public interface IPurchaseService { Task<PurchaseDto> CreateAsync(PurchaseInput input,Guid? userId); Task<PurchaseDto?> UpdateDraftAsync(Guid id,PurchaseInput input); Task<PurchaseDto?> ChangeStatusAsync(Guid id,pcms.Domain.Enums.PurchaseStatus status); Task<PurchaseDto> ReceiveAsync(Guid id,ReceiptInput input,Guid? userId); Task<PurchaseDto?> GetByIdAsync(Guid id); Task<PagedPurchasesDto> GetAllAsync(int page,int pageSize,DateTime?from,DateTime?to,Guid? supplierId); }

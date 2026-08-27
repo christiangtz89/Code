@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using pcms.Application.Collections.DTOs;
 using pcms.Application.Collections.Interfaces;
+using pcms.Application.Receptions.Exceptions;
 using pcms.Domain.Enums;
 
 namespace pcms.Api.Controllers;
@@ -284,6 +285,45 @@ public class CollectionsController : ControllerBase
             {
                 success = false,
                 message = ex.Message
+            });
+        }
+                catch (WeightRangeChangeConfirmationRequiredException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+
+                code =
+                    "WEIGHT_RANGE_CHANGE_CONFIRMATION_REQUIRED",
+
+                message = ex.Message,
+
+                weightChange = new
+                {
+                    previousWeightKg =
+                        ex.PreviousWeightKg,
+
+                    newWeightKg =
+                        ex.NewWeightKg,
+
+                    previousMinimumWeightKg =
+                        ex.PreviousMinimumWeightKg,
+
+                    previousMaximumWeightKg =
+                        ex.PreviousMaximumWeightKg,
+
+                    newMinimumWeightKg =
+                        ex.NewMinimumWeightKg,
+
+                    newMaximumWeightKg =
+                        ex.NewMaximumWeightKg,
+
+                    previousPrice =
+                        ex.PreviousPrice,
+
+                    newPrice =
+                        ex.NewPrice
+                }
             });
         }
         catch (InvalidOperationException ex)

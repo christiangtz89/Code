@@ -17,6 +17,8 @@ import {
   updateCollection,
 } from "../api/collectionsApi";
 
+import { uploadCollectionPhoto } from "../api/collectionPhotosApi";
+
 import { CollectionEditModal } from "../components/CollectionEditModal";
 import { CollectionFormModal } from "../components/CollectionFormModal";
 import { CollectionQrModal } from "../components/CollectionQrModal";
@@ -37,6 +39,8 @@ import {
   type PagedCollections,
   type UpdateCollectionPayload,
 } from "../types/collection.types";
+
+import { CollectionPhotoType } from "../types/collectionPhoto.types";
 
 import {
   collectionReceptionPayload,
@@ -344,25 +348,53 @@ export function CollectionsPage() {
 
   const isReceiveSubmitting = receiveMutation.isPending;
 
-  async function handleCreateSubmit(values: CollectionFormValues) {
+  async function handleCreateSubmit(
+    values: CollectionFormValues,
+    petPhotoFile: File | null,
+  ) {
+    let createdCollection: Collection;
+
     try {
-      const createdCollection = await createMutation.mutateAsync(
+      createdCollection = await createMutation.mutateAsync(
         createCollectionPayload(values),
       );
-
-      setIsCreateOpen(false);
-
-      /*
-       * Immediately show the QR
-       * after a successful pickup
-       * registration.
-       */
-      setQrCollection(createdCollection);
     } catch (error) {
       toast.error(
         getApiErrorMessage(error, "No fue posible registrar la recolección."),
       );
+
+      return;
     }
+
+    if (petPhotoFile) {
+      try {
+        await uploadCollectionPhoto(
+          createdCollection.id,
+          petPhotoFile,
+          CollectionPhotoType.PetIdentification,
+          "Foto de identificación tomada durante la recolección.",
+        );
+      } catch (error) {
+        toast.error(
+          getApiErrorMessage(
+            error,
+            "La recolección se registró correctamente, pero no fue posible guardar la fotografía. Puedes agregarla nuevamente desde la recolección.",
+          ),
+          {
+            duration: 6000,
+          },
+        );
+      }
+    }
+
+    setIsCreateOpen(false);
+
+    /*
+     * Immediately show the QR
+     * after a successful pickup
+     * registration.
+     */
+    setQrCollection(createdCollection);
   }
 
   async function handleEditSubmit(values: CollectionUpdateFormValues) {

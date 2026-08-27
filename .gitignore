@@ -27,3 +27,6 @@ pnpm-debug.log*
 .idea/
 *.sw?
 .DS_Store
+
+# Private uploaded files
+backend/src/pcms.Api/private-storage/

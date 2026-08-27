@@ -1,0 +1,2 @@
+namespace pcms.Domain.Entities;
+public class PurchaseReceipt { public Guid Id { get; set; } public Guid PurchaseId { get; set; } public Purchase Purchase { get; set; } = null!; public DateTime ReceivedAt { get; set; } public Guid? ReceivedByUserId { get; set; } public User? ReceivedByUser { get; set; } public string? Reference { get; set; } public string? Notes { get; set; } public DateTime CreatedAt { get; set; } public ICollection<PurchaseReceiptItem> Items { get; set; } = new List<PurchaseReceiptItem>(); }

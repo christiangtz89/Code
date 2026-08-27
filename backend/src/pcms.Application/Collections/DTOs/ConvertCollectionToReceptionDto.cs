@@ -12,6 +12,8 @@ public class ConvertCollectionToReceptionDto
             "El peso verificado debe ser mayor que cero.")]
     public decimal VerifiedWeightKg { get; set; }
 
+    public bool ConfirmWeightRangeChange { get; set; }
+
     public bool HasPersonalBelongings { get; set; }
 
     [StringLength(

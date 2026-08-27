@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import { hasPermission } from "../../features/auth/utils/permissions";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -334,6 +335,54 @@ const navigationGroups: NavigationGroup[] = [
         label: "Precios",
         icon: <PricingIcon />,
       },
+      {
+        to: "/inventory",
+        label: "Proveedores e insumos",
+        icon: <PackageIcon />,
+      },
+      {
+        to: "/suppliers",
+        label: "Proveedores",
+        icon: <BuildingIcon />,
+      },
+      {
+        to: "/expenses",
+        label: "Gastos",
+        icon: <PricingIcon />,
+      },
+      {
+        to: "/permissions",
+        label: "Permisos",
+        icon: <BuildingIcon />,
+      },
+      {
+        to: "/purchases",
+        label: "Compras",
+        icon: <PackageIcon />,
+      },
+      {
+        to: "/spending-reports",
+        label: "Reportes de gastos",
+        icon: <PricingIcon />,
+      },
+      { to: "/inventory-reports", label: "Reportes de inventario", icon: <PackageIcon /> },
+      { to: "/cost-analytics", label: "Análisis de costos", icon: <PricingIcon /> },
+      { to: "/inventory-scanner", label: "Escáner de inventario", icon: <PackageIcon /> },
+      {
+        to: "/bom",
+        label: "Materiales de urnas",
+        icon: <PackageIcon />,
+      },
+      {
+        to: "/production",
+        label: "Producción de urnas",
+        icon: <PackageIcon />,
+      },
+      {
+        to: "/inventory-labels",
+        label: "Etiquetas de inventario",
+        icon: <PackageIcon />,
+      },
     ],
   },
   {
@@ -369,6 +418,7 @@ const navigationGroups: NavigationGroup[] = [
 ];
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+ const visibleGroups = navigationGroups.map((group) => ({ ...group, items: group.items.filter((item) => item.to === "/inventory" ? hasPermission("Inventory.View") : item.to === "/suppliers" ? hasPermission("Suppliers.View") : item.to === "/expenses" ? hasPermission("Finance.View") : item.to === "/permissions" ? hasPermission("Permissions.Manage") : item.to === "/purchases" ? hasPermission("Purchasing.View") : item.to === "/spending-reports" ? hasPermission("Finance.View") || hasPermission("Purchasing.View") : item.to === "/inventory-reports" || item.to === "/bom" || item.to === "/production" || item.to === "/urn-inventory" || item.to === "/inventory-labels" ? hasPermission("Inventory.View") : true) })).filter((group) => group.items.length > 0);
   return (
     <>
       {isOpen && (
@@ -400,7 +450,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <nav className="flex-1 overflow-y-auto px-4 py-6">
           <div className="space-y-7">
-            {navigationGroups.map((group) => (
+            {visibleGroups.map((group) => (
               <section key={group.title}>
                 <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                   {group.title}

@@ -89,15 +89,26 @@ builder.Services
             };
     });
 
-    builder.Services.AddCors(options =>
+var permissionCodes = new[] { "Suppliers.View", "Suppliers.Manage", "Finance.View", "Finance.Manage", "Inventory.View", "Inventory.Manage", "Purchasing.View", "Purchasing.Manage", "Permissions.Manage" };
+builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("Frontend", policy =>
+    foreach (var code in permissionCodes)
     {
-        policy
-            .WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
+        var viewCode = code.EndsWith(".Manage", StringComparison.Ordinal) ? code[..^7] + ".View" : code;
+        var manageCode = code.EndsWith(".View", StringComparison.Ordinal) ? code[..^5] + ".Manage" : code;
+        options.AddPolicy(code, policy => policy.RequireAssertion(context => context.User.IsInRole("Admin") || context.User.HasClaim("permission", code) || context.User.HasClaim("permission", viewCode) || context.User.HasClaim("permission", manageCode)));
+    }
+});
+
+builder.Services.AddCors(options =>
+{
+options.AddPolicy("Frontend", policy =>
+{
+    policy
+        .WithOrigins("http://localhost:5173", "http://192.168.1.15:5173")
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+});
 });
 
 
@@ -114,6 +125,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
+
+app.UseStaticFiles();
 
 //Middleware
 

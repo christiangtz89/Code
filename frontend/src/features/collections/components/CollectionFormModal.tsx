@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { CollectionPetPhotoField } from "./CollectionPetPhotoField";
 import { useForm, useWatch } from "react-hook-form";
 
 import {
@@ -20,7 +21,10 @@ interface CollectionFormModalProps {
   isOpen: boolean;
   isSubmitting: boolean;
   onClose: () => void;
-  onSubmit: (values: CollectionFormValues) => Promise<void>;
+  onSubmit: (
+    values: CollectionFormValues,
+    petPhotoFile: File | null,
+  ) => Promise<void>;
 }
 
 const defaultValues: CollectionFormValues = {
@@ -113,6 +117,8 @@ export function CollectionFormModal({
     control,
     name: "hasPersonalBelongings",
   });
+
+  const [petPhotoFile, setPetPhotoFile] = useState<File | null>(null);
 
   const customersQuery = useQuery({
     queryKey: ["customers", "collection-options", true],
@@ -237,6 +243,7 @@ export function CollectionFormModal({
     }
 
     reset(defaultValues);
+    setPetPhotoFile(null);
   }, [isOpen, reset]);
 
   useEffect(() => {
@@ -355,6 +362,10 @@ export function CollectionFormModal({
     }
   }
 
+  async function submit(values: CollectionFormValues) {
+    await onSubmit(values, petPhotoFile);
+  }
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 px-4 py-8"
@@ -399,7 +410,7 @@ export function CollectionFormModal({
         </header>
 
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(submit)}
           className="space-y-7 px-6 py-6"
           noValidate
         >
@@ -827,6 +838,19 @@ export function CollectionFormModal({
                 · {selectedPet.weightKg} kg
               </div>
             )}
+          </fieldset>
+
+          {/* IDENTIFICACIÓN */}
+          <fieldset className="rounded-xl border border-slate-200 p-5">
+            <legend className="px-2 text-sm font-semibold text-slate-800">
+              Identificación
+            </legend>
+
+            <CollectionPetPhotoField
+              file={petPhotoFile}
+              disabled={isSubmitting}
+              onChange={setPetPhotoFile}
+            />
           </fieldset>
 
           {/* LUGAR */}

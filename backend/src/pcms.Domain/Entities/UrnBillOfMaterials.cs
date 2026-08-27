@@ -1,0 +1,2 @@
+namespace pcms.Domain.Entities;
+public class UrnBillOfMaterials { public Guid Id { get; set; } public Guid UrnId { get; set; } public Urn Urn { get; set; } = null!; public int Version { get; set; } = 1; public bool IsActive { get; set; } = true; public DateTime CreatedAt { get; set; } public DateTime? UpdatedAt { get; set; } public ICollection<UrnBillOfMaterialsItem> Items { get; set; } = new List<UrnBillOfMaterialsItem>(); }

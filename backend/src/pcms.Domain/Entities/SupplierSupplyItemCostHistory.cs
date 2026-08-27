@@ -1,0 +1,2 @@
+namespace pcms.Domain.Entities;
+public class SupplierSupplyItemCostHistory { public Guid Id { get; set; } public Guid SupplierSupplyItemId { get; set; } public SupplierSupplyItem SupplierSupplyItem { get; set; } = null!; public decimal UnitCost { get; set; } public string Currency { get; set; } = "MXN"; public DateTime EffectiveAt { get; set; } public DateTime? EndedAt { get; set; } public DateTime CreatedAt { get; set; } }

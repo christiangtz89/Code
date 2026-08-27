@@ -24,6 +24,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Collection> Collections { get; set; }
 
+    public DbSet<CollectionPhoto> CollectionPhotos { get; set; }
+
     public DbSet<Reception> Receptions { get; set; }
 
     public DbSet<ReceptionPhoto> ReceptionPhotos { get; set; }
@@ -51,12 +53,60 @@ public class AppDbContext : DbContext
     public DbSet<Veterinarian> Veterinarians { get; set; }
 
     public DbSet<VeterinaryRequest> VeterinaryRequests { get; set; }
+    public DbSet<Permission> Permissions { get; set; }
+    public DbSet<RolePermission> RolePermissions { get; set; }
+    public DbSet<Supplier> Suppliers { get; set; }
+    public DbSet<ExpenseCategory> ExpenseCategories { get; set; }
+    public DbSet<Expense> Expenses { get; set; }
+    public DbSet<SupplyItem> SupplyItems { get; set; }
+    public DbSet<SupplierSupplyItem> SupplierSupplyItems { get; set; }
+    public DbSet<SupplierSupplyItemCostHistory> SupplierSupplyItemCostHistories { get; set; }
+    public DbSet<Purchase> Purchases { get; set; }
+    public DbSet<PurchaseItem> PurchaseItems { get; set; }
+    public DbSet<PurchaseReceipt> PurchaseReceipts { get; set; }
+    public DbSet<PurchaseReceiptItem> PurchaseReceiptItems { get; set; }
+    public DbSet<SupplyInventoryMovement> SupplyInventoryMovements { get; set; }
+    public DbSet<FilamentSpecification> FilamentSpecifications { get; set; }
+    public DbSet<UrnBillOfMaterials> UrnBillOfMaterials { get; set; }
+    public DbSet<UrnBillOfMaterialsItem> UrnBillOfMaterialsItems { get; set; }
+    public DbSet<ManufacturedUrnProduction> ManufacturedUrnProductions { get; set; }
+    public DbSet<ManufacturingMaterialUsage> ManufacturingMaterialUsages { get; set; }
+    public DbSet<UrnSupplyItem> UrnSupplyItems { get; set; }
+    public DbSet<SupplyInventoryLot> SupplyInventoryLots { get; set; }
+    public DbSet<CremationUrnReservation> CremationUrnReservations { get; set; }
+    public DbSet<CremationInventoryFulfillment> CremationInventoryFulfillments { get; set; }
+    public DbSet<CremationInventoryMaterial> CremationInventoryMaterials { get; set; }
+    public DbSet<InventoryStockCount> InventoryStockCounts { get; set; }
 
 
     protected override void OnModelCreating(
      ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Supplier>(e => { e.ToTable("Proveedores"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasColumnName("Nombre").HasMaxLength(200).IsRequired(); e.Property(x => x.LegalName).HasColumnName("RazonSocial").HasMaxLength(250); e.Property(x => x.TaxId).HasColumnName("RFC").HasMaxLength(30); e.HasIndex(x => x.TaxId); });
+        modelBuilder.Entity<ExpenseCategory>(e => { e.ToTable("CategoriasGasto"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasColumnName("Nombre").HasMaxLength(150).IsRequired(); e.Property(x => x.Description).HasColumnName("Descripcion").HasMaxLength(500); e.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<Expense>(e => { e.ToTable("Gastos"); e.HasKey(x => x.Id); e.Property(x => x.Subtotal).HasColumnType("numeric(14,2)"); e.Property(x => x.Tax).HasColumnType("numeric(14,2)"); e.Property(x => x.Total).HasColumnType("numeric(14,2)"); e.Property(x => x.Currency).HasMaxLength(3).IsRequired(); e.HasOne(x => x.ExpenseCategory).WithMany(x => x.Expenses).HasForeignKey(x => x.ExpenseCategoryId).OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.Supplier).WithMany(x => x.Expenses).HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.RecordedByUser).WithMany().HasForeignKey(x => x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<SupplyItem>(e => { e.ToTable("Insumos"); e.HasKey(x => x.Id); e.Property(x => x.MinimumQuantity).HasColumnType("numeric(14,3)"); e.Property(x => x.ScanCode).HasMaxLength(150).IsRequired(); e.HasIndex(x => x.ScanCode).IsUnique(); e.HasIndex(x => x.InternalSku); });
+        modelBuilder.Entity<SupplierSupplyItem>(e => { e.ToTable("ProveedoresInsumos"); e.HasKey(x=>x.Id); e.Property(x=>x.CurrentUnitCost).HasColumnType("numeric(14,4)"); e.Property(x=>x.InventoryUnitsPerPurchaseUnit).HasColumnType("numeric(14,6)"); e.HasIndex(x=>new{x.SupplierId,x.SupplyItemId}).IsUnique(); e.HasOne(x=>x.Supplier).WithMany().HasForeignKey(x=>x.SupplierId).OnDelete(DeleteBehavior.Restrict); e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<SupplierSupplyItemCostHistory>(e => { e.ToTable("HistorialCostosProveedorInsumo"); e.HasKey(x=>x.Id); e.Property(x=>x.UnitCost).HasColumnType("numeric(14,4)"); e.HasOne(x=>x.SupplierSupplyItem).WithMany(x=>x.CostHistory).HasForeignKey(x=>x.SupplierSupplyItemId).OnDelete(DeleteBehavior.Cascade); e.HasIndex(x=>new{x.SupplierSupplyItemId,x.EffectiveAt}); });
+        modelBuilder.Entity<Purchase>(e => { e.ToTable("Compras"); e.HasKey(x=>x.Id); e.Property(x=>x.Status).HasConversion<int>().IsRequired(); e.Property(x=>x.Subtotal).HasColumnType("numeric(14,2)"); e.Property(x=>x.Tax).HasColumnType("numeric(14,2)"); e.Property(x=>x.Total).HasColumnType("numeric(14,2)"); e.HasOne(x=>x.Supplier).WithMany().HasForeignKey(x=>x.SupplierId).OnDelete(DeleteBehavior.Restrict); e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<PurchaseItem>(e => { e.ToTable("PartidasCompra"); e.HasKey(x=>x.Id); e.Property(x=>x.Quantity).HasColumnType("numeric(14,3)"); e.Property(x=>x.UnitCost).HasColumnType("numeric(14,4)"); e.Property(x=>x.LineSubtotal).HasColumnType("numeric(14,2)"); e.Property(x=>x.NormalizedReceivedQuantity).HasColumnType("numeric(14,3)"); e.HasOne(x=>x.Purchase).WithMany(x=>x.Items).HasForeignKey(x=>x.PurchaseId).OnDelete(DeleteBehavior.Cascade); e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict); e.HasOne(x=>x.SupplierSupplyItem).WithMany().HasForeignKey(x=>x.SupplierSupplyItemId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<PurchaseReceipt>(e=>{e.ToTable("RecepcionesCompra");e.HasKey(x=>x.Id);e.HasOne(x=>x.Purchase).WithMany(x=>x.Receipts).HasForeignKey(x=>x.PurchaseId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.ReceivedByUser).WithMany().HasForeignKey(x=>x.ReceivedByUserId).OnDelete(DeleteBehavior.Restrict);e.HasIndex(x=>new{x.PurchaseId,x.ReceivedAt});});
+        modelBuilder.Entity<PurchaseReceiptItem>(e=>{e.ToTable("PartidasRecepcionCompra");e.HasKey(x=>x.Id);e.Property(x=>x.QuantityReceived).HasColumnType("numeric(14,3)");e.Property(x=>x.NormalizedReceivedQuantity).HasColumnType("numeric(14,3)");e.Property(x=>x.UnitCostSnapshot).HasColumnType("numeric(14,4)");e.HasOne(x=>x.PurchaseReceipt).WithMany(x=>x.Items).HasForeignKey(x=>x.PurchaseReceiptId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.PurchaseItem).WithMany(x=>x.ReceiptItems).HasForeignKey(x=>x.PurchaseItemId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.InventoryMovement).WithOne(x=>x.PurchaseReceiptItem).HasForeignKey<PurchaseReceiptItem>(x=>x.InventoryMovementId).OnDelete(DeleteBehavior.Restrict);e.HasIndex(x=>x.InventoryMovementId).IsUnique();});
+        modelBuilder.Entity<SupplyInventoryMovement>(e => { e.ToTable("MovimientosInventarioInsumos"); e.HasKey(x=>x.Id); e.Property(x=>x.MovementType).HasConversion<int>().IsRequired(); e.Property(x=>x.Quantity).HasColumnType("numeric(14,3)"); e.HasIndex(x=>new{x.SupplyItemId,x.OccurredAt}); e.HasIndex(x=>x.PurchaseItemId).IsUnique().HasFilter("\"PurchaseItemId\" IS NOT NULL"); e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict); e.HasOne(x=>x.PurchaseItem).WithMany().HasForeignKey(x=>x.PurchaseItemId).OnDelete(DeleteBehavior.Restrict); e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<FilamentSpecification>(e => { e.ToTable("EspecificacionesFilamento"); e.HasKey(x=>x.Id); e.Property(x=>x.MaterialType).HasMaxLength(80).IsRequired(); e.Property(x=>x.Brand).HasMaxLength(120); e.Property(x=>x.Color).HasMaxLength(120); e.Property(x=>x.NetUsableWeightGrams).HasColumnType("numeric(14,3)"); e.Property(x=>x.ManufacturerProductCode).HasMaxLength(150); e.Property(x=>x.ProductData).HasMaxLength(2000); e.HasIndex(x=>x.SupplyItemId).IsUnique(); e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<UrnBillOfMaterials>(e=>{e.ToTable("UrnasListaMateriales");e.HasKey(x=>x.Id);e.HasIndex(x=>new{x.UrnId,x.Version}).IsUnique();e.HasIndex(x=>x.UrnId).IsUnique().HasFilter("\"IsActive\" = true");e.HasOne(x=>x.Urn).WithMany().HasForeignKey(x=>x.UrnId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<UrnBillOfMaterialsItem>(e=>{e.ToTable("UrnasListaMaterialesPartidas");e.HasKey(x=>x.Id);e.Property(x=>x.RequiredQuantity).HasColumnType("numeric(14,3)");e.HasOne(x=>x.BillOfMaterials).WithMany(x=>x.Items).HasForeignKey(x=>x.UrnBillOfMaterialsId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<ManufacturedUrnProduction>(e=>{e.ToTable("ProduccionesUrna");e.HasKey(x=>x.Id);e.Property(x=>x.QuantityProduced).HasColumnType("numeric(14,3)");e.HasIndex(x=>x.FinishedGoodsReceiptMovementId).IsUnique().HasFilter("\"FinishedGoodsReceiptMovementId\" IS NOT NULL");e.HasOne(x=>x.FinishedGoodsReceiptMovement).WithMany().HasForeignKey(x=>x.FinishedGoodsReceiptMovementId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.Urn).WithMany().HasForeignKey(x=>x.UrnId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.UrnBillOfMaterials).WithMany().HasForeignKey(x=>x.UrnBillOfMaterialsId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.RecordedByUser).WithMany().HasForeignKey(x=>x.RecordedByUserId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<ManufacturingMaterialUsage>(e=>{e.ToTable("ConsumosMaterialProduccion");e.HasKey(x=>x.Id);e.Property(x=>x.SupplyItemNameSnapshot).HasMaxLength(250).IsRequired();e.Property(x=>x.ExpectedQuantity).HasColumnType("numeric(14,3)");e.Property(x=>x.ActualQuantity).HasColumnType("numeric(14,3)");e.Property(x=>x.WasteQuantity).HasColumnType("numeric(14,3)");e.Property(x=>x.CostPerUnitSnapshot).HasColumnType("numeric(14,8)");e.Property(x=>x.TotalMaterialCostSnapshot).HasColumnType("numeric(14,4)");e.HasOne(x=>x.Production).WithMany(x=>x.MaterialUsages).HasForeignKey(x=>x.ProductionId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.InventoryMovement).WithMany().HasForeignKey(x=>x.InventoryMovementId).OnDelete(DeleteBehavior.Restrict);e.HasIndex(x=>x.InventoryMovementId).IsUnique();});
+        modelBuilder.Entity<UrnSupplyItem>(e=>{e.ToTable("UrnasInsumosTerminados");e.HasKey(x=>x.Id);e.HasIndex(x=>x.UrnId).IsUnique().HasFilter("\"IsActive\" = true");e.HasIndex(x=>x.SupplyItemId).IsUnique();e.HasOne(x=>x.Urn).WithMany().HasForeignKey(x=>x.UrnId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<SupplyInventoryLot>(e=>{e.ToTable("LotesInventarioInsumos");e.HasKey(x=>x.Id);e.Property(x=>x.ScanCode).HasMaxLength(150).IsRequired();e.Property(x=>x.InitialQuantity).HasColumnType("numeric(14,3)");e.HasIndex(x=>x.ScanCode).IsUnique();e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.PurchaseItem).WithMany().HasForeignKey(x=>x.PurchaseItemId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.PurchaseReceiptItem).WithMany().HasForeignKey(x=>x.PurchaseReceiptItemId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<SupplyInventoryMovement>().HasIndex(x=>x.SupplyInventoryLotId);
+        modelBuilder.Entity<SupplyInventoryMovement>().HasOne(x=>x.SupplyInventoryLot).WithMany().HasForeignKey(x=>x.SupplyInventoryLotId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<CremationUrnReservation>(e=>{e.ToTable("ReservasUrnaCremacion");e.HasKey(x=>x.Id);e.Property(x=>x.Status).HasConversion<int>();e.Property(x=>x.UrnNameSnapshot).HasMaxLength(250).IsRequired();e.Property(x=>x.SupplyItemNameSnapshot).HasMaxLength(250).IsRequired();e.Property(x=>x.SupplyItemScanCodeSnapshot).HasMaxLength(150).IsRequired();e.HasIndex(x=>new{x.CremationId,x.Status}).HasFilter("\"Status\" = 1").IsUnique();e.HasOne(x=>x.Cremation).WithMany().HasForeignKey(x=>x.CremationId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.Urn).WithMany().HasForeignKey(x=>x.UrnId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.Fulfillment).WithOne(x=>x.UrnReservation).HasForeignKey<CremationUrnReservation>(x=>x.FulfillmentId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<CremationInventoryFulfillment>(e=>{e.ToTable("EntregasInventarioCremacion");e.HasKey(x=>x.Id);e.HasIndex(x=>x.CremationId).IsUnique();e.HasOne(x=>x.Cremation).WithMany().HasForeignKey(x=>x.CremationId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.UrnMovement).WithMany().HasForeignKey(x=>x.UrnMovementId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.FulfilledByUser).WithMany().HasForeignKey(x=>x.FulfilledByUserId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<CremationInventoryMaterial>(e=>{e.ToTable("MaterialesEntregaCremacion");e.HasKey(x=>x.Id);e.Property(x=>x.Quantity).HasColumnType("numeric(14,3)");e.Property(x=>x.SupplyItemNameSnapshot).HasMaxLength(250).IsRequired();e.Property(x=>x.UnitOfMeasureSnapshot).HasMaxLength(50).IsRequired();e.HasOne(x=>x.Fulfillment).WithMany(x=>x.Materials).HasForeignKey(x=>x.FulfillmentId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.Lot).WithMany().HasForeignKey(x=>x.LotId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.InventoryMovement).WithMany().HasForeignKey(x=>x.InventoryMovementId).OnDelete(DeleteBehavior.Restrict);});
+        modelBuilder.Entity<InventoryStockCount>(e=>{e.ToTable("ConteosInventario");e.HasKey(x=>x.Id);e.Property(x=>x.SystemQuantity).HasColumnType("numeric(14,3)");e.Property(x=>x.CountedQuantity).HasColumnType("numeric(14,3)");e.Property(x=>x.Variance).HasColumnType("numeric(14,3)");e.HasIndex(x=>new{x.SupplyItemId,x.CountedAt});e.HasOne(x=>x.SupplyItem).WithMany().HasForeignKey(x=>x.SupplyItemId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.SupplyInventoryLot).WithMany().HasForeignKey(x=>x.SupplyInventoryLotId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.InventoryMovement).WithMany().HasForeignKey(x=>x.InventoryMovementId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.CountedByUser).WithMany().HasForeignKey(x=>x.CountedByUserId).OnDelete(DeleteBehavior.Restrict);});
 
         // Reception photo table configuration
         modelBuilder.Entity<ReceptionPhoto>(entity =>
@@ -126,6 +176,77 @@ public class AppDbContext : DbContext
             entity.HasOne(rp => rp.UploadedByUser)
                 .WithMany()
                 .HasForeignKey(rp => rp.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Collection photo table configuration
+        modelBuilder.Entity<CollectionPhoto>(entity =>
+        {
+            entity.ToTable("FotosRecoleccion");
+
+            entity.HasKey(cp => cp.Id);
+
+            entity.Property(cp => cp.Id)
+                .HasColumnName("Id");
+
+            entity.Property(cp => cp.CollectionId)
+                .HasColumnName("RecoleccionId")
+                .IsRequired();
+
+            entity.Property(cp => cp.UploadedByUserId)
+                .HasColumnName("SubidoPorUsuarioId")
+                .IsRequired();
+
+            entity.Property(cp => cp.PhotoType)
+                .HasColumnName("TipoFoto")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(cp => cp.OriginalFileName)
+                .HasColumnName("NombreArchivoOriginal")
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(cp => cp.StoredFileName)
+                .HasColumnName("NombreArchivoGuardado")
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(cp => cp.StoragePath)
+                .HasColumnName("RutaAlmacenamiento")
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(cp => cp.ContentType)
+                .HasColumnName("TipoContenido")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(cp => cp.Notes)
+                .HasColumnName("Notas")
+                .HasMaxLength(1000);
+
+            entity.Property(cp => cp.IsActive)
+                .HasColumnName("Activo")
+                .IsRequired();
+
+            entity.Property(cp => cp.UploadedAt)
+                .HasColumnName("FechaSubida")
+                .IsRequired();
+
+            entity.HasIndex(cp => cp.CollectionId);
+
+            entity.HasIndex(cp => cp.StoredFileName)
+                .IsUnique();
+
+            entity.HasOne(cp => cp.Collection)
+                .WithMany(c => c.Photos)
+                .HasForeignKey(cp => cp.CollectionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(cp => cp.UploadedByUser)
+                .WithMany()
+                .HasForeignKey(cp => cp.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -470,6 +591,9 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.RoleId);
         });
 
+        modelBuilder.Entity<Permission>(entity => { entity.ToTable("Permisos"); entity.HasKey(x => x.Id); entity.Property(x => x.Code).HasMaxLength(100).IsRequired(); entity.Property(x => x.Name).HasMaxLength(150).IsRequired(); entity.HasIndex(x => x.Code).IsUnique(); });
+        modelBuilder.Entity<RolePermission>(entity => { entity.ToTable("RolPermisos"); entity.HasKey(x => new { x.RoleId, x.PermissionId }); entity.HasOne(x => x.Role).WithMany(x => x.RolePermissions).HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade); entity.HasOne(x => x.Permission).WithMany(x => x.RolePermissions).HasForeignKey(x => x.PermissionId).OnDelete(DeleteBehavior.Cascade); });
+
 
         // Roles seed
         modelBuilder.Entity<Role>()
@@ -537,7 +661,17 @@ public class AppDbContext : DbContext
         entity.HasIndex(v => v.Name);
 
         entity.HasIndex(v => v.Email);
-    });
+                });
+
+        var permissionDefinitions = new[]
+        {
+            ("Permissions.Manage", "Administrar permisos"), ("Suppliers.View", "Consultar proveedores"), ("Suppliers.Manage", "Administrar proveedores"),
+            ("Finance.View", "Consultar finanzas"), ("Finance.Manage", "Administrar finanzas"), ("Inventory.View", "Consultar inventario"),
+            ("Inventory.Manage", "Administrar inventario"), ("Purchasing.View", "Consultar compras"), ("Purchasing.Manage", "Administrar compras")
+        };
+        var permissionSeed = permissionDefinitions.Select((x, i) => new Permission { Id = Guid.Parse($"{i + 1:00000000}-0000-0000-0000-000000000001"), Code = x.Item1, Name = x.Item2 }).ToArray();
+        modelBuilder.Entity<Permission>().HasData(permissionSeed);
+        modelBuilder.Entity<RolePermission>().HasData(permissionSeed.Select(x => new RolePermission { RoleId = Guid.Parse("11111111-1111-1111-1111-111111111111"), PermissionId = x.Id }));
 
         modelBuilder.Entity<Veterinarian>(entity =>
     {

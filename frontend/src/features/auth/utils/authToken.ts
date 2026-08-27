@@ -5,6 +5,8 @@ interface JwtClaims {
   sub?: string;
   email?: string;
   role?: string | string[];
+  permission?: string | string[];
+  permissions?: string[];
 }
 
 export function isAccessTokenValid(token: string): boolean {

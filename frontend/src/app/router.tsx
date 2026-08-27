@@ -17,6 +17,21 @@ import { CollectionsPage } from "../features/collections/pages/CollectionsPage";
 import { CremationPackagesPage } from "../features/cremation-packages/pages";
 import { UrnsPage } from "../features/urns/pages";
 import { CremationPricingPage } from "../features/cremation-pricing/pages";
+import { InventoryCatalogPage } from "../features/inventory/pages/InventoryCatalogPage";
+import { ExpensesPage } from "../features/inventory/pages/ExpensesPage";
+import { SuppliersPage } from "../features/inventory/pages/SuppliersPage";
+import { PurchasesPage } from "../features/inventory/pages/PurchasesPage";
+import { PermissionRoute } from "../routes/PermissionRoute";
+import { PermissionsPage } from "../features/auth/pages/PermissionsPage";
+import { BomPage } from "../features/inventory/pages/BomPage";
+import { ProductionPage } from "../features/inventory/pages/ProductionPage";
+import { UrnInventoryPage } from "../features/inventory/pages/UrnInventoryPage";
+import { InventoryLabelsPage } from "../features/inventory/pages/InventoryLabelsPage";
+import { LotsPage } from "../features/inventory/pages/LotsPage";
+import { SpendingReportsPage } from "../features/inventory/pages/SpendingReportsPage";
+import { InventoryReportsPage } from "../features/inventory/pages/InventoryReportsPage";
+import { CostAnalyticsPage } from "../features/inventory/pages/CostAnalyticsPage";
+import { ScannerPage } from "../features/inventory/pages/ScannerPage";
 
 export const router = createBrowserRouter([
   {
@@ -82,6 +97,20 @@ export const router = createBrowserRouter([
             path: "payments",
             element: <PaymentsPage />,
           },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "inventory", element: <InventoryCatalogPage /> }] },
+          { element: <PermissionRoute permission="Suppliers.View" />, children: [{ path: "suppliers", element: <SuppliersPage /> }] },
+          { element: <PermissionRoute permission="Finance.View" />, children: [{ path: "expenses", element: <ExpensesPage /> }] },
+          { element: <PermissionRoute permission="Permissions.Manage" />, children: [{ path: "permissions", element: <PermissionsPage /> }] },
+          { element: <PermissionRoute permission="Purchasing.View" />, children: [{ path: "purchases", element: <PurchasesPage /> }] },
+          { element: <PermissionRoute anyOf={["Finance.View", "Purchasing.View"]} />, children: [{ path: "spending-reports", element: <SpendingReportsPage /> }] },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "inventory-reports", element: <InventoryReportsPage /> }] },
+          { element: <PermissionRoute permission="Purchasing.View" />, children: [{ path: "cost-analytics", element: <CostAnalyticsPage /> }] },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "inventory-scanner", element: <ScannerPage /> }] },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "bom", element: <BomPage /> }] },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "production", element: <ProductionPage /> }] },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "urn-inventory", element: <UrnInventoryPage /> }] },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "inventory-labels", element: <InventoryLabelsPage /> }] },
+          { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "inventory-lots", element: <LotsPage /> }] },
           {
             path: "api-test",
             element: <ApiTestPage />,

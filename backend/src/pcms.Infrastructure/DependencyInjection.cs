@@ -16,6 +16,11 @@ using pcms.Application.Collections.Interfaces;
 using pcms.Application.CremationPackages.Interfaces;
 using pcms.Application.Urns.Interfaces;
 using pcms.Application.CremationPricing.Interfaces;
+using pcms.Application.Collections.Photos.Interfaces;
+using pcms.Application.Supplies.Interfaces;
+using pcms.Application.Purchasing.Interfaces;
+using pcms.Application.Inventory;
+using pcms.Application.Reporting;
 
 namespace pcms.Infrastructure;
 
@@ -44,6 +49,10 @@ public static class DependencyInjection
     ICollectionService,
     CollectionService>();
 
+        services.AddScoped<
+        ICollectionPhotoService,
+        CollectionPhotoService>();
+
         services.AddScoped<IVeterinaryClinicService, VeterinaryClinicService>();
 
         services.AddScoped<IVeterinarianService, VeterinarianService>();
@@ -62,6 +71,22 @@ public static class DependencyInjection
             IVeterinaryRequestService,
             VeterinaryRequestService>();
 
+        services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<ISupplyItemService, SupplyItemService>();
+        services.AddScoped<IExpenseService, ExpenseService>();
+        services.AddScoped<ISupplierSupplyItemService, SupplierSupplyItemService>();
+        services.AddScoped<IPurchaseService, PurchaseService>();
+        services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IFilamentService, FilamentService>();
+        services.AddScoped<IUrnBomService, UrnBomService>();
+        services.AddScoped<IManufacturedUrnProductionService, ManufacturedUrnProductionService>();
+        services.AddScoped<IUrnInventoryService, UrnInventoryService>();
+        services.AddScoped<IInventoryLotService, InventoryLotService>();
+        services.AddScoped<ISpendingReportService, SpendingReportService>();
+        services.AddScoped<IInventoryReportService, InventoryReportService>();
+        services.AddScoped<ICostAnalyticsService, CostAnalyticsService>();
+        services.AddScoped<ICremationInventoryService, CremationInventoryService>();
+        services.AddScoped<IStockCountService, StockCountService>();
         return services;
     }
 }

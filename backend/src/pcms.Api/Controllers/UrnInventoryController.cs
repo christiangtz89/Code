@@ -1,0 +1,3 @@
+using Microsoft.AspNetCore.Authorization; using Microsoft.AspNetCore.Mvc; using pcms.Application.Inventory;
+namespace pcms.Api.Controllers;
+[ApiController,Route("api/urn-inventory")] public class UrnInventoryController(IUrnInventoryService service):ControllerBase{[HttpGet,Authorize(Policy="Inventory.View")]public async Task<ActionResult<IEnumerable<UrnInventoryDto>>>Get()=>Ok(await service.GetAsync());[HttpPut,Authorize(Policy="Inventory.Manage")]public async Task<ActionResult<UrnInventoryDto>>Save(UrnSupplyItemInput input){try{return Ok(await service.SaveAsync(input));}catch(ArgumentException e){return BadRequest(new{message=e.Message});}catch(InvalidOperationException e){return BadRequest(new{message=e.Message});}}}

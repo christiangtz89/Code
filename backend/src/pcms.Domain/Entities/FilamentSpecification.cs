@@ -1,0 +1,2 @@
+namespace pcms.Domain.Entities;
+public class FilamentSpecification { public Guid Id { get; set; } public Guid SupplyItemId { get; set; } public SupplyItem SupplyItem { get; set; } = null!; public string MaterialType { get; set; } = string.Empty; public string? Brand { get; set; } public string? Color { get; set; } public decimal NetUsableWeightGrams { get; set; } public string? ManufacturerProductCode { get; set; } public string? ProductData { get; set; } public DateTime CreatedAt { get; set; } public DateTime? UpdatedAt { get; set; } }

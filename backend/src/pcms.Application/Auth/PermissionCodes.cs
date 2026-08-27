@@ -1,0 +1,2 @@
+namespace pcms.Application.Auth;
+public static class PermissionCodes { public const string Manage="Permissions.Manage"; public const string SuppliersView="Suppliers.View"; public const string SuppliersManage="Suppliers.Manage"; public const string FinanceView="Finance.View"; public const string FinanceManage="Finance.Manage"; public const string InventoryView="Inventory.View"; public const string InventoryManage="Inventory.Manage"; public const string PurchasingView="Purchasing.View"; public const string PurchasingManage="Purchasing.Manage"; }

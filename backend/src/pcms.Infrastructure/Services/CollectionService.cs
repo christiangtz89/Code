@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using pcms.Application.Collections.DTOs;
 using pcms.Application.Collections.Interfaces;
+using pcms.Application.Receptions.Exceptions;
 using pcms.Domain.Entities;
 using pcms.Domain.Enums;
 using pcms.Infrastructure.Persistence;
@@ -10,6 +11,8 @@ namespace pcms.Infrastructure.Services;
 
 public class CollectionService : ICollectionService
 {
+
+        private const decimal WeightCorrectionTolerance = 0.10m;
     private readonly AppDbContext _context;
 
     public CollectionService(
@@ -634,6 +637,97 @@ public class CollectionService : ICollectionService
         {
             throw new InvalidOperationException(
                 "La mascota ya tiene una recepción registrada.");
+        }
+
+                if (collection.ApproximateWeightKg.HasValue)
+        {
+            var originalWeightKg =
+                collection.ApproximateWeightKg.Value;
+
+            var weightChanged =
+                Math.Abs(
+                    dto.VerifiedWeightKg -
+                    originalWeightKg) >= 0.01m;
+
+            if (weightChanged)
+            {
+                var minimumAllowedWeightKg =
+                    originalWeightKg *
+                    (1m - WeightCorrectionTolerance);
+
+                var maximumAllowedWeightKg =
+                    originalWeightKg *
+                    (1m + WeightCorrectionTolerance);
+
+                if (dto.VerifiedWeightKg <
+                        minimumAllowedWeightKg ||
+                    dto.VerifiedWeightKg >
+                        maximumAllowedWeightKg)
+                {
+                    throw new InvalidOperationException(
+                        $"Verifica que sea la mascota correcta. " +
+                        $"El peso ingresado " +
+                        $"({dto.VerifiedWeightKg:F2} kg) " +
+                        $"está fuera de la tolerancia permitida " +
+                        $"de ±10% respecto al peso registrado " +
+                        $"({originalWeightKg:F2} kg). " +
+                        $"El rango permitido es de " +
+                        $"{minimumAllowedWeightKg:F2} a " +
+                        $"{maximumAllowedWeightKg:F2} kg.");
+                }
+
+                var pricingConfiguration =
+                    await _context
+                        .CremationPricingConfigurations
+                        .AsNoTracking()
+                        .OrderBy(configuration =>
+                            configuration.CreatedAt)
+                        .FirstOrDefaultAsync();
+
+                if (pricingConfiguration is null)
+                {
+                    throw new InvalidOperationException(
+                        "No existe una configuración activa de rangos de peso.");
+                }
+
+                var currentRange =
+                    GetWeightRange(
+                        originalWeightKg,
+                        pricingConfiguration.WeightInterval);
+
+                var newRange =
+                    GetWeightRange(
+                        dto.VerifiedWeightKg,
+                        pricingConfiguration.WeightInterval);
+
+                var rangeDifference =
+                    Math.Abs(
+                        newRange.Index -
+                        currentRange.Index);
+
+                if (rangeDifference > 1)
+                {
+                    throw new InvalidOperationException(
+                        "Verifica que sea la mascota correcta. " +
+                        "El nuevo peso provocaría un cambio de dos o más " +
+                        "rangos de precio. No se realizó ningún cambio.");
+                }
+
+                if (rangeDifference == 1 &&
+                    !dto.ConfirmWeightRangeChange)
+                {
+                    throw new
+                        WeightRangeChangeConfirmationRequiredException(
+                            originalWeightKg,
+                            dto.VerifiedWeightKg,
+                            currentRange.MinimumWeightKg,
+                            currentRange.MaximumWeightKg,
+                            newRange.MinimumWeightKg,
+                            newRange.MaximumWeightKg,
+                            null,
+                            null);
+                }
+            }
         }
 
         /*
@@ -1332,5 +1426,41 @@ public class CollectionService : ICollectionService
                 CreatedAt =
                     c.CreatedAt
             });
+    }
+
+        private sealed record WeightRangeInfo(
+        int Index,
+        decimal MinimumWeightKg,
+        decimal MaximumWeightKg);
+
+    private static WeightRangeInfo GetWeightRange(
+        decimal weightKg,
+        WeightPricingInterval interval)
+    {
+        var intervalKg =
+            (decimal)(int)interval;
+
+        var index =
+            (int)Math.Ceiling(
+                weightKg / intervalKg);
+
+        if (index < 1)
+        {
+            index = 1;
+        }
+
+        var maximumWeightKg =
+            index * intervalKg;
+
+        var minimumWeightKg =
+            index == 1
+                ? 0.01m
+                : ((index - 1) * intervalKg) +
+                    0.01m;
+
+        return new WeightRangeInfo(
+            index,
+            minimumWeightKg,
+            maximumWeightKg);
     }
 }

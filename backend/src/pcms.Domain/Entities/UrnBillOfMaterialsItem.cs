@@ -1,0 +1,2 @@
+namespace pcms.Domain.Entities;
+public class UrnBillOfMaterialsItem { public Guid Id { get; set; } public Guid UrnBillOfMaterialsId { get; set; } public UrnBillOfMaterials BillOfMaterials { get; set; } = null!; public Guid SupplyItemId { get; set; } public SupplyItem SupplyItem { get; set; } = null!; public decimal RequiredQuantity { get; set; } public string UnitOfMeasure { get; set; } = string.Empty; }

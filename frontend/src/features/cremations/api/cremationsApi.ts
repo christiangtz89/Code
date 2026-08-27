@@ -14,6 +14,12 @@ import type {
   CremationUserOption,
 } from "../types/cremationForm.types";
 
+export interface CremationInventory { cremationId:string; urnId:string|null; urnName:string|null; physicalStock:number; reservedQuantity:number; availableQuantity:number; reservation:{status:number; supplyItemId:string; reservedAt:string; fulfilledAt:string|null}|null; fulfillmentId:string|null; fulfilledAt:string|null; materials:Array<{supplyItemName:string;quantity:number;unitOfMeasure:string}>; }
+export const getCremationInventory = async (id:string) => (await apiClient.get<CremationInventory>(`/cremations/${id}/inventory`)).data;
+export const reserveCremationUrn = async (id:string) => (await apiClient.post<CremationInventory>(`/cremations/${id}/inventory/reserve`)).data;
+export const cancelCremationUrn = async (id:string, reason?:string) => (await apiClient.post<CremationInventory>(`/cremations/${id}/inventory/cancel`, reason ?? null)).data;
+export const fulfillCremationInventory = async (id:string, materials:unknown[]=[]) => (await apiClient.post<CremationInventory>(`/cremations/${id}/inventory/fulfill`, materials)).data;
+
 export async function getAvailableCremationReceptions(): Promise<
   CremationReceptionOption[]
 > {

@@ -20,26 +20,12 @@ public class JwtTokenService : IJwtTokenService
 
 
 
-    public string GenerateToken(
-    Guid userId,
-    string email,
-    string role)
+    public string GenerateToken(Guid userId, string email, IEnumerable<string> roles, IEnumerable<string> permissions)
     {
 
-        var claims = new[]
-{
-    new Claim(
-        JwtRegisteredClaimNames.Sub,
-        userId.ToString()),
-
-    new Claim(
-        JwtRegisteredClaimNames.Email,
-        email),
-
-    new Claim(
-        ClaimTypes.Role,
-        role)
-};
+        var claims = new List<Claim> { new(JwtRegisteredClaimNames.Sub, userId.ToString()), new(JwtRegisteredClaimNames.Email, email) };
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        claims.AddRange(permissions.Select(permission => new Claim("permission", permission)));
 
 
         var key =

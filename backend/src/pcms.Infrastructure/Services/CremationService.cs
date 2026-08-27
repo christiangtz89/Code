@@ -749,6 +749,16 @@ public class CremationService : ICremationService
         var urnChanged =
             cremation.UrnId != dto.UrnId;
 
+        if (urnChanged && await _context.CremationUrnReservations.AnyAsync(x => x.CremationId == id && x.Status == pcms.Domain.Enums.UrnReservationStatus.Active))
+        {
+            throw new InvalidOperationException("Debe liberar la reserva activa antes de cambiar la urna.");
+        }
+
+        if (urnChanged && await _context.CremationUrnReservations.AnyAsync(x => x.CremationId == id && x.Status == pcms.Domain.Enums.UrnReservationStatus.Fulfilled))
+        {
+            throw new InvalidOperationException("No se puede cambiar la urna después de registrar su entrega.");
+        }
+
         var canInitializeLegacyQuote =
             cremation.CremationPackageId is null &&
             cremation.QuotedPrice is null &&

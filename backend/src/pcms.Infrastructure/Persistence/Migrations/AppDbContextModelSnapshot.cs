@@ -134,6 +134,74 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.ToTable("Recolecciones", (string)null);
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.CollectionPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("Id");
+
+                    b.Property<Guid>("CollectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("RecoleccionId");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("TipoContenido");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Activo");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("Notas");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("NombreArchivoOriginal");
+
+                    b.Property<int>("PhotoType")
+                        .HasColumnType("integer")
+                        .HasColumnName("TipoFoto");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("RutaAlmacenamiento");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("NombreArchivoGuardado");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaSubida");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("SubidoPorUsuarioId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("StoredFileName")
+                        .IsUnique();
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("FotosRecoleccion", (string)null);
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.Cremation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -263,6 +331,83 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.HasIndex("UrnId");
 
                     b.ToTable("Cremaciones", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationInventoryFulfillment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CremationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CremationUrnReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("FulfilledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("FulfilledByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UrnMovementId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CremationId")
+                        .IsUnique();
+
+                    b.HasIndex("FulfilledByUserId");
+
+                    b.HasIndex("UrnMovementId");
+
+                    b.ToTable("EntregasInventarioCremacion", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationInventoryMaterial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FulfillmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InventoryMovementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("LotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplyItemNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("UnitOfMeasureSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FulfillmentId");
+
+                    b.HasIndex("InventoryMovementId");
+
+                    b.HasIndex("LotId");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.ToTable("MaterialesEntregaCremacion", (string)null);
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.CremationPackage", b =>
@@ -476,6 +621,85 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.ToTable("ConfiguracionPreciosCremacion", (string)null);
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.CremationUrnReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CremationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("FulfilledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("FulfilledByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("FulfillmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ReservedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReservedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplyItemNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("SupplyItemScanCodeSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("UrnId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UrnNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CancelledByUserId");
+
+                    b.HasIndex("FulfilledByUserId");
+
+                    b.HasIndex("FulfillmentId")
+                        .IsUnique();
+
+                    b.HasIndex("ReservedByUserId");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.HasIndex("UrnId");
+
+                    b.HasIndex("CremationId", "Status")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 1");
+
+                    b.ToTable("ReservasUrnaCremacion", (string)null);
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -517,6 +741,291 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Clientes", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Expense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ExpenseCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpenseDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvoiceReference")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("RecordedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Tax")
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenseCategoryId");
+
+                    b.HasIndex("RecordedByUserId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("Gastos", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("Descripcion");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("Nombre");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("CategoriasGasto", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.FilamentSpecification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Brand")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ManufacturerProductCode")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("MaterialType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("NetUsableWeightGrams")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<string>("ProductData")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplyItemId")
+                        .IsUnique();
+
+                    b.ToTable("EspecificacionesFilamento", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.InventoryStockCount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CountedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CountedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CountedQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid?>("InventoryMovementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SupplyInventoryLotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("SystemQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<decimal>("Variance")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountedByUserId");
+
+                    b.HasIndex("InventoryMovementId");
+
+                    b.HasIndex("SupplyInventoryLotId");
+
+                    b.HasIndex("SupplyItemId", "CountedAt");
+
+                    b.ToTable("ConteosInventario", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.ManufacturedUrnProduction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("FinishedGoodsReceiptMovementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ProducedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("QuantityProduced")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid?>("RecordedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UrnBillOfMaterialsId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UrnId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinishedGoodsReceiptMovementId")
+                        .IsUnique()
+                        .HasFilter("\"FinishedGoodsReceiptMovementId\" IS NOT NULL");
+
+                    b.HasIndex("RecordedByUserId");
+
+                    b.HasIndex("UrnBillOfMaterialsId");
+
+                    b.HasIndex("UrnId");
+
+                    b.ToTable("ProduccionesUrna", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.ManufacturingMaterialUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ActualQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<decimal?>("CostPerUnitSnapshot")
+                        .HasColumnType("numeric(14,8)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ExpectedQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid>("InventoryMovementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplyItemNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<decimal?>("TotalMaterialCostSnapshot")
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("WasteQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryMovementId")
+                        .IsUnique();
+
+                    b.HasIndex("ProductionId");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.ToTable("ConsumosMaterialProduccion", (string)null);
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Payment", b =>
@@ -604,6 +1113,86 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.ToTable("CuentasPago", (string)null);
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.Permission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Permisos", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000001-0000-0000-0000-000000000001"),
+                            Code = "Permissions.Manage",
+                            Name = "Administrar permisos"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000002-0000-0000-0000-000000000001"),
+                            Code = "Suppliers.View",
+                            Name = "Consultar proveedores"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000003-0000-0000-0000-000000000001"),
+                            Code = "Suppliers.Manage",
+                            Name = "Administrar proveedores"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000004-0000-0000-0000-000000000001"),
+                            Code = "Finance.View",
+                            Name = "Consultar finanzas"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000005-0000-0000-0000-000000000001"),
+                            Code = "Finance.Manage",
+                            Name = "Administrar finanzas"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000006-0000-0000-0000-000000000001"),
+                            Code = "Inventory.View",
+                            Name = "Consultar inventario"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000007-0000-0000-0000-000000000001"),
+                            Code = "Inventory.Manage",
+                            Name = "Administrar inventario"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000008-0000-0000-0000-000000000001"),
+                            Code = "Purchasing.View",
+                            Name = "Consultar compras"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000009-0000-0000-0000-000000000001"),
+                            Code = "Purchasing.Manage",
+                            Name = "Administrar compras"
+                        });
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.Pet", b =>
                 {
                     b.Property<Guid>("Id")
@@ -663,6 +1252,184 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.HasIndex("CustomerId");
 
                     b.ToTable("Mascotas", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Purchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("InvoiceReference")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("PurchaseDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RecordedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Tax")
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedByUserId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("Compras", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DescriptionSnapshot")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("LineSubtotal")
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<decimal>("NormalizedReceivedQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PurchaseUnitSnapshot")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<string>("SupplierSkuSnapshot")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SupplierSupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("numeric(14,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseId");
+
+                    b.HasIndex("SupplierSupplyItemId");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.ToTable("PartidasCompra", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReceivedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivedByUserId");
+
+                    b.HasIndex("PurchaseId", "ReceivedAt");
+
+                    b.ToTable("RecepcionesCompra", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseReceiptItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrencySnapshot")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("InventoryMovementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("NormalizedReceivedQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid>("PurchaseItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PurchaseReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("QuantityReceived")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<decimal>("UnitCostSnapshot")
+                        .HasColumnType("numeric(14,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryMovementId")
+                        .IsUnique();
+
+                    b.HasIndex("PurchaseItemId");
+
+                    b.HasIndex("PurchaseReceiptId");
+
+                    b.ToTable("PartidasRecepcionCompra", (string)null);
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Reception", b =>
@@ -859,6 +1626,375 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.RolePermission", b =>
+                {
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("RolPermisos", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000001-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000002-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000003-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000004-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000005-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000006-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000007-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000008-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            RoleId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            PermissionId = new Guid("00000009-0000-0000-0000-000000000001")
+                        });
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactName")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LegalName")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("RazonSocial");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("Nombre");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("RFC");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxId");
+
+                    b.ToTable("Proveedores", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplierSupplyItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("CurrentUnitCost")
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal>("InventoryUnitsPerPurchaseUnit")
+                        .HasColumnType("numeric(14,6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPreferred")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PurchaseUnit")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SupplierSku")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.HasIndex("SupplierId", "SupplyItemId")
+                        .IsUnique();
+
+                    b.ToTable("ProveedoresInsumos", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplierSupplyItemCostHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("EffectiveAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SupplierSupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("numeric(14,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierSupplyItemId", "EffectiveAt");
+
+                    b.ToTable("HistorialCostosProveedorInsumo", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplyInventoryLot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("InitialQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ManufacturerLotNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("PurchaseItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("PurchaseReceiptItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScanCode")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseItemId");
+
+                    b.HasIndex("PurchaseReceiptItemId");
+
+                    b.HasIndex("ScanCode")
+                        .IsUnique();
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.ToTable("LotesInventarioInsumos", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplyInventoryMovement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MovementType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PurchaseItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("PurchaseReceiptItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid?>("RecordedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SupplyInventoryLotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseItemId")
+                        .IsUnique()
+                        .HasFilter("\"PurchaseItemId\" IS NOT NULL");
+
+                    b.HasIndex("RecordedByUserId");
+
+                    b.HasIndex("SupplyInventoryLotId");
+
+                    b.HasIndex("SupplyItemId", "OccurredAt");
+
+                    b.ToTable("MovimientosInventarioInsumos", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplyItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InternalSku")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("MinimumQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ScanCode")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<bool>("TrackInventory")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InternalSku");
+
+                    b.HasIndex("ScanCode")
+                        .IsUnique();
+
+                    b.ToTable("Insumos", (string)null);
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.Urn", b =>
                 {
                     b.Property<Guid>("Id")
@@ -923,6 +2059,100 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("Urnas", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.UrnBillOfMaterials", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UrnId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrnId")
+                        .IsUnique()
+                        .HasFilter("\"IsActive\" = true");
+
+                    b.HasIndex("UrnId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("UrnasListaMateriales", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.UrnBillOfMaterialsItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("RequiredQuantity")
+                        .HasColumnType("numeric(14,3)");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrnBillOfMaterialsId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.HasIndex("UrnBillOfMaterialsId");
+
+                    b.ToTable("UrnasListaMaterialesPartidas", (string)null);
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.UrnSupplyItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UrnId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplyItemId")
+                        .IsUnique();
+
+                    b.HasIndex("UrnId")
+                        .IsUnique()
+                        .HasFilter("\"IsActive\" = true");
+
+                    b.ToTable("UrnasInsumosTerminados", (string)null);
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.User", b =>
@@ -1285,6 +2515,25 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("VeterinaryClinic");
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.CollectionPhoto", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.Collection", "Collection")
+                        .WithMany("Photos")
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.User", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Collection");
+
+                    b.Navigation("UploadedByUser");
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.Cremation", b =>
                 {
                     b.HasOne("pcms.Domain.Entities.User", "AssignedToUser")
@@ -1317,6 +2566,66 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("Urn");
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.CremationInventoryFulfillment", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.Cremation", "Cremation")
+                        .WithMany()
+                        .HasForeignKey("CremationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.User", "FulfilledByUser")
+                        .WithMany()
+                        .HasForeignKey("FulfilledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryMovement", "UrnMovement")
+                        .WithMany()
+                        .HasForeignKey("UrnMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cremation");
+
+                    b.Navigation("FulfilledByUser");
+
+                    b.Navigation("UrnMovement");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationInventoryMaterial", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.CremationInventoryFulfillment", "Fulfillment")
+                        .WithMany("Materials")
+                        .HasForeignKey("FulfillmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryMovement", "InventoryMovement")
+                        .WithMany()
+                        .HasForeignKey("InventoryMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryLot", "Lot")
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Fulfillment");
+
+                    b.Navigation("InventoryMovement");
+
+                    b.Navigation("Lot");
+
+                    b.Navigation("SupplyItem");
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.CremationPackageUrn", b =>
                 {
                     b.HasOne("pcms.Domain.Entities.CremationPackage", "CremationPackage")
@@ -1345,6 +2654,186 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("CremationPackage");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationUrnReservation", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.User", "CancelledByUser")
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId");
+
+                    b.HasOne("pcms.Domain.Entities.Cremation", "Cremation")
+                        .WithMany()
+                        .HasForeignKey("CremationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.User", "FulfilledByUser")
+                        .WithMany()
+                        .HasForeignKey("FulfilledByUserId");
+
+                    b.HasOne("pcms.Domain.Entities.CremationInventoryFulfillment", "Fulfillment")
+                        .WithOne("UrnReservation")
+                        .HasForeignKey("pcms.Domain.Entities.CremationUrnReservation", "FulfillmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.User", "ReservedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReservedByUserId");
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.Urn", "Urn")
+                        .WithMany()
+                        .HasForeignKey("UrnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CancelledByUser");
+
+                    b.Navigation("Cremation");
+
+                    b.Navigation("FulfilledByUser");
+
+                    b.Navigation("Fulfillment");
+
+                    b.Navigation("ReservedByUser");
+
+                    b.Navigation("SupplyItem");
+
+                    b.Navigation("Urn");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Expense", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.ExpenseCategory", "ExpenseCategory")
+                        .WithMany("Expenses")
+                        .HasForeignKey("ExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.User", "RecordedByUser")
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.Supplier", "Supplier")
+                        .WithMany("Expenses")
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ExpenseCategory");
+
+                    b.Navigation("RecordedByUser");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.FilamentSpecification", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.InventoryStockCount", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.User", "CountedByUser")
+                        .WithMany()
+                        .HasForeignKey("CountedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryMovement", "InventoryMovement")
+                        .WithMany()
+                        .HasForeignKey("InventoryMovementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryLot", "SupplyInventoryLot")
+                        .WithMany()
+                        .HasForeignKey("SupplyInventoryLotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CountedByUser");
+
+                    b.Navigation("InventoryMovement");
+
+                    b.Navigation("SupplyInventoryLot");
+
+                    b.Navigation("SupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.ManufacturedUrnProduction", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryMovement", "FinishedGoodsReceiptMovement")
+                        .WithMany()
+                        .HasForeignKey("FinishedGoodsReceiptMovementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.User", "RecordedByUser")
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.UrnBillOfMaterials", "UrnBillOfMaterials")
+                        .WithMany()
+                        .HasForeignKey("UrnBillOfMaterialsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.Urn", "Urn")
+                        .WithMany()
+                        .HasForeignKey("UrnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FinishedGoodsReceiptMovement");
+
+                    b.Navigation("RecordedByUser");
+
+                    b.Navigation("Urn");
+
+                    b.Navigation("UrnBillOfMaterials");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.ManufacturingMaterialUsage", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryMovement", "InventoryMovement")
+                        .WithMany()
+                        .HasForeignKey("InventoryMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.ManufacturedUrnProduction", "Production")
+                        .WithMany("MaterialUsages")
+                        .HasForeignKey("ProductionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("InventoryMovement");
+
+                    b.Navigation("Production");
+
+                    b.Navigation("SupplyItem");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Payment", b =>
@@ -1386,6 +2875,95 @@ namespace pcms.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Purchase", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.User", "RecordedByUser")
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RecordedByUser");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseItem", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.Purchase", "Purchase")
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.SupplierSupplyItem", "SupplierSupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplierSupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Purchase");
+
+                    b.Navigation("SupplierSupplyItem");
+
+                    b.Navigation("SupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseReceipt", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.Purchase", "Purchase")
+                        .WithMany("Receipts")
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.User", "ReceivedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReceivedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Purchase");
+
+                    b.Navigation("ReceivedByUser");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseReceiptItem", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryMovement", "InventoryMovement")
+                        .WithOne("PurchaseReceiptItem")
+                        .HasForeignKey("pcms.Domain.Entities.PurchaseReceiptItem", "InventoryMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.PurchaseItem", "PurchaseItem")
+                        .WithMany("ReceiptItems")
+                        .HasForeignKey("PurchaseItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.PurchaseReceipt", "PurchaseReceipt")
+                        .WithMany("Items")
+                        .HasForeignKey("PurchaseReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InventoryMovement");
+
+                    b.Navigation("PurchaseItem");
+
+                    b.Navigation("PurchaseReceipt");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Reception", b =>
@@ -1445,6 +3023,161 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("Reception");
 
                     b.Navigation("UploadedByUser");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.RolePermission", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplierSupplyItem", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Supplier");
+
+                    b.Navigation("SupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplierSupplyItemCostHistory", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.SupplierSupplyItem", "SupplierSupplyItem")
+                        .WithMany("CostHistory")
+                        .HasForeignKey("SupplierSupplyItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupplierSupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplyInventoryLot", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.PurchaseItem", "PurchaseItem")
+                        .WithMany()
+                        .HasForeignKey("PurchaseItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.PurchaseReceiptItem", "PurchaseReceiptItem")
+                        .WithMany()
+                        .HasForeignKey("PurchaseReceiptItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PurchaseItem");
+
+                    b.Navigation("PurchaseReceiptItem");
+
+                    b.Navigation("SupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplyInventoryMovement", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.PurchaseItem", "PurchaseItem")
+                        .WithMany()
+                        .HasForeignKey("PurchaseItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.User", "RecordedByUser")
+                        .WithMany()
+                        .HasForeignKey("RecordedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyInventoryLot", "SupplyInventoryLot")
+                        .WithMany()
+                        .HasForeignKey("SupplyInventoryLotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PurchaseItem");
+
+                    b.Navigation("RecordedByUser");
+
+                    b.Navigation("SupplyInventoryLot");
+
+                    b.Navigation("SupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.UrnBillOfMaterials", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.Urn", "Urn")
+                        .WithMany()
+                        .HasForeignKey("UrnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Urn");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.UrnBillOfMaterialsItem", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.UrnBillOfMaterials", "BillOfMaterials")
+                        .WithMany("Items")
+                        .HasForeignKey("UrnBillOfMaterialsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BillOfMaterials");
+
+                    b.Navigation("SupplyItem");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.UrnSupplyItem", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany()
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.Urn", "Urn")
+                        .WithMany()
+                        .HasForeignKey("UrnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SupplyItem");
+
+                    b.Navigation("Urn");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.UserRole", b =>
@@ -1517,12 +3250,22 @@ namespace pcms.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("pcms.Domain.Entities.Collection", b =>
                 {
+                    b.Navigation("Photos");
+
                     b.Navigation("Reception");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Cremation", b =>
                 {
                     b.Navigation("PaymentAccount");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationInventoryFulfillment", b =>
+                {
+                    b.Navigation("Materials");
+
+                    b.Navigation("UrnReservation")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.CremationPackage", b =>
@@ -1539,9 +3282,24 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("Pets");
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.Navigation("Expenses");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.ManufacturedUrnProduction", b =>
+                {
+                    b.Navigation("MaterialUsages");
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.PaymentAccount", b =>
                 {
                     b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Pet", b =>
@@ -1549,6 +3307,23 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("Collections");
 
                     b.Navigation("Reception");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Purchase", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Receipts");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseItem", b =>
+                {
+                    b.Navigation("ReceiptItems");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.PurchaseReceipt", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Reception", b =>
@@ -1560,7 +3335,24 @@ namespace pcms.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("pcms.Domain.Entities.Role", b =>
                 {
+                    b.Navigation("RolePermissions");
+
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.Supplier", b =>
+                {
+                    b.Navigation("Expenses");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplierSupplyItem", b =>
+                {
+                    b.Navigation("CostHistory");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.SupplyInventoryMovement", b =>
+                {
+                    b.Navigation("PurchaseReceiptItem");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.Urn", b =>
@@ -1568,6 +3360,11 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("Cremations");
 
                     b.Navigation("PackageOptions");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.UrnBillOfMaterials", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.User", b =>

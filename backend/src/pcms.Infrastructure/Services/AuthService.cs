@@ -71,21 +71,23 @@ public class AuthService : IAuthService
 
 
 
+        var defaultRole = await _context.Roles.FirstAsync(x => x.Name == "Usuario");
+        user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = defaultRole.Id });
         _context.Users.Add(user);
 
 
         await _context.SaveChangesAsync();
 
 
-var role = user.UserRoles
-    .Select(x => x.Role.Name)
-    .FirstOrDefault() ?? "Usuario";
+var roles = user.UserRoles.Select(x => x.Role.Name).ToList();
+var permissions = user.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
 
 
 var token = _jwtTokenService.GenerateToken(
     user.Id,
     user.Email,
-    role);
+    roles,
+    permissions);
 
 
 return new AuthResponse
@@ -106,6 +108,8 @@ return new AuthResponse
         var user = await _context.Users
     .Include(x => x.UserRoles)
     .ThenInclude(x => x.Role)
+    .ThenInclude(x => x.RolePermissions)
+    .ThenInclude(x => x.Permission)
     .FirstOrDefaultAsync(x => x.Email == request.Email);
 
 
@@ -135,15 +139,16 @@ return new AuthResponse
 
 
 
-        var role = user.UserRoles
-    .Select(x => x.Role.Name)
-    .FirstOrDefault() ?? "Usuario";
+        var registeredUser = await _context.Users.Include(x => x.UserRoles).ThenInclude(x => x.Role).ThenInclude(x => x.RolePermissions).ThenInclude(x => x.Permission).FirstAsync(x => x.Id == user.Id);
+        var roles = registeredUser.UserRoles.Select(x => x.Role.Name).ToList();
+        var permissions = registeredUser.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
 
 
 var token = _jwtTokenService.GenerateToken(
     user.Id,
     user.Email,
-    role);
+    roles,
+    permissions);
 
            return new AuthResponse
         {
