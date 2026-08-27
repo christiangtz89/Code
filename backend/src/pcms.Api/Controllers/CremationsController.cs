@@ -8,7 +8,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Cremations.View")]
 public class CremationsController : ControllerBase
 {
     private readonly ICremationService _cremationService;
@@ -20,6 +20,7 @@ public class CremationsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Cremations.Manage")]
     public async Task<ActionResult<CremationDto>> Create(
         CreateCremationDto dto)
     {
@@ -150,6 +151,7 @@ public class CremationsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "Cremations.Manage")]
     public async Task<ActionResult<CremationDto>> Update(
         Guid id,
         UpdateCremationDto dto)
@@ -191,6 +193,7 @@ public class CremationsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/status")]
+    [Authorize(Policy = "Cremations.Manage")]
     public async Task<ActionResult<CremationDto>> ChangeStatus(
         Guid id,
         ChangeCremationStatusDto dto)
@@ -232,6 +235,7 @@ public class CremationsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "Cremations.Manage")]
     public async Task<IActionResult> Deactivate(Guid id)
     {
         var success =
@@ -251,6 +255,7 @@ public class CremationsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/restore")]
+    [Authorize(Policy = "Cremations.Manage")]
     public async Task<IActionResult> Restore(Guid id)
     {
         try

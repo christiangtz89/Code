@@ -7,7 +7,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Urns.View")]
 public class UrnsController : ControllerBase
 {
     private readonly IUrnService _urnService;
@@ -58,6 +58,7 @@ public class UrnsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Urns.Manage")]
     public async Task<ActionResult<UrnDto>> Create(
         [FromBody] CreateUrnDto dto)
     {
@@ -81,6 +82,7 @@ public class UrnsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "Urns.Manage")]
     public async Task<ActionResult<UrnDto>> Update(
         Guid id,
         [FromBody] UpdateUrnDto dto)

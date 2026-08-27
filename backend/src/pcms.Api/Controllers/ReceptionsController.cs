@@ -9,7 +9,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Receptions.View")]
 public class ReceptionsController : ControllerBase
 {
     private readonly IReceptionService _receptionService;
@@ -21,6 +21,7 @@ public class ReceptionsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Receptions.Manage")]
     public async Task<ActionResult<ReceptionDto>> Create(
         CreateReceptionDto dto)
     {
@@ -130,6 +131,7 @@ public class ReceptionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "Receptions.Manage")]
     public async Task<ActionResult<ReceptionDto>> Update(
     Guid id,
     UpdateReceptionDto dto)
@@ -212,6 +214,7 @@ public class ReceptionsController : ControllerBase
 
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "Receptions.Manage")]
     public async Task<IActionResult> Deactivate(Guid id)
     {
         var success =
@@ -231,6 +234,7 @@ public class ReceptionsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/restore")]
+    [Authorize(Policy = "Receptions.Manage")]
     public async Task<IActionResult> Restore(Guid id)
     {
         var success =

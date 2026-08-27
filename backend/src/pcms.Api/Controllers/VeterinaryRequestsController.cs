@@ -9,7 +9,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "VeterinaryRequests.View")]
 public class VeterinaryRequestsController
     : ControllerBase
 {
@@ -25,6 +25,7 @@ public class VeterinaryRequestsController
     }
 
     [HttpPost]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
     public async Task<ActionResult<VeterinaryRequestDto>>
         Create(
             [FromBody]
@@ -132,6 +133,7 @@ public class VeterinaryRequestsController
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
     public async Task<
         ActionResult<VeterinaryRequestDto>>
         Update(
@@ -166,6 +168,7 @@ public class VeterinaryRequestsController
     }
 
     [HttpPatch("{id:guid}/status")]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
     public async Task<
         ActionResult<VeterinaryRequestDto>>
         ChangeStatus(
@@ -218,6 +221,7 @@ public class VeterinaryRequestsController
     }
 
     [HttpPost("{id:guid}/convert")]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
     public async Task<
         ActionResult<VeterinaryRequestDto>>
         Convert(

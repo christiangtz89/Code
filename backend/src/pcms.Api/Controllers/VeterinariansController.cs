@@ -7,7 +7,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Veterinarians.View")]
 public class VeterinariansController : ControllerBase
 {
     private readonly IVeterinarianService _veterinarianService;
@@ -19,6 +19,7 @@ public class VeterinariansController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Veterinarians.Manage")]
     public async Task<ActionResult<VeterinarianDto>> Create(
         CreateVeterinarianDto dto)
     {
@@ -118,6 +119,7 @@ public class VeterinariansController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "Veterinarians.Manage")]
     public async Task<ActionResult<VeterinarianDto>> Update(
         Guid id,
         UpdateVeterinarianDto dto)
@@ -157,6 +159,7 @@ public class VeterinariansController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "Veterinarians.Manage")]
     public async Task<IActionResult> Deactivate(Guid id)
     {
         var success =
@@ -175,6 +178,7 @@ public class VeterinariansController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/restore")]
+    [Authorize(Policy = "Veterinarians.Manage")]
     public async Task<IActionResult> Restore(Guid id)
     {
         var success =

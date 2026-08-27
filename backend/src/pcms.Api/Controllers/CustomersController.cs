@@ -6,7 +6,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Customers.View")]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _customerService;
@@ -50,6 +50,7 @@ public async Task<IActionResult> GetAll(
 
 
     [HttpPost]
+    [Authorize(Policy = "Customers.Manage")]
     public async Task<IActionResult> Create(
         CreateCustomerDto dto)
     {
@@ -64,6 +65,7 @@ public async Task<IActionResult> GetAll(
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "Customers.Manage")]
 public async Task<IActionResult> Update(
     Guid id,
     UpdateCustomerDto dto)
@@ -80,6 +82,7 @@ public async Task<IActionResult> Update(
 }
 
 [HttpDelete("{id}")]
+[Authorize(Policy = "Customers.Manage")]
 public async Task<IActionResult> Delete(Guid id)
 {
     var result =
@@ -107,6 +110,7 @@ public async Task<IActionResult> Search(
 }
 
 [HttpPut("{id}/restore")]
+[Authorize(Policy = "Customers.Manage")]
 public async Task<IActionResult> Restore(Guid id)
 {
     var result =

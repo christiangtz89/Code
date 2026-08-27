@@ -667,7 +667,19 @@ public class AppDbContext : DbContext
         {
             ("Permissions.Manage", "Administrar permisos"), ("Suppliers.View", "Consultar proveedores"), ("Suppliers.Manage", "Administrar proveedores"),
             ("Finance.View", "Consultar finanzas"), ("Finance.Manage", "Administrar finanzas"), ("Inventory.View", "Consultar inventario"),
-            ("Inventory.Manage", "Administrar inventario"), ("Purchasing.View", "Consultar compras"), ("Purchasing.Manage", "Administrar compras")
+            ("Inventory.Manage", "Administrar inventario"), ("Purchasing.View", "Consultar compras"), ("Purchasing.Manage", "Administrar compras"),
+            ("Customers.View", "Consultar clientes"), ("Customers.Manage", "Administrar clientes"),
+            ("Pets.View", "Consultar mascotas"), ("Pets.Manage", "Administrar mascotas"),
+            ("VeterinaryClinics.View", "Consultar veterinarias"), ("VeterinaryClinics.Manage", "Administrar veterinarias"),
+            ("Veterinarians.View", "Consultar veterinarios"), ("Veterinarians.Manage", "Administrar veterinarios"),
+            ("VeterinaryRequests.View", "Consultar solicitudes veterinarias"), ("VeterinaryRequests.Manage", "Administrar solicitudes veterinarias"),
+            ("Collections.View", "Consultar recolecciones"), ("Collections.Manage", "Administrar recolecciones"),
+            ("Receptions.View", "Consultar recepciones"), ("Receptions.Manage", "Administrar recepciones"),
+            ("Cremations.View", "Consultar cremaciones"), ("Cremations.Manage", "Administrar cremaciones"),
+            ("Payments.View", "Consultar pagos"), ("Payments.Manage", "Administrar pagos"),
+            ("CremationPackages.View", "Consultar paquetes de cremación"), ("CremationPackages.Manage", "Administrar paquetes de cremación"),
+            ("Urns.View", "Consultar urnas"), ("Urns.Manage", "Administrar urnas"),
+            ("CremationPricing.View", "Consultar precios de cremación"), ("CremationPricing.Manage", "Administrar precios de cremación")
         };
         var permissionSeed = permissionDefinitions.Select((x, i) => new Permission { Id = Guid.Parse($"{i + 1:00000000}-0000-0000-0000-000000000001"), Code = x.Item1, Name = x.Item2 }).ToArray();
         modelBuilder.Entity<Permission>().HasData(permissionSeed);

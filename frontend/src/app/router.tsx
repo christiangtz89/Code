@@ -49,54 +49,18 @@ export const router = createBrowserRouter([
             index: true,
             element: <DashboardPage />,
           },
-          {
-            path: "customers",
-            element: <CustomersPage />,
-          },
-          {
-            path: "pets",
-            element: <PetsPage />,
-          },
-          {
-            path: "veterinary-clinics",
-            element: <VeterinaryClinicsPage />,
-          },
-          {
-            path: "veterinarians",
-            element: <VeterinariansPage />,
-          },
-          {
-            path: "veterinary-requests",
-            element: <VeterinaryRequestsPage />,
-          },
-          {
-            path: "collections",
-            element: <CollectionsPage />,
-          },
-          {
-            path: "receptions",
-            element: <ReceptionsPage />,
-          },
-          {
-            path: "cremations",
-            element: <CremationsPage />,
-          },
-          {
-            path: "cremation-packages",
-            element: <CremationPackagesPage />,
-          },
-          {
-            path: "urns",
-            element: <UrnsPage />,
-          },
-          {
-            path: "cremation-pricing",
-            element: <CremationPricingPage />,
-          },
-          {
-            path: "payments",
-            element: <PaymentsPage />,
-          },
+          { element: <PermissionRoute permission="Customers.View" />, children: [{ path: "customers", element: <CustomersPage /> }] },
+          { element: <PermissionRoute permission="Pets.View" />, children: [{ path: "pets", element: <PetsPage /> }] },
+          { element: <PermissionRoute permission="VeterinaryClinics.View" />, children: [{ path: "veterinary-clinics", element: <VeterinaryClinicsPage /> }] },
+          { element: <PermissionRoute permission="Veterinarians.View" />, children: [{ path: "veterinarians", element: <VeterinariansPage /> }] },
+          { element: <PermissionRoute permission="VeterinaryRequests.View" />, children: [{ path: "veterinary-requests", element: <VeterinaryRequestsPage /> }] },
+          { element: <PermissionRoute permission="Collections.View" />, children: [{ path: "collections", element: <CollectionsPage /> }] },
+          { element: <PermissionRoute permission="Receptions.View" />, children: [{ path: "receptions", element: <ReceptionsPage /> }] },
+          { element: <PermissionRoute permission="Cremations.View" />, children: [{ path: "cremations", element: <CremationsPage /> }] },
+          { element: <PermissionRoute permission="CremationPackages.View" />, children: [{ path: "cremation-packages", element: <CremationPackagesPage /> }] },
+          { element: <PermissionRoute permission="Urns.View" />, children: [{ path: "urns", element: <UrnsPage /> }] },
+          { element: <PermissionRoute permission="CremationPricing.View" />, children: [{ path: "cremation-pricing", element: <CremationPricingPage /> }] },
+          { element: <PermissionRoute permission="Payments.View" />, children: [{ path: "payments", element: <PaymentsPage /> }] },
           { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "inventory", element: <InventoryCatalogPage /> }] },
           { element: <PermissionRoute permission="Suppliers.View" />, children: [{ path: "suppliers", element: <SuppliersPage /> }] },
           { element: <PermissionRoute permission="Finance.View" />, children: [{ path: "expenses", element: <ExpensesPage /> }] },

@@ -7,7 +7,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Pets.View")]
 public class PetsController : ControllerBase
 {
     private readonly IPetService _petService;
@@ -18,6 +18,7 @@ public class PetsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Pets.Manage")]
     public async Task<ActionResult<PetDto>> Create(
         CreatePetDto dto)
     {
@@ -86,6 +87,7 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "Pets.Manage")]
     public async Task<ActionResult<PetDto>> Update(
         Guid id,
         UpdatePetDto dto)
@@ -104,6 +106,7 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "Pets.Manage")]
     public async Task<IActionResult> Deactivate(Guid id)
     {
         var success = await _petService.DeactivateAsync(id);
@@ -120,6 +123,7 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
     }
 
     [HttpPatch("{id:guid}/restore")]
+    [Authorize(Policy = "Pets.Manage")]
     public async Task<IActionResult> Restore(Guid id)
     {
         var success = await _petService.RestoreAsync(id);

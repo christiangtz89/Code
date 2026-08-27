@@ -4,6 +4,7 @@ using System.Text;
 using pcms.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using pcms.Api.Middleware;
+using pcms.Application.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,14 +90,18 @@ builder.Services
             };
     });
 
-var permissionCodes = new[] { "Suppliers.View", "Suppliers.Manage", "Finance.View", "Finance.Manage", "Inventory.View", "Inventory.Manage", "Purchasing.View", "Purchasing.Manage", "Permissions.Manage" };
+var permissionCodes = PermissionCodes.All;
 builder.Services.AddAuthorization(options =>
 {
     foreach (var code in permissionCodes)
     {
-        var viewCode = code.EndsWith(".Manage", StringComparison.Ordinal) ? code[..^7] + ".View" : code;
-        var manageCode = code.EndsWith(".View", StringComparison.Ordinal) ? code[..^5] + ".Manage" : code;
-        options.AddPolicy(code, policy => policy.RequireAssertion(context => context.User.IsInRole("Admin") || context.User.HasClaim("permission", code) || context.User.HasClaim("permission", viewCode) || context.User.HasClaim("permission", manageCode)));
+        var impliedManageCode = code.EndsWith(".View", StringComparison.Ordinal)
+            ? code[..^5] + ".Manage"
+            : null;
+
+        options.AddPolicy(code, policy => policy.RequireAssertion(context =>
+            context.User.HasClaim("permission", code) ||
+            (impliedManageCode is not null && context.User.HasClaim("permission", impliedManageCode))));
     }
 });
 

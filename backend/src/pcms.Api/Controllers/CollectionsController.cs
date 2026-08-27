@@ -10,7 +10,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Collections.View")]
 public class CollectionsController : ControllerBase
 {
     private readonly ICollectionService _collectionService;
@@ -22,6 +22,7 @@ public class CollectionsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Collections.Manage")]
     public async Task<ActionResult<CollectionDto>> Create(
         CreateCollectionDto dto)
     {
@@ -153,6 +154,7 @@ public class CollectionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "Collections.Manage")]
     public async Task<ActionResult<CollectionDto>>
         Update(
             Guid id,
@@ -196,6 +198,7 @@ public class CollectionsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/status")]
+    [Authorize(Policy = "Collections.Manage")]
     public async Task<ActionResult<CollectionDto>>
         ChangeStatus(
             Guid id,
@@ -240,6 +243,7 @@ public class CollectionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/convert-to-reception")]
+    [Authorize(Policy = "Collections.Manage")]
     public async Task<ActionResult<CollectionDto>>
         ConvertToReception(
             Guid id,

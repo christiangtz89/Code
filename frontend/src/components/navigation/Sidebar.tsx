@@ -21,23 +21,6 @@ interface NavigationGroup {
   items: NavigationItem[];
 }
 
-function HomeIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="h-5 w-5"
-      aria-hidden="true"
-    >
-      <path d="m3 11 9-8 9 8" />
-      <path d="M5 10v10h14V10" />
-      <path d="M9 20v-6h6v6" />
-    </svg>
-  );
-}
-
 function CustomersIcon() {
   return (
     <svg
@@ -274,37 +257,36 @@ function PaymentIcon() {
 
 const navigationGroups: NavigationGroup[] = [
   {
-    title: "Principal",
-    items: [{ to: "/", label: "Inicio", icon: <HomeIcon />, end: true }],
-  },
-  {
     title: "Operación",
     items: [
-      { to: "/collections", label: "Recolecciones", icon: <CollectionIcon /> },
-      { to: "/receptions", label: "Recepciones", icon: <ReceptionIcon /> },
-      { to: "/cremations", label: "Cremaciones", icon: <CremationIcon /> },
-      { to: "/payments", label: "Pagos", icon: <PaymentIcon /> },
+      { to: "/collections", label: "Recolecciones", icon: <CollectionIcon />, permission: "Collections.View" },
+      { to: "/receptions", label: "Recepciones", icon: <ReceptionIcon />, permission: "Receptions.View" },
+      { to: "/cremations", label: "Cremaciones", icon: <CremationIcon />, permission: "Cremations.View" },
+      { to: "/payments", label: "Pagos", icon: <PaymentIcon />, permission: "Payments.View" },
       {
         to: "/veterinary-requests",
         label: "Solicitudes veterinarias",
         icon: <VeterinaryRequestIcon />,
+        permission: "VeterinaryRequests.View",
       },
     ],
   },
   {
     title: "Clientes",
     items: [
-      { to: "/customers", label: "Clientes", icon: <CustomersIcon /> },
-      { to: "/pets", label: "Mascotas", icon: <PetsIcon /> },
+      { to: "/customers", label: "Clientes", icon: <CustomersIcon />, permission: "Customers.View" },
+      { to: "/pets", label: "Mascotas", icon: <PetsIcon />, permission: "Pets.View" },
       {
         to: "/veterinary-clinics",
         label: "Veterinarias",
         icon: <BuildingIcon />,
+        permission: "VeterinaryClinics.View",
       },
       {
         to: "/veterinarians",
         label: "Veterinarios",
         icon: <VeterinarianIcon />,
+        permission: "Veterinarians.View",
       },
     ],
   },
@@ -402,12 +384,14 @@ const navigationGroups: NavigationGroup[] = [
         to: "/cremation-packages",
         label: "Paquetes de cremación",
         icon: <PackageIcon />,
+        permission: "CremationPackages.View",
       },
-      { to: "/urns", label: "Catálogo de urnas", icon: <UrnIcon /> },
+      { to: "/urns", label: "Catálogo de urnas", icon: <UrnIcon />, permission: "Urns.View" },
       {
         to: "/cremation-pricing",
         label: "Precios de cremación",
         icon: <PricingIcon />,
+        permission: "CremationPricing.View",
       },
       {
         to: "/permissions",
@@ -419,21 +403,6 @@ const navigationGroups: NavigationGroup[] = [
     ],
   },
 ];
-
-function ScannerIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="h-5 w-5"
-      aria-hidden="true"
-    >
-      <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 9h10M7 12h10M7 15h10" />
-    </svg>
-  );
-}
 
 function isVisible(item: NavigationItem) {
   return item.permission
@@ -448,7 +417,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const visibleGroups = navigationGroups
     .map((group) => ({ ...group, items: group.items.filter(isVisible) }))
     .filter((group) => group.items.length > 0);
-  const canUseScanner = hasPermission("Inventory.View");
   const activeGroup = visibleGroups.find((group) =>
     group.items.some((item) =>
       item.end ? pathname === item.to : pathname.startsWith(item.to),
@@ -488,7 +456,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         ].join(" ")}
       >
-        <div className="flex h-20 items-center gap-3 border-b border-slate-800 px-6">
+        <NavLink
+          to="/"
+          onClick={onClose}
+          aria-label="PCMS: ir a Inicio"
+          className="flex h-20 items-center gap-3 border-b border-slate-800 px-6 transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white"
+        >
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-lg font-bold text-slate-950">
             P
           </div>
@@ -498,30 +471,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
             <p className="text-xs text-slate-400">Gestión de cremaciones</p>
           </div>
-        </div>
+        </NavLink>
 
         <nav
           aria-label="Navegación principal"
           className="flex-1 overflow-y-auto px-4 py-6"
         >
           <div className="space-y-7">
-            {canUseScanner && (
-              <NavLink
-                to="/inventory-scanner"
-                onClick={onClose}
-                className={({ isActive }) =>
-                  [
-                    "flex min-h-12 items-center gap-3 rounded-xl border px-3 py-3 text-sm font-semibold transition",
-                    isActive
-                      ? "border-white bg-white text-slate-950"
-                      : "border-cyan-400/40 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20",
-                  ].join(" ")
-                }
-              >
-                <ScannerIcon />
-                <span>Escáner de inventario</span>
-              </NavLink>
-            )}
             {visibleGroups.map((group) => (
               <section key={group.title}>
                 {(() => {

@@ -9,7 +9,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Payments.View")]
 public class PaymentsController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
@@ -21,6 +21,7 @@ public class PaymentsController : ControllerBase
     }
 
     [HttpPost("accounts")]
+    [Authorize(Policy = "Payments.Manage")]
     public async Task<ActionResult<PaymentAccountDto>>
         CreateAccount(
             CreatePaymentAccountDto dto)
@@ -147,6 +148,7 @@ public class PaymentsController : ControllerBase
 
     [HttpPost(
         "accounts/{id:guid}/payments")]
+    [Authorize(Policy = "Payments.Manage")]
     public async Task<ActionResult<PaymentDto>>
         AddPayment(
             Guid id,

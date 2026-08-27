@@ -8,7 +8,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "CremationPackages.View")]
 public class CremationPackagesController : ControllerBase
 {
     private readonly ICremationPackageService _cremationPackageService;
@@ -62,6 +62,7 @@ public class CremationPackagesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "CremationPackages.Manage")]
     public async Task<ActionResult<CremationPackageDto>> Create(
         [FromBody] CreateCremationPackageDto dto)
     {
@@ -86,6 +87,7 @@ public class CremationPackagesController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "CremationPackages.Manage")]
     public async Task<ActionResult<CremationPackageDto>> Update(
         Guid id,
         [FromBody] UpdateCremationPackageDto dto)
