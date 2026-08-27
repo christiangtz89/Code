@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { hasPermission } from "../../features/auth/utils/permissions";
 
 interface SidebarProps {
@@ -12,6 +12,8 @@ interface NavigationItem {
   label: string;
   icon: ReactNode;
   end?: boolean;
+  permission?: string;
+  anyOf?: string[];
 }
 
 interface NavigationGroup {
@@ -273,121 +275,27 @@ function PaymentIcon() {
 const navigationGroups: NavigationGroup[] = [
   {
     title: "Principal",
-    items: [
-      {
-        to: "/",
-        label: "Inicio",
-        icon: <HomeIcon />,
-        end: true,
-      },
-    ],
+    items: [{ to: "/", label: "Inicio", icon: <HomeIcon />, end: true }],
   },
   {
     title: "Operación",
     items: [
+      { to: "/collections", label: "Recolecciones", icon: <CollectionIcon /> },
+      { to: "/receptions", label: "Recepciones", icon: <ReceptionIcon /> },
+      { to: "/cremations", label: "Cremaciones", icon: <CremationIcon /> },
+      { to: "/payments", label: "Pagos", icon: <PaymentIcon /> },
       {
-        to: "/customers",
-        label: "Clientes",
-        icon: <CustomersIcon />,
-      },
-      {
-        to: "/pets",
-        label: "Mascotas",
-        icon: <PetsIcon />,
-      },
-      {
-        to: "/collections",
-        label: "Recolecciones",
-        icon: <CollectionIcon />,
-      },
-      {
-        to: "/receptions",
-        label: "Recepciones",
-        icon: <ReceptionIcon />,
-      },
-      {
-        to: "/cremations",
-        label: "Cremaciones",
-        icon: <CremationIcon />,
-      },
-      {
-        to: "/payments",
-        label: "Pagos",
-        icon: <PaymentIcon />,
+        to: "/veterinary-requests",
+        label: "Solicitudes veterinarias",
+        icon: <VeterinaryRequestIcon />,
       },
     ],
   },
   {
-    title: "Catálogo y precios",
+    title: "Clientes",
     items: [
-      {
-        to: "/cremation-packages",
-        label: "Paquetes",
-        icon: <PackageIcon />,
-      },
-      {
-        to: "/urns",
-        label: "Urnas",
-        icon: <UrnIcon />,
-      },
-      {
-        to: "/cremation-pricing",
-        label: "Precios",
-        icon: <PricingIcon />,
-      },
-      {
-        to: "/inventory",
-        label: "Proveedores e insumos",
-        icon: <PackageIcon />,
-      },
-      {
-        to: "/suppliers",
-        label: "Proveedores",
-        icon: <BuildingIcon />,
-      },
-      {
-        to: "/expenses",
-        label: "Gastos",
-        icon: <PricingIcon />,
-      },
-      {
-        to: "/permissions",
-        label: "Permisos",
-        icon: <BuildingIcon />,
-      },
-      {
-        to: "/purchases",
-        label: "Compras",
-        icon: <PackageIcon />,
-      },
-      {
-        to: "/spending-reports",
-        label: "Reportes de gastos",
-        icon: <PricingIcon />,
-      },
-      { to: "/inventory-reports", label: "Reportes de inventario", icon: <PackageIcon /> },
-      { to: "/cost-analytics", label: "Análisis de costos", icon: <PricingIcon /> },
-      { to: "/inventory-scanner", label: "Escáner de inventario", icon: <PackageIcon /> },
-      {
-        to: "/bom",
-        label: "Materiales de urnas",
-        icon: <PackageIcon />,
-      },
-      {
-        to: "/production",
-        label: "Producción de urnas",
-        icon: <PackageIcon />,
-      },
-      {
-        to: "/inventory-labels",
-        label: "Etiquetas de inventario",
-        icon: <PackageIcon />,
-      },
-    ],
-  },
-  {
-    title: "Directorio veterinario",
-    items: [
+      { to: "/customers", label: "Clientes", icon: <CustomersIcon /> },
+      { to: "/pets", label: "Mascotas", icon: <PetsIcon /> },
       {
         to: "/veterinary-clinics",
         label: "Veterinarias",
@@ -398,27 +306,171 @@ const navigationGroups: NavigationGroup[] = [
         label: "Veterinarios",
         icon: <VeterinarianIcon />,
       },
+    ],
+  },
+  {
+    title: "Inventario",
+    items: [
       {
-        to: "/veterinary-requests",
-        label: "Solicitudes veterinarias",
-        icon: <VeterinaryRequestIcon />,
+        to: "/inventory",
+        label: "Insumos",
+        icon: <PackageIcon />,
+        permission: "Inventory.View",
+      },
+      {
+        to: "/inventory-lots",
+        label: "Lotes y bobinas",
+        icon: <PackageIcon />,
+        permission: "Inventory.View",
+      },
+      {
+        to: "/urn-inventory",
+        label: "Inventario de urnas",
+        icon: <UrnIcon />,
+        permission: "Inventory.View",
+      },
+      {
+        to: "/bom",
+        label: "Materiales de urnas",
+        icon: <PackageIcon />,
+        permission: "Inventory.View",
+      },
+      {
+        to: "/production",
+        label: "Producción de urnas",
+        icon: <UrnIcon />,
+        permission: "Inventory.View",
+      },
+      {
+        to: "/inventory-labels",
+        label: "Etiquetas de inventario",
+        icon: <PackageIcon />,
+        permission: "Inventory.View",
+      },
+      {
+        to: "/inventory-reports",
+        label: "Reportes de inventario",
+        icon: <DiagnosticIcon />,
+        permission: "Inventory.View",
       },
     ],
   },
   {
-    title: "Sistema",
+    title: "Compras",
     items: [
       {
-        to: "/api-test",
-        label: "Diagnóstico API",
-        icon: <DiagnosticIcon />,
+        to: "/suppliers",
+        label: "Proveedores",
+        icon: <BuildingIcon />,
+        permission: "Suppliers.View",
       },
+      {
+        to: "/purchases",
+        label: "Compras",
+        icon: <PackageIcon />,
+        permission: "Purchasing.View",
+      },
+      {
+        to: "/cost-analytics",
+        label: "Análisis de costos",
+        icon: <PricingIcon />,
+        permission: "Purchasing.View",
+      },
+    ],
+  },
+  {
+    title: "Finanzas",
+    items: [
+      {
+        to: "/expenses",
+        label: "Gastos",
+        icon: <PricingIcon />,
+        permission: "Finance.View",
+      },
+      {
+        to: "/spending-reports",
+        label: "Reportes de gastos",
+        icon: <DiagnosticIcon />,
+        anyOf: ["Finance.View", "Purchasing.View"],
+      },
+    ],
+  },
+  {
+    title: "Administración",
+    items: [
+      {
+        to: "/cremation-packages",
+        label: "Paquetes de cremación",
+        icon: <PackageIcon />,
+      },
+      { to: "/urns", label: "Catálogo de urnas", icon: <UrnIcon /> },
+      {
+        to: "/cremation-pricing",
+        label: "Precios de cremación",
+        icon: <PricingIcon />,
+      },
+      {
+        to: "/permissions",
+        label: "Roles y permisos",
+        icon: <BuildingIcon />,
+        permission: "Permissions.Manage",
+      },
+      { to: "/api-test", label: "Diagnóstico API", icon: <DiagnosticIcon /> },
     ],
   },
 ];
 
+function ScannerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 9h10M7 12h10M7 15h10" />
+    </svg>
+  );
+}
+
+function isVisible(item: NavigationItem) {
+  return item.permission
+    ? hasPermission(item.permission)
+    : item.anyOf
+      ? item.anyOf.some(hasPermission)
+      : true;
+}
+
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
- const visibleGroups = navigationGroups.map((group) => ({ ...group, items: group.items.filter((item) => item.to === "/inventory" ? hasPermission("Inventory.View") : item.to === "/suppliers" ? hasPermission("Suppliers.View") : item.to === "/expenses" ? hasPermission("Finance.View") : item.to === "/permissions" ? hasPermission("Permissions.Manage") : item.to === "/purchases" ? hasPermission("Purchasing.View") : item.to === "/spending-reports" ? hasPermission("Finance.View") || hasPermission("Purchasing.View") : item.to === "/inventory-reports" || item.to === "/bom" || item.to === "/production" || item.to === "/urn-inventory" || item.to === "/inventory-labels" ? hasPermission("Inventory.View") : true) })).filter((group) => group.items.length > 0);
+  const { pathname } = useLocation();
+  const visibleGroups = navigationGroups
+    .map((group) => ({ ...group, items: group.items.filter(isVisible) }))
+    .filter((group) => group.items.length > 0);
+  const canUseScanner = hasPermission("Inventory.View");
+  const activeGroup = visibleGroups.find((group) =>
+    group.items.some((item) =>
+      item.end ? pathname === item.to : pathname.startsWith(item.to),
+    ),
+  )?.title;
+  const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (activeGroup) {
+      setCollapsedGroups((groups) =>
+        groups.filter((title) => title !== activeGroup),
+      );
+    }
+  }, [activeGroup]);
+
+  function toggleGroup(title: string) {
+    setCollapsedGroups((groups) =>
+      groups.includes(title)
+        ? groups.filter((group) => group !== title)
+        : [...groups, title],
+    );
+  }
   return (
     <>
       {isOpen && (
@@ -448,35 +500,87 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-4 py-6">
+        <nav
+          aria-label="Navegación principal"
+          className="flex-1 overflow-y-auto px-4 py-6"
+        >
           <div className="space-y-7">
+            {canUseScanner && (
+              <NavLink
+                to="/inventory-scanner"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  [
+                    "flex min-h-12 items-center gap-3 rounded-xl border px-3 py-3 text-sm font-semibold transition",
+                    isActive
+                      ? "border-white bg-white text-slate-950"
+                      : "border-cyan-400/40 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20",
+                  ].join(" ")
+                }
+              >
+                <ScannerIcon />
+                <span>Escáner de inventario</span>
+              </NavLink>
+            )}
             {visibleGroups.map((group) => (
               <section key={group.title}>
-                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  {group.title}
-                </p>
+                {(() => {
+                  const isExpanded =
+                    activeGroup === group.title ||
+                    !collapsedGroups.includes(group.title);
+                  const contentId = `navigation-group-${group.title.toLowerCase().replaceAll(" ", "-")}`;
 
-                <div className="space-y-1">
-                  {group.items.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        [
-                          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                          isActive
-                            ? "bg-white text-slate-950"
-                            : "text-slate-300 hover:bg-slate-900 hover:text-white",
-                        ].join(" ")
-                      }
-                    >
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </NavLink>
-                  ))}
-                </div>
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        aria-expanded={isExpanded}
+                        aria-controls={contentId}
+                        onClick={() => toggleGroup(group.title)}
+                        disabled={activeGroup === group.title}
+                        className="mb-2 flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 transition hover:bg-slate-900 hover:text-slate-300 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-slate-500"
+                      >
+                        <span>{group.title}</span>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                          aria-hidden="true"
+                        >
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </button>
+
+                      <div
+                        id={contentId}
+                        hidden={!isExpanded}
+                        className="space-y-1"
+                      >
+                        {group.items.map((item) => (
+                          <NavLink
+                            key={item.to}
+                            to={item.to}
+                            end={item.end}
+                            onClick={onClose}
+                            className={({ isActive }) =>
+                              [
+                                "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                                isActive
+                                  ? "bg-white text-slate-950"
+                                  : "text-slate-300 hover:bg-slate-900 hover:text-white",
+                              ].join(" ")
+                            }
+                          >
+                            {item.icon}
+                            <span>{item.label}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </section>
             ))}
           </div>
