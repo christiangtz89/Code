@@ -4,7 +4,9 @@ interface TopbarProps {
 }
 
 export function Topbar({ onOpenMenu, onLogout }: TopbarProps) {
-  const canUseScanner = hasPermission("Inventory.View");
+  const canUseScanner =
+    hasPermission("Inventory.View") ||
+    hasPermission("Inventory.ScanOutgoing");
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">

@@ -168,6 +168,79 @@ export const recordInventoryMovement = async (payload: Record<string, unknown>) 
 export interface StockCount { id:string; supplyItemId:string; lotId:string|null; systemQuantity:number; countedQuantity:number; variance:number; countedAt:string; countedByUserId:string|null; inventoryMovementId:string|null; }
 export const recordStockCount = async (payload: Record<string, unknown>) => (await apiClient.post<StockCount>("/inventory/stock-counts", payload)).data;
 export const getStockCounts = async (id:string) => (await apiClient.get<StockCount[]>(`/inventory/stock-counts/${id}`)).data;
+export interface InventoryScannerLot {
+  id: string;
+  scanCode: string;
+  remainingQuantity: number;
+  isActive: boolean;
+  isEligible: boolean;
+}
+export interface InventoryScannerResolve {
+  supplyItemId: string;
+  supplyItemName: string;
+  scannedCode: string;
+  isLotScan: boolean;
+  scannedLotId: string | null;
+  scannedLotCode: string | null;
+  scannedLotRemainingQuantity: number | null;
+  scannedLotIsActive: boolean | null;
+  unitOfMeasure: string;
+  physicalStock: number;
+  reservedQuantity: number;
+  availableStock: number;
+  unallocatedPhysicalStock: number;
+  lots: InventoryScannerLot[];
+  requiresLotSelection: boolean;
+  suggestedLotId: string | null;
+  hasLottedAndUnlottedStock: boolean;
+  canRecordOutgoing: boolean;
+}
+export type InventoryScannerReasonCode = 1 | 2 | 3;
+export interface InventoryScannerOutgoingInput {
+  clientOperationId: string;
+  scanCode: string;
+  supplyItemId: string;
+  quantity: number;
+  supplyInventoryLotId: string | null;
+  reasonCode: InventoryScannerReasonCode;
+  notes: string | null;
+  expectedPhysicalStock: number;
+  expectedAvailableStock: number;
+  expectedLotStock: number | null;
+  expectedUnallocatedStock: number | null;
+}
+export interface InventoryScannerOutgoing {
+  movementId: string;
+  supplyItemId: string;
+  supplyItemName: string;
+  scannedCode: string;
+  quantity: number;
+  unitOfMeasure: string;
+  supplyInventoryLotId: string | null;
+  currentLotScanCode: string | null;
+  currentPhysicalStock: number;
+  currentAvailableStock: number;
+  currentLotStock: number | null;
+  occurredAt: string;
+  reasonCode: InventoryScannerReasonCode;
+  notes: string | null;
+  recordedByDisplayNameSnapshot: string | null;
+}
+export const resolveInventoryScannerCode = async (scanCode: string) =>
+  (
+    await apiClient.get<InventoryScannerResolve>(
+      `/inventory/scanner/resolve/${encodeURIComponent(scanCode)}`,
+    )
+  ).data;
+export const recordScannerOutgoing = async (
+  payload: InventoryScannerOutgoingInput,
+) =>
+  (
+    await apiClient.post<InventoryScannerOutgoing>(
+      "/inventory/scanner/outgoing",
+      payload,
+    )
+  ).data;
 export interface FilamentSpecification { id: string; supplyItemId: string; materialType: string; brand: string | null; color: string | null; netUsableWeightGrams: number; manufacturerProductCode: string | null; productData: string | null; costPerKilogram: number | null; costPerGram: number | null; currency: string | null; }
 export const getFilament = async (id: string) => (await apiClient.get<FilamentSpecification>(`/inventory/filament/${id}`)).data;
 export const getFilamentCost = async (id: string) => (await apiClient.get<FilamentSpecification>(`/inventory/filament/${id}/cost`)).data;

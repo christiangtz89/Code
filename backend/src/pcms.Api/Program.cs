@@ -101,6 +101,15 @@ builder.Services.AddAuthorization(options =>
                 context.User.FindAll("permission").Select(x => x.Value),
                 code)));
     }
+
+    options.AddPolicy("Inventory.Scanner.Resolve", policy => policy.RequireAssertion(context =>
+        context.User.HasClaim("pcms_owner", "true") ||
+        PermissionImplications.Satisfies(
+            context.User.FindAll("permission").Select(x => x.Value),
+            PermissionCodes.InventoryView) ||
+        PermissionImplications.Satisfies(
+            context.User.FindAll("permission").Select(x => x.Value),
+            PermissionCodes.InventoryScanOutgoing)));
 });
 
 builder.Services.AddCors(options =>
