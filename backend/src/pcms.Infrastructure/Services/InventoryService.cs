@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using pcms.Application.Inventory;
-using pcms.Domain.Entities;
 using pcms.Domain.Enums;
+using pcms.Domain.Inventory;
 using pcms.Infrastructure.Persistence;
 
 namespace pcms.Infrastructure.Services;
@@ -15,7 +15,13 @@ public class InventoryService(AppDbContext db) : IInventoryService
         var items = await query.OrderBy(x => x.Name).ToListAsync();
         var ids = items.Select(x => x.Id).ToArray();
         var movements = await db.SupplyInventoryMovements.AsNoTracking().Where(x => ids.Contains(x.SupplyItemId)).ToListAsync();
-        return items.Select(x => { var quantity = movements.Where(m => m.SupplyItemId == x.Id).Sum(m => Sign(m.MovementType) * m.Quantity); return new InventoryItemDto(x.Id, x.Name, x.UnitOfMeasure, x.MinimumQuantity, quantity, quantity <= x.MinimumQuantity, x.TrackInventory); });
+        return items.Select(x =>
+        {
+            var quantity = movements
+                .Where(m => m.SupplyItemId == x.Id)
+                .Sum(m => SupplyInventoryMovementEffects.Apply(m.MovementType, m.Quantity));
+            return new InventoryItemDto(x.Id, x.Name, x.UnitOfMeasure, x.MinimumQuantity, quantity, quantity <= x.MinimumQuantity, x.TrackInventory);
+        });
     }
 
     public async Task<IEnumerable<InventoryMovementDto>> GetMovementsAsync(Guid supplyItemId) => await db.SupplyInventoryMovements.AsNoTracking().Include(x => x.SupplyItem).Where(x => x.SupplyItemId == supplyItemId).OrderByDescending(x => x.OccurredAt).Select(x => new InventoryMovementDto(x.Id, x.SupplyItemId, x.SupplyItem.Name, x.MovementType, x.Quantity, x.UnitOfMeasure, x.OccurredAt, x.Reference, x.Notes, x.RecordedByUserId)).ToListAsync();
@@ -24,21 +30,25 @@ public class InventoryService(AppDbContext db) : IInventoryService
     {
         if (input.Quantity <= 0) throw new ArgumentException("La cantidad debe ser mayor que cero.");
         if (input.MovementType is SupplyInventoryMovementType.PurchaseReceipt or SupplyInventoryMovementType.PurchaseReturn) throw new ArgumentException("Este movimiento se genera desde compras o devoluciones.");
-        var item = await db.SupplyItems.FirstOrDefaultAsync(x => x.Id == input.SupplyItemId && x.IsActive && x.TrackInventory) ?? throw new ArgumentException("El insumo no existe, está inactivo o no controla inventario.");
-        SupplyInventoryLot? lot = null;
-        if (input.LotId.HasValue) lot = await db.SupplyInventoryLots.FirstOrDefaultAsync(x => x.Id == input.LotId && x.SupplyItemId == item.Id && x.IsActive) ?? throw new ArgumentException("El lote no existe o no corresponde al insumo.");
-        if (Sign(input.MovementType) < 0)
-        {
-            var existing = await db.SupplyInventoryMovements.Where(x => x.SupplyItemId == item.Id && (!input.LotId.HasValue || x.SupplyInventoryLotId == input.LotId)).Select(x => new { x.MovementType, x.Quantity }).ToListAsync();
-            if (lot is not null) { var lotRemaining = lot.InitialQuantity + existing.Sum(x => Sign(x.MovementType) * x.Quantity); if (lotRemaining < input.Quantity) throw new InvalidOperationException("La cantidad excede el saldo del lote."); }
-            if (existing.Sum(x => Sign(x.MovementType) * x.Quantity) < input.Quantity) throw new InvalidOperationException("La operación dejaría el inventario en negativo.");
-            var protectedUnits = await db.CremationUrnReservations.CountAsync(x => x.SupplyItemId == item.Id && x.Status == pcms.Domain.Enums.UrnReservationStatus.Active); if ((input.Reference ?? string.Empty).StartsWith("CREMATION:", StringComparison.OrdinalIgnoreCase)) protectedUnits = Math.Max(0, protectedUnits - 1); if (existing.Sum(x => Sign(x.MovementType) * x.Quantity) - input.Quantity < protectedUnits) throw new InvalidOperationException("La operación dejaría insuficientes las unidades reservadas.");
-        }
-        var movement = new SupplyInventoryMovement { Id = Guid.NewGuid(), SupplyItemId = item.Id, SupplyInventoryLotId = input.LotId, MovementType = input.MovementType, Quantity = decimal.Round(input.Quantity, 3), UnitOfMeasure = item.UnitOfMeasure, OccurredAt = DateTime.UtcNow, Reference = input.Reference, Notes = input.Notes, RecordedByUserId = userId, CreatedAt = DateTime.UtcNow };
-        db.SupplyInventoryMovements.Add(movement);
-        await db.SaveChangesAsync();
-        return new InventoryMovementDto(movement.Id, item.Id, item.Name, movement.MovementType, movement.Quantity, movement.UnitOfMeasure, movement.OccurredAt, movement.Reference, movement.Notes, movement.RecordedByUserId);
-    }
 
-    private static int Sign(SupplyInventoryMovementType type) => type is SupplyInventoryMovementType.ManualAdjustmentDecrease or SupplyInventoryMovementType.Consumption or SupplyInventoryMovementType.Waste or SupplyInventoryMovementType.PurchaseReturn ? -1 : 1;
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var ledger = new InventoryLedger(db);
+        await ledger.AcquireSupplyItemLocksAsync([input.SupplyItemId]);
+        var movement = await ledger.AppendValidatedAsync(
+            input.SupplyItemId,
+            input.MovementType,
+            input.Quantity,
+            input.LotId,
+            userId,
+            input.Reference,
+            input.Notes);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        var itemName = await db.SupplyItems
+            .Where(x => x.Id == movement.SupplyItemId)
+            .Select(x => x.Name)
+            .SingleAsync();
+        return new InventoryMovementDto(movement.Id, movement.SupplyItemId, itemName, movement.MovementType, movement.Quantity, movement.UnitOfMeasure, movement.OccurredAt, movement.Reference, movement.Notes, movement.RecordedByUserId);
+    }
 }

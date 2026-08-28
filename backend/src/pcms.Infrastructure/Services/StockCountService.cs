@@ -3,10 +3,98 @@ using pcms.Application.Inventory;
 using pcms.Domain.Entities;
 using pcms.Domain.Enums;
 using pcms.Infrastructure.Persistence;
+
 namespace pcms.Infrastructure.Services;
+
 public sealed class StockCountService(AppDbContext db) : IStockCountService
 {
- public async Task<StockCountDto> RecordAsync(StockCountInput input, Guid? userId){if(input.CountedQuantity<0)throw new ArgumentException("La cantidad contada no puede ser negativa.");await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);var item=await db.SupplyItems.FirstOrDefaultAsync(x=>x.Id==input.SupplyItemId&&x.IsActive&&x.TrackInventory)??throw new ArgumentException("El insumo no existe o no controla inventario.");if(input.LotId.HasValue&&!await db.SupplyInventoryLots.AnyAsync(x=>x.Id==input.LotId&&x.SupplyItemId==item.Id&&x.IsActive))throw new ArgumentException("El lote no corresponde al insumo.");var rows=await db.SupplyInventoryMovements.Where(x=>x.SupplyItemId==item.Id&&(!input.LotId.HasValue||x.SupplyInventoryLotId==input.LotId)).Select(x=>new{x.MovementType,x.Quantity}).ToListAsync();var system=(input.LotId.HasValue?await db.SupplyInventoryLots.Where(x=>x.Id==input.LotId).Select(x=>x.InitialQuantity).SingleAsync():0)+rows.Sum(x=>Sign(x.MovementType)*x.Quantity);system=decimal.Round(system,3);if(input.ExpectedSystemQuantity.HasValue&&decimal.Round(input.ExpectedSystemQuantity.Value,3)!=system)throw new InvalidOperationException("El inventario cambió desde que se inició el conteo. Revisa y confirma nuevamente.");var variance=decimal.Round(input.CountedQuantity-system,3);SupplyInventoryMovement? movement=null;if(variance!=0){if(variance<0&&system+variance<0)throw new InvalidOperationException("El conteo no puede dejar inventario negativo.");movement=new(){Id=Guid.NewGuid(),SupplyItemId=item.Id,SupplyInventoryLotId=input.LotId,MovementType=variance>0?SupplyInventoryMovementType.ManualAdjustmentIncrease:SupplyInventoryMovementType.ManualAdjustmentDecrease,Quantity=Math.Abs(variance),UnitOfMeasure=item.UnitOfMeasure,OccurredAt=DateTime.UtcNow,Reference="STOCK-COUNT",Notes="Conteo físico confirmado",RecordedByUserId=userId,CreatedAt=DateTime.UtcNow};db.Add(movement);}var count=new InventoryStockCount{Id=Guid.NewGuid(),SupplyItemId=item.Id,SupplyInventoryLotId=input.LotId,SystemQuantity=system,CountedQuantity=input.CountedQuantity,Variance=variance,CountedAt=DateTime.UtcNow,CountedByUserId=userId,InventoryMovementId=movement?.Id};db.Add(count);await db.SaveChangesAsync();await tx.CommitAsync();return Map(count);}
- public async Task<IEnumerable<StockCountDto>> GetAsync(Guid id)=>await db.InventoryStockCounts.AsNoTracking().Where(x=>x.SupplyItemId==id).OrderByDescending(x=>x.CountedAt).Select(x=>new StockCountDto(x.Id,x.SupplyItemId,x.SupplyInventoryLotId,x.SystemQuantity,x.CountedQuantity,x.Variance,x.CountedAt,x.CountedByUserId,x.InventoryMovementId)).ToListAsync();
- static StockCountDto Map(InventoryStockCount x)=>new(x.Id,x.SupplyItemId,x.SupplyInventoryLotId,x.SystemQuantity,x.CountedQuantity,x.Variance,x.CountedAt,x.CountedByUserId,x.InventoryMovementId);static int Sign(SupplyInventoryMovementType t)=>t is SupplyInventoryMovementType.ManualAdjustmentDecrease or SupplyInventoryMovementType.Consumption or SupplyInventoryMovementType.Waste or SupplyInventoryMovementType.PurchaseReturn or SupplyInventoryMovementType.ManufacturingConsumption?-1:1;
+    public async Task<StockCountDto> RecordAsync(StockCountInput input, Guid? userId)
+    {
+        if (input.CountedQuantity < 0)
+            throw new ArgumentException("La cantidad contada no puede ser negativa.");
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var ledger = new InventoryLedger(db);
+        await ledger.AcquireSupplyItemLocksAsync([input.SupplyItemId]);
+
+        var item = await db.SupplyItems.FirstOrDefaultAsync(x =>
+            x.Id == input.SupplyItemId && x.IsActive && x.TrackInventory)
+            ?? throw new ArgumentException("El insumo no existe o no controla inventario.");
+        SupplyInventoryLot? lot = null;
+        if (input.LotId.HasValue)
+        {
+            lot = await db.SupplyInventoryLots.FirstOrDefaultAsync(x =>
+                x.Id == input.LotId && x.SupplyItemId == item.Id && x.IsActive)
+                ?? throw new ArgumentException("El lote no corresponde al insumo.");
+        }
+
+        var systemQuantity = decimal.Round(
+            lot is null
+                ? await ledger.GetPhysicalStockAsync(item.Id)
+                : await ledger.GetLotStockAsync(lot),
+            3);
+        if (input.ExpectedSystemQuantity.HasValue &&
+            decimal.Round(input.ExpectedSystemQuantity.Value, 3) != systemQuantity)
+            throw new InvalidOperationException("El inventario cambió desde que se inició el conteo. Revisa y confirma nuevamente.");
+
+        var variance = decimal.Round(input.CountedQuantity - systemQuantity, 3);
+        SupplyInventoryMovement? movement = null;
+        if (variance != 0)
+        {
+            movement = await ledger.AppendValidatedAsync(
+                item.Id,
+                variance > 0
+                    ? SupplyInventoryMovementType.ManualAdjustmentIncrease
+                    : SupplyInventoryMovementType.ManualAdjustmentDecrease,
+                Math.Abs(variance),
+                input.LotId,
+                userId,
+                "STOCK-COUNT",
+                "Conteo físico confirmado");
+        }
+
+        var count = new InventoryStockCount
+        {
+            Id = Guid.NewGuid(),
+            SupplyItemId = item.Id,
+            SupplyInventoryLotId = input.LotId,
+            SystemQuantity = systemQuantity,
+            CountedQuantity = input.CountedQuantity,
+            Variance = variance,
+            CountedAt = DateTime.UtcNow,
+            CountedByUserId = userId,
+            InventoryMovementId = movement?.Id
+        };
+        db.Add(count);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return Map(count);
+    }
+
+    public async Task<IEnumerable<StockCountDto>> GetAsync(Guid id) =>
+        await db.InventoryStockCounts.AsNoTracking()
+            .Where(x => x.SupplyItemId == id)
+            .OrderByDescending(x => x.CountedAt)
+            .Select(x => new StockCountDto(
+                x.Id,
+                x.SupplyItemId,
+                x.SupplyInventoryLotId,
+                x.SystemQuantity,
+                x.CountedQuantity,
+                x.Variance,
+                x.CountedAt,
+                x.CountedByUserId,
+                x.InventoryMovementId))
+            .ToListAsync();
+
+    private static StockCountDto Map(InventoryStockCount count) => new(
+        count.Id,
+        count.SupplyItemId,
+        count.SupplyInventoryLotId,
+        count.SystemQuantity,
+        count.CountedQuantity,
+        count.Variance,
+        count.CountedAt,
+        count.CountedByUserId,
+        count.InventoryMovementId);
 }
