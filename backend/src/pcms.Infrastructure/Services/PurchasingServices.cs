@@ -34,6 +34,7 @@ public class PurchaseService(AppDbContext db):IPurchaseService {
 
   var p=await db.Purchases.Include(x=>x.Items).ThenInclude(x=>x.SupplyItem).Include(x=>x.Receipts).ThenInclude(x=>x.Items).FirstOrDefaultAsync(x=>x.Id==id)??throw new ArgumentException("Compra no encontrada.");
   if(p.Status is not (PurchaseStatus.Ordered or PurchaseStatus.PartiallyReceived))throw new InvalidOperationException("Solo se pueden recibir compras ordenadas.");
+  var recordedByDisplayNameSnapshot=await ledger.GetRecordedByDisplayNameSnapshotAsync(user);
   var receipt=new PurchaseReceipt{Id=Guid.NewGuid(),PurchaseId=id,ReceivedAt=input.ReceivedAt==default?DateTime.UtcNow:input.ReceivedAt,ReceivedByUserId=user,Reference=O(input.Reference),Notes=O(input.Notes),CreatedAt=DateTime.UtcNow};
   foreach(var line in input.Items)
   {
@@ -42,7 +43,7 @@ public class PurchaseService(AppDbContext db):IPurchaseService {
    var already=p.Receipts.SelectMany(x=>x.Items).Where(x=>x.PurchaseItemId==pi.Id).Sum(x=>x.QuantityReceived);
    if(already+line.Quantity>pi.Quantity)throw new ArgumentException("La recepción excede la cantidad pendiente.");
    var normalized=decimal.Round(line.Quantity*(pi.NormalizedReceivedQuantity/pi.Quantity),3);
-   var movement=new SupplyInventoryMovement{Id=Guid.NewGuid(),SupplyItemId=pi.SupplyItemId,MovementType=SupplyInventoryMovementType.PurchaseReceipt,Quantity=normalized,UnitOfMeasure=pi.SupplyItem.UnitOfMeasure,OccurredAt=receipt.ReceivedAt,Reference=receipt.Reference,Notes="Recepción de compra",PurchaseItemId=pi.Id,RecordedByUserId=user,CreatedAt=DateTime.UtcNow};
+   var movement=new SupplyInventoryMovement{Id=Guid.NewGuid(),SupplyItemId=pi.SupplyItemId,SupplyItemNameSnapshot=pi.SupplyItem.Name,MovementType=SupplyInventoryMovementType.PurchaseReceipt,Origin=SupplyInventoryMovementOrigin.PurchaseReceipt,Quantity=normalized,UnitOfMeasure=pi.SupplyItem.UnitOfMeasure,OccurredAt=receipt.ReceivedAt,Reference=receipt.Reference,Notes="Recepción de compra",PurchaseItemId=pi.Id,RecordedByUserId=user,RecordedByDisplayNameSnapshot=recordedByDisplayNameSnapshot,CreatedAt=DateTime.UtcNow};
    var ri=new PurchaseReceiptItem{Id=Guid.NewGuid(),PurchaseReceiptId=receipt.Id,PurchaseItemId=pi.Id,QuantityReceived=line.Quantity,NormalizedReceivedQuantity=normalized,UnitCostSnapshot=pi.UnitCost,CurrencySnapshot=pi.Currency,InventoryMovementId=movement.Id};
    movement.PurchaseReceiptItemId=ri.Id;
    receipt.Items.Add(ri);

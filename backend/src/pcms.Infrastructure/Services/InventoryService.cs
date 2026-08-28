@@ -38,6 +38,7 @@ public class InventoryService(AppDbContext db) : IInventoryService
             input.SupplyItemId,
             input.MovementType,
             input.Quantity,
+            SupplyInventoryMovementOrigin.ManualAdjustment,
             input.LotId,
             userId,
             input.Reference,

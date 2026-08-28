@@ -27,6 +27,8 @@ export function hasPermission(permission: string): boolean {
   if (values.includes(permission)) return true;
   if (permission.endsWith(".View"))
     return values.includes(`${permission.slice(0, -5)}.Manage`);
+  if (permission === "Inventory.ScanOutgoing")
+    return values.includes("Inventory.Manage");
   return false;
 }
 export function isOwner(): boolean {

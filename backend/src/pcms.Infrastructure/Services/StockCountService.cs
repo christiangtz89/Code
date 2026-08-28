@@ -47,6 +47,7 @@ public sealed class StockCountService(AppDbContext db) : IStockCountService
                     ? SupplyInventoryMovementType.ManualAdjustmentIncrease
                     : SupplyInventoryMovementType.ManualAdjustmentDecrease,
                 Math.Abs(variance),
+                SupplyInventoryMovementOrigin.ManualAdjustment,
                 input.LotId,
                 userId,
                 "STOCK-COUNT",

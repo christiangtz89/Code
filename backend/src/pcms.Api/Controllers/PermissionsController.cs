@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using pcms.Application.Auth;
 using pcms.Infrastructure.Persistence;
 using pcms.Domain.Entities;
 
@@ -29,9 +30,8 @@ public class PermissionsController(AppDbContext db) : ControllerBase
         return EffectivePermissionCodes(assignedCodes);
     }
 
-    private static HashSet<string> EffectivePermissionCodes(IEnumerable<string> permissionCodes) => permissionCodes
-        .Concat(permissionCodes.Where(x => x.EndsWith(".Manage", StringComparison.Ordinal)).Select(x => x[..^7] + ".View"))
-        .ToHashSet(StringComparer.Ordinal);
+    private static HashSet<string> EffectivePermissionCodes(IEnumerable<string> permissionCodes) =>
+        PermissionImplications.EffectiveCodes(permissionCodes);
     [HttpGet("roles")]
     public async Task<IActionResult> GetRoles() => Ok(await db.Roles.AsNoTracking().Include(x => x.RolePermissions).ThenInclude(x => x.Permission).Select(x => new { x.Id, x.Name, x.Description, x.IsActive, isProtected = x.Id == ProtectedAdminRoleId, permissions = x.RolePermissions.Select(p => p.Permission.Code) }).ToListAsync());
 

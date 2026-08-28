@@ -138,13 +138,15 @@ public sealed class CremationInventoryService(AppDbContext db) : ICremationInven
             reservation.SupplyItemId,
             SupplyInventoryMovementType.Consumption,
             1,
+            SupplyInventoryMovementOrigin.CremationFulfillment,
             null,
             userId,
             $"CREMATION:{id}",
             "Entrega de urna reservada",
             reservation.Id,
             fulfillment.FulfilledAt,
-            "unidad");
+            "unidad",
+            cremationId: id);
         fulfillment.UrnMovementId = urnMovement.Id;
         db.Add(fulfillment);
 
@@ -157,12 +159,14 @@ public sealed class CremationInventoryService(AppDbContext db) : ICremationInven
                 item.Id,
                 SupplyInventoryMovementType.Consumption,
                 material.Quantity,
+                SupplyInventoryMovementOrigin.CremationFulfillment,
                 material.LotId,
                 userId,
                 $"CREMATION:{id}",
                 "Material adicional de entrega",
                 occurredAt: fulfillment.FulfilledAt,
-                unitOfMeasure: "unidad");
+                unitOfMeasure: "unidad",
+                cremationId: id);
 
             fulfillment.Materials.Add(new CremationInventoryMaterial
             {

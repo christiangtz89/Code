@@ -8,6 +8,7 @@ public static class PermissionCodes
     public const string FinanceManage = "Finance.Manage";
     public const string InventoryView = "Inventory.View";
     public const string InventoryManage = "Inventory.Manage";
+    public const string InventoryScanOutgoing = "Inventory.ScanOutgoing";
     public const string PurchasingView = "Purchasing.View";
     public const string PurchasingManage = "Purchasing.Manage";
     public const string CustomersView = "Customers.View";
@@ -38,7 +39,7 @@ public static class PermissionCodes
     public static readonly string[] All =
     [
         Manage, SuppliersView, SuppliersManage, FinanceView, FinanceManage,
-        InventoryView, InventoryManage, PurchasingView, PurchasingManage,
+        InventoryView, InventoryManage, InventoryScanOutgoing, PurchasingView, PurchasingManage,
         CustomersView, CustomersManage, PetsView, PetsManage,
         VeterinaryClinicsView, VeterinaryClinicsManage, VeterinariansView, VeterinariansManage,
         VeterinaryRequestsView, VeterinaryRequestsManage, CollectionsView, CollectionsManage,

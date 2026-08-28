@@ -95,14 +95,11 @@ builder.Services.AddAuthorization(options =>
 {
     foreach (var code in permissionCodes)
     {
-        var impliedManageCode = code.EndsWith(".View", StringComparison.Ordinal)
-            ? code[..^5] + ".Manage"
-            : null;
-
         options.AddPolicy(code, policy => policy.RequireAssertion(context =>
             context.User.HasClaim("pcms_owner", "true") ||
-            context.User.HasClaim("permission", code) ||
-            (impliedManageCode is not null && context.User.HasClaim("permission", impliedManageCode))));
+            PermissionImplications.Satisfies(
+                context.User.FindAll("permission").Select(x => x.Value),
+                code)));
     }
 });
 

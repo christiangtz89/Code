@@ -35,6 +35,9 @@ const modules: Record<string, [string, string]> = {
   CremationPricing: ["Administración / Configuración", "Precios de cremación"],
 };
 
+const inventoryManagePermission = "Inventory.Manage";
+const inventoryScanOutgoingPermission = "Inventory.ScanOutgoing";
+
 export function PermissionsPage() {
   const owner = isOwner();
   const qc = useQueryClient();
@@ -311,6 +314,28 @@ export function PermissionsPage() {
                           </div>
                         ))}
                     </div>
+                    {group === "Inventario" && (
+                      <label className="mt-3 flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={
+                            checked.includes(inventoryScanOutgoingPermission) ||
+                            checked.includes(inventoryManagePermission)
+                          }
+                          disabled={
+                            !selected ||
+                            checked.includes(inventoryManagePermission)
+                          }
+                          onChange={(e) =>
+                            toggle(
+                              inventoryScanOutgoingPermission,
+                              e.target.checked,
+                            )
+                          }
+                        />
+                        Registrar salidas por escaneo
+                      </label>
+                    )}
                   </div>
                 ))}
               </div>
