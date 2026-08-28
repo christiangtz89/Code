@@ -71,23 +71,28 @@ public class AuthService : IAuthService
 
 
 
-        var defaultRole = await _context.Roles.FirstAsync(x => x.Name == "Usuario");
-        user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = defaultRole.Id });
+        var defaultRole = await _context.Roles
+            .Include(x => x.RolePermissions)
+            .ThenInclude(x => x.Permission)
+            .FirstAsync(x => x.Name == "Usuario");
+        user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = defaultRole.Id, Role = defaultRole });
         _context.Users.Add(user);
 
 
         await _context.SaveChangesAsync();
 
 
-var roles = user.UserRoles.Select(x => x.Role.Name).ToList();
-var permissions = user.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
+var activeRoles = user.UserRoles.Where(x => x.Role.IsActive).ToList();
+var roles = activeRoles.Select(x => x.Role.Name).ToList();
+var permissions = activeRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
 
 
 var token = _jwtTokenService.GenerateToken(
     user.Id,
     user.Email,
     roles,
-    permissions);
+    permissions,
+    user.IsOwner);
 
 
 return new AuthResponse
@@ -140,15 +145,17 @@ return new AuthResponse
 
 
         var registeredUser = await _context.Users.Include(x => x.UserRoles).ThenInclude(x => x.Role).ThenInclude(x => x.RolePermissions).ThenInclude(x => x.Permission).FirstAsync(x => x.Id == user.Id);
-        var roles = registeredUser.UserRoles.Select(x => x.Role.Name).ToList();
-        var permissions = registeredUser.UserRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
+        var activeRoles = registeredUser.UserRoles.Where(x => x.Role.IsActive).ToList();
+        var roles = activeRoles.Select(x => x.Role.Name).ToList();
+        var permissions = activeRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
 
 
 var token = _jwtTokenService.GenerateToken(
     user.Id,
     user.Email,
     roles,
-    permissions);
+    permissions,
+    registeredUser.IsOwner);
 
            return new AuthResponse
         {

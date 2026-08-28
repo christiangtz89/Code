@@ -100,6 +100,7 @@ builder.Services.AddAuthorization(options =>
             : null;
 
         options.AddPolicy(code, policy => policy.RequireAssertion(context =>
+            context.User.HasClaim("pcms_owner", "true") ||
             context.User.HasClaim("permission", code) ||
             (impliedManageCode is not null && context.User.HasClaim("permission", impliedManageCode))));
     }

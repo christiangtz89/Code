@@ -496,6 +496,14 @@ public class AppDbContext : DbContext
             entity.Property(x => x.IsActive)
                 .HasColumnName("Activo");
 
+            entity.Property(x => x.IsOwner)
+                .HasColumnName("EsOwner")
+                .HasDefaultValue(false);
+
+            entity.HasIndex(x => x.IsOwner)
+                .HasFilter("\"EsOwner\" = true")
+                .IsUnique();
+
             entity.Property(x => x.CreatedAt)
                 .HasColumnName("FechaCreacion");
         });
@@ -595,28 +603,42 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RolePermission>(entity => { entity.ToTable("RolPermisos"); entity.HasKey(x => new { x.RoleId, x.PermissionId }); entity.HasOne(x => x.Role).WithMany(x => x.RolePermissions).HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade); entity.HasOne(x => x.Permission).WithMany(x => x.RolePermissions).HasForeignKey(x => x.PermissionId).OnDelete(DeleteBehavior.Cascade); });
 
 
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.NormalizedName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(300);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
+            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => x.NormalizedName).IsUnique();
+        });
+
         // Roles seed
         modelBuilder.Entity<Role>()
             .HasData(
                 new Role
                 {
                     Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                    Name = "Admin"
+                    Name = "Admin",
+                    NormalizedName = "ADMIN"
                 },
                 new Role
                 {
                     Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                    Name = "Usuario"
+                    Name = "Usuario",
+                    NormalizedName = "USUARIO"
                 },
                 new Role
                 {
                     Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-                    Name = "Finanzas"
+                    Name = "Finanzas",
+                    NormalizedName = "FINANZAS"
                 },
                 new Role
                 {
                     Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
-                    Name = "Ventas"
+                    Name = "Ventas",
+                    NormalizedName = "VENTAS"
                 }
             );
 

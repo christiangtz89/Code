@@ -15,6 +15,8 @@ public class User
 
     public bool IsActive { get; set; }
 
+    public bool IsOwner { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
 
