@@ -87,6 +87,7 @@ public static class DependencyInjection
         services.AddScoped<IInventoryReportService, InventoryReportService>();
         services.AddScoped<ICostAnalyticsService, CostAnalyticsService>();
         services.AddScoped<ICremationInventoryService, CremationInventoryService>();
+        services.AddScoped<ICremationScannerService, CremationInventoryService>();
         services.AddScoped<IStockCountService, StockCountService>();
         return services;
     }

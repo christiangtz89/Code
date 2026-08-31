@@ -241,6 +241,114 @@ export const recordScannerOutgoing = async (
       payload,
     )
   ).data;
+
+export interface CremationScannerReservedUrn {
+  supplyItemId: string;
+  urnName: string;
+  supplyItemName: string;
+  expectedScanCode: string;
+  quantity: number;
+  status: number;
+  reservedAt: string;
+}
+export interface CremationScannerCompletedMaterial {
+  supplyItemName: string;
+  quantity: number;
+  unitOfMeasure: string;
+}
+export interface CremationScannerPreview {
+  cremationId: string;
+  caseReference: string;
+  petName: string;
+  customerName: string;
+  cremationStatus: number;
+  isFulfilled: boolean;
+  fulfillmentId: string | null;
+  fulfilledAt: string | null;
+  reservedUrn: CremationScannerReservedUrn | null;
+  completedMaterials: CremationScannerCompletedMaterial[];
+  canFulfill: boolean;
+  blockingReason: string | null;
+}
+export type CremationScannerMatchKind = 1 | 2;
+export interface CremationScannerResolve {
+  cremationId: string;
+  scannedCode: string;
+  supplyItemId: string;
+  supplyItemName: string;
+  unitOfMeasure: string;
+  isLotScan: boolean;
+  scannedLotId: string | null;
+  scannedLotCode: string | null;
+  scannedLotRemainingQuantity: number | null;
+  scannedLotIsActive: boolean | null;
+  matchKind: CremationScannerMatchKind | null;
+  suggestedQuantity: number;
+  physicalStock: number;
+  reservedQuantity: number;
+  availableForFulfillment: number;
+  unallocatedPhysicalStock: number;
+  lots: InventoryScannerLot[];
+  requiresLotSelection: boolean;
+  suggestedLotId: string | null;
+  canUse: boolean;
+  rejectionReason: string | null;
+}
+export interface CremationScannerSelectionInput {
+  scanCode: string;
+  supplyItemId: string;
+  supplyInventoryLotId: string | null;
+  quantity: number;
+  expectedPhysicalStock: number;
+  expectedAvailableStock: number;
+  expectedLotStock: number | null;
+  expectedUnallocatedStock: number | null;
+}
+export interface CremationScannerFulfillInput {
+  expectedCremationStatus: number;
+  expectedReservationReservedAt: string;
+  urn: CremationScannerSelectionInput;
+  materials: CremationScannerSelectionInput[];
+}
+export const getCremationScannerPreview = async (cremationId: string) =>
+  (
+    await apiClient.get<CremationScannerPreview>(
+      `/inventory/scanner/cremations/${cremationId}/preview`,
+    )
+  ).data;
+export const resolveCremationScannerCode = async (
+  cremationId: string,
+  scanCode: string,
+  expectedKind: CremationScannerMatchKind,
+  expectedCremationStatus: number,
+  expectedReservationReservedAt: string,
+  expectedUrnSupplyItemId: string,
+  expectedUrnScanCode: string,
+) =>
+  (
+    await apiClient.get<CremationScannerResolve>(
+      `/inventory/scanner/cremations/${cremationId}/resolve/${encodeURIComponent(scanCode)}`,
+      {
+        params: {
+          expectedKind,
+          expectedCremationStatus,
+          expectedReservationReservedAt,
+          expectedUrnSupplyItemId,
+          expectedUrnScanCode,
+        },
+      },
+    )
+  ).data;
+export const fulfillCremationScanner = async (
+  cremationId: string,
+  payload: CremationScannerFulfillInput,
+) =>
+  (
+    await apiClient.post<CremationScannerPreview>(
+      `/inventory/scanner/cremations/${cremationId}/fulfill`,
+      payload,
+    )
+  ).data;
 export interface FilamentSpecification { id: string; supplyItemId: string; materialType: string; brand: string | null; color: string | null; netUsableWeightGrams: number; manufacturerProductCode: string | null; productData: string | null; costPerKilogram: number | null; costPerGram: number | null; currency: string | null; }
 export const getFilament = async (id: string) => (await apiClient.get<FilamentSpecification>(`/inventory/filament/${id}`)).data;
 export const getFilamentCost = async (id: string) => (await apiClient.get<FilamentSpecification>(`/inventory/filament/${id}/cost`)).data;

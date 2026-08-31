@@ -32,6 +32,7 @@ import { SpendingReportsPage } from "../features/inventory/pages/SpendingReports
 import { InventoryReportsPage } from "../features/inventory/pages/InventoryReportsPage";
 import { CostAnalyticsPage } from "../features/inventory/pages/CostAnalyticsPage";
 import { ScannerPage } from "../features/inventory/pages/ScannerPage";
+import { CremationFulfillmentScannerPage } from "../features/cremations/pages/CremationFulfillmentScannerPage";
 
 export const router = createBrowserRouter([
   {
@@ -70,6 +71,11 @@ export const router = createBrowserRouter([
           { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "inventory-reports", element: <InventoryReportsPage /> }] },
           { element: <PermissionRoute permission="Purchasing.View" />, children: [{ path: "cost-analytics", element: <CostAnalyticsPage /> }] },
           { element: <PermissionRoute anyOf={["Inventory.View", "Inventory.ScanOutgoing"]} />, children: [{ path: "inventory-scanner", element: <ScannerPage /> }] },
+          { element: <PermissionRoute permission="Cremations.View" />, children: [
+            { element: <PermissionRoute permission="Inventory.ScanOutgoing" />, children: [
+              { path: "cremations/:cremationId/scan-delivery", element: <CremationFulfillmentScannerPage /> },
+            ] },
+          ] },
           { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "bom", element: <BomPage /> }] },
           { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "production", element: <ProductionPage /> }] },
           { element: <PermissionRoute permission="Inventory.View" />, children: [{ path: "urn-inventory", element: <UrnInventoryPage /> }] },
