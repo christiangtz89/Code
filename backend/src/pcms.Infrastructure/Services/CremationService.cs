@@ -243,13 +243,10 @@ public class CremationService : ICremationService
             QrCode = reception.QrCode,
 
             PetId = reception.PetId,
-            PetName = reception.Pet.Name,
+            PetName = reception.PetNameSnapshot,
 
             CustomerId = reception.Pet.CustomerId,
-            CustomerName = BuildCustomerName(
-        reception.Pet.Customer.FirstName,
-        reception.Pet.Customer.LastName,
-        reception.Pet.Customer.SecondLastName),
+            CustomerName = reception.CustomerNameSnapshot,
 
             AssignedToUserId =
                 cremation.AssignedToUserId,
@@ -324,18 +321,12 @@ public class CremationService : ICremationService
                 QrCode = c.Reception.QrCode,
 
                 PetId = c.Reception.PetId,
-                PetName = c.Reception.Pet.Name,
+                PetName = c.Reception.PetNameSnapshot,
 
                 CustomerId =
                     c.Reception.Pet.CustomerId,
 
-                CustomerName =
-        c.Reception.Pet.Customer.SecondLastName == null
-            ? c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName
-            : c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName + " " +
-              c.Reception.Pet.Customer.SecondLastName,
+                CustomerName = c.Reception.CustomerNameSnapshot,
 
                 AssignedToUserId =
                     c.AssignedToUserId,
@@ -433,18 +424,12 @@ public class CremationService : ICremationService
                 QrCode = c.Reception.QrCode,
 
                 PetId = c.Reception.PetId,
-                PetName = c.Reception.Pet.Name,
+                PetName = c.Reception.PetNameSnapshot,
 
                 CustomerId =
                     c.Reception.Pet.CustomerId,
 
-                CustomerName =
-        c.Reception.Pet.Customer.SecondLastName == null
-            ? c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName
-            : c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName + " " +
-              c.Reception.Pet.Customer.SecondLastName,
+                CustomerName = c.Reception.CustomerNameSnapshot,
 
                 AssignedToUserId =
                     c.AssignedToUserId,
@@ -526,18 +511,12 @@ public class CremationService : ICremationService
                 QrCode = c.Reception.QrCode,
 
                 PetId = c.Reception.PetId,
-                PetName = c.Reception.Pet.Name,
+                PetName = c.Reception.PetNameSnapshot,
 
                 CustomerId =
                     c.Reception.Pet.CustomerId,
 
-                CustomerName =
-        c.Reception.Pet.Customer.SecondLastName == null
-            ? c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName
-            : c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName + " " +
-              c.Reception.Pet.Customer.SecondLastName,
+                CustomerName = c.Reception.CustomerNameSnapshot,
 
                 AssignedToUserId =
                     c.AssignedToUserId,
@@ -635,18 +614,12 @@ public class CremationService : ICremationService
                 QrCode = c.Reception.QrCode,
 
                 PetId = c.Reception.PetId,
-                PetName = c.Reception.Pet.Name,
+                PetName = c.Reception.PetNameSnapshot,
 
                 CustomerId =
                     c.Reception.Pet.CustomerId,
 
-                CustomerName =
-        c.Reception.Pet.Customer.SecondLastName == null
-            ? c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName
-            : c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName + " " +
-              c.Reception.Pet.Customer.SecondLastName,
+                CustomerName = c.Reception.CustomerNameSnapshot,
 
                 AssignedToUserId =
                     c.AssignedToUserId,
@@ -1032,15 +1005,12 @@ public class CremationService : ICremationService
             QrCode = cremation.Reception.QrCode,
 
             PetId = cremation.Reception.PetId,
-            PetName = cremation.Reception.Pet.Name,
+            PetName = cremation.Reception.PetNameSnapshot,
 
             CustomerId =
                 cremation.Reception.Pet.CustomerId,
 
-            CustomerName = BuildCustomerName(
-        cremation.Reception.Pet.Customer.FirstName,
-        cremation.Reception.Pet.Customer.LastName,
-        cremation.Reception.Pet.Customer.SecondLastName),
+            CustomerName = cremation.Reception.CustomerNameSnapshot,
 
             AssignedToUserId =
                 cremation.AssignedToUserId,
@@ -1233,15 +1203,12 @@ public class CremationService : ICremationService
             QrCode = cremation.Reception.QrCode,
 
             PetId = cremation.Reception.PetId,
-            PetName = cremation.Reception.Pet.Name,
+            PetName = cremation.Reception.PetNameSnapshot,
 
             CustomerId =
                 cremation.Reception.Pet.CustomerId,
 
-            CustomerName = BuildCustomerName(
-        cremation.Reception.Pet.Customer.FirstName,
-        cremation.Reception.Pet.Customer.LastName,
-        cremation.Reception.Pet.Customer.SecondLastName),
+            CustomerName = cremation.Reception.CustomerNameSnapshot,
 
             AssignedToUserId =
                 cremation.AssignedToUserId,
@@ -1394,22 +1361,13 @@ public class CremationService : ICremationService
                         .ToLower()
                         .Contains(normalizedSearch) ||
 
-                    c.Reception.Pet.Name
+                    c.Reception.PetNameSnapshot
                         .ToLower()
                         .Contains(normalizedSearch) ||
 
-                    c.Reception.Pet.Customer.FirstName
+                    c.Reception.CustomerNameSnapshot
                         .ToLower()
                         .Contains(normalizedSearch) ||
-
-                    c.Reception.Pet.Customer.LastName
-                        .ToLower()
-                        .Contains(normalizedSearch) ||
-
-                    (c.Reception.Pet.Customer.SecondLastName != null &&
-        c.Reception.Pet.Customer.SecondLastName
-            .ToLower()
-            .Contains(normalizedSearch)) ||
 
                     c.PackageName
                         .ToLower()
@@ -1439,18 +1397,12 @@ public class CremationService : ICremationService
                 QrCode = c.Reception.QrCode,
 
                 PetId = c.Reception.PetId,
-                PetName = c.Reception.Pet.Name,
+                PetName = c.Reception.PetNameSnapshot,
 
                 CustomerId =
                     c.Reception.Pet.CustomerId,
 
-                CustomerName =
-        c.Reception.Pet.Customer.SecondLastName == null
-            ? c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName
-            : c.Reception.Pet.Customer.FirstName + " " +
-              c.Reception.Pet.Customer.LastName + " " +
-              c.Reception.Pet.Customer.SecondLastName,
+                CustomerName = c.Reception.CustomerNameSnapshot,
 
                 AssignedToUserId =
                     c.AssignedToUserId,
@@ -1540,15 +1492,9 @@ public class CremationService : ICremationService
                 {
                     Id = r.Id,
                     QrCode = r.QrCode,
-                    PetName = r.Pet.Name,
+                    PetName = r.PetNameSnapshot,
 
-                    CustomerName =
-                        r.Pet.Customer.SecondLastName == null
-                            ? r.Pet.Customer.FirstName + " " +
-                              r.Pet.Customer.LastName
-                            : r.Pet.Customer.FirstName + " " +
-                              r.Pet.Customer.LastName + " " +
-                              r.Pet.Customer.SecondLastName
+                    CustomerName = r.CustomerNameSnapshot
                 })
             .ToListAsync();
     }

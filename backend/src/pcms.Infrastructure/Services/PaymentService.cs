@@ -93,14 +93,8 @@ public class PaymentService : IPaymentService
                 {
                     Id = c.Id,
                     QrCode = c.Reception.QrCode,
-                    PetName = c.Reception.Pet.Name,
-                    CustomerName =
-                        c.Reception.Pet.Customer.SecondLastName == null
-                            ? c.Reception.Pet.Customer.FirstName + " " +
-                              c.Reception.Pet.Customer.LastName
-                            : c.Reception.Pet.Customer.FirstName + " " +
-                              c.Reception.Pet.Customer.LastName + " " +
-                              c.Reception.Pet.Customer.SecondLastName,
+                    PetName = c.Reception.PetNameSnapshot,
+                    CustomerName = c.Reception.CustomerNameSnapshot,
                     PackageName = c.PackageName
                 })
             .ToListAsync();
@@ -362,24 +356,11 @@ public class PaymentService : IPaymentService
                     pa.Cremation.Reception.QrCode,
                     pattern) ||
                 EF.Functions.ILike(
-                    pa.Cremation.Reception.Pet.Name,
+                    pa.Cremation.Reception.PetNameSnapshot,
                     pattern) ||
                 EF.Functions.ILike(
-                    pa.Cremation.Reception.Pet.Customer
-                        .FirstName,
+                    pa.Cremation.Reception.CustomerNameSnapshot,
                     pattern) ||
-                EF.Functions.ILike(
-                    pa.Cremation.Reception.Pet.Customer
-                        .LastName,
-                    pattern) ||
-                (
-                    pa.Cremation.Reception.Pet.Customer
-                        .SecondLastName != null &&
-                    EF.Functions.ILike(
-                        pa.Cremation.Reception.Pet.Customer
-                            .SecondLastName!,
-                        pattern)
-                ) ||
                 EF.Functions.ILike(
                     pa.Cremation.PackageName,
                     pattern));
@@ -495,7 +476,6 @@ public class PaymentService : IPaymentService
         var cremation = account.Cremation;
         var reception = cremation.Reception;
         var pet = reception.Pet;
-        var customer = pet.Customer;
 
         var amountPaid = account.Payments.Sum(
             payment => payment.Amount);
@@ -511,12 +491,9 @@ public class PaymentService : IPaymentService
             ReceptionId = cremation.ReceptionId,
             QrCode = reception.QrCode,
             PetId = reception.Pet.Id,
-            PetName = pet.Name,
+            PetName = reception.PetNameSnapshot,
             CustomerId = pet.CustomerId,
-            CustomerName = BuildCustomerName(
-                customer.FirstName,
-                customer.LastName,
-                customer.SecondLastName),
+            CustomerName = reception.CustomerNameSnapshot,
             PackageName = cremation.PackageName,
             IsCremationActive = cremation.IsActive,
             ServiceTotal = account.ServiceTotal,
@@ -575,24 +552,6 @@ public class PaymentService : IPaymentService
         }
 
         return PaymentStatus.PartiallyPaid;
-    }
-
-    private static string BuildCustomerName(
-        string firstName,
-        string lastName,
-        string? secondLastName)
-    {
-        return string.Join(
-            " ",
-            new[]
-            {
-                firstName,
-                lastName,
-                secondLastName
-            }
-            .Where(value =>
-                !string.IsNullOrWhiteSpace(value))
-            .Select(value => value!.Trim()));
     }
 
     private static string BuildUserName(

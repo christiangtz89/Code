@@ -476,13 +476,6 @@ public sealed class CremationInventoryService(AppDbContext db) :
         else if (reservedItem is null || !reservedItem.IsActive || !reservedItem.TrackInventory)
             blockingReason = "El insumo de la urna reservada no está disponible para inventario.";
 
-        var customer = cremation.Reception.Pet.Customer;
-        var customerName = string.Join(" ", new[]
-        {
-            customer.FirstName,
-            customer.LastName,
-            customer.SecondLastName
-        }.Where(x => !string.IsNullOrWhiteSpace(x)));
         var completedMaterials = fulfillment?.Materials
             .Select(x => new CremationScannerCompletedMaterialDto(
                 x.SupplyItemNameSnapshot,
@@ -493,8 +486,8 @@ public sealed class CremationInventoryService(AppDbContext db) :
         return new CremationScannerPreviewDto(
             cremation.Id,
             cremation.Reception.QrCode,
-            cremation.Reception.Pet.Name,
-            customerName,
+            cremation.Reception.PetNameSnapshot,
+            cremation.Reception.CustomerNameSnapshot,
             cremation.Status,
             isFulfilled,
             fulfillment?.Id,

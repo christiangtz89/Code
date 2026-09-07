@@ -45,7 +45,7 @@ if (dto.DateOfDeath == default)
         "La fecha de fallecimiento es obligatoria.");
 }
 
-if (dto.DateOfDeath > DateTime.UtcNow)
+if (dto.DateOfDeath > CustomerPetWorkflowRules.CurrentBusinessDate())
 {
     throw new ArgumentException(
         "La fecha de fallecimiento no puede estar en el futuro.");
@@ -202,7 +202,7 @@ if (customer == null)
         "La fecha de fallecimiento es obligatoria.");
 }
 
-if (dto.DateOfDeath > DateTime.UtcNow)
+if (dto.DateOfDeath > CustomerPetWorkflowRules.CurrentBusinessDate())
 {
     throw new ArgumentException(
         "La fecha de fallecimiento no puede estar en el futuro.");
@@ -271,6 +271,7 @@ if (dto.DateOfDeath > DateTime.UtcNow)
 public async Task<bool> RestoreAsync(Guid id)
 {
     var pet = await _context.Pets
+        .Include(p => p.Customer)
         .FirstOrDefaultAsync(p =>
             p.Id == id &&
             !p.IsActive);
@@ -279,6 +280,8 @@ public async Task<bool> RestoreAsync(Guid id)
     {
         return false;
     }
+
+    CustomerPetWorkflowRules.EnsureCustomerIsActive(pet.Customer);
 
     pet.IsActive = true;
 

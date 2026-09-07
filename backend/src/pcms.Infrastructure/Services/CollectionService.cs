@@ -60,15 +60,12 @@ public class CollectionService : ICollectionService
          */
         if (dto.ExistingPetId.HasValue)
         {
-            pet = await _context.Pets
+            pet = CustomerPetWorkflowRules.RequireEligiblePet(
+                await _context.Pets
                 .Include(p => p.Customer)
                 .Include(p => p.Reception)
                 .FirstOrDefaultAsync(p =>
-                    p.Id == dto.ExistingPetId.Value &&
-                    p.IsActive &&
-                    p.Customer.IsActive)
-                ?? throw new InvalidOperationException(
-                    "No se encontró una mascota activa válida.");
+                    p.Id == dto.ExistingPetId.Value));
 
             if (pet.Reception != null)
             {
@@ -173,7 +170,7 @@ public class CollectionService : ICollectionService
                     dto.AgeYears,
 
                 DateOfDeath =
-                    dto.DateOfDeath!.Value,
+                    DateOnly.FromDateTime(dto.DateOfDeath!.Value),
 
                 IsActive = true,
 
@@ -620,6 +617,8 @@ public class CollectionService : ICollectionService
             return null;
         }
 
+        CustomerPetWorkflowRules.RequireEligiblePet(collection.Pet);
+
         if (collection.Status !=
             CollectionStatus.Collected)
         {
@@ -748,6 +747,8 @@ public class CollectionService : ICollectionService
 
         var currentTime =
             DateTime.UtcNow;
+        var identitySnapshot =
+            CustomerPetWorkflowRules.CaptureReceptionIdentity(collection.Pet);
 
         var reception =
             new Reception
@@ -756,6 +757,12 @@ public class CollectionService : ICollectionService
 
                 PetId =
                     collection.PetId,
+
+                PetNameSnapshot =
+                    identitySnapshot.PetName,
+
+                CustomerNameSnapshot =
+                    identitySnapshot.CustomerName,
 
                 ReceivedByUserId =
                     receivedByUser.Id,

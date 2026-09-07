@@ -126,17 +126,27 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
     [Authorize(Policy = "Pets.Manage")]
     public async Task<IActionResult> Restore(Guid id)
     {
-        var success = await _petService.RestoreAsync(id);
-
-        if (!success)
+        try
         {
-            return NotFound(new
+            var success = await _petService.RestoreAsync(id);
+
+            if (!success)
             {
-                message = "Inactive pet not found."
+                return NotFound(new
+                {
+                    message = "Inactive pet not found."
+                });
+            }
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                message = ex.Message
             });
         }
-
-        return NoContent();
     }
 
     [HttpGet("customer/{customerId:guid}")]

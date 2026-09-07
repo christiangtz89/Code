@@ -25,7 +25,6 @@ import type {
   Pet,
   UpdatePetPayload,
 } from "../types/pet.types";
-import { toApiDateTime } from "../utils/petDates";
 
 type PetStatusFilter = "active" | "inactive";
 
@@ -71,7 +70,7 @@ function toCommonPetPayload(values: PetFormValues): UpdatePetPayload {
     color: values.color.trim(),
     weightKg: Number(values.weightKg),
     ageYears: values.ageYears === "" ? null : Number(values.ageYears),
-    dateOfDeath: toApiDateTime(values.dateOfDeath),
+    dateOfDeath: values.dateOfDeath,
   };
 }
 

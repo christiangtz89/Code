@@ -386,6 +386,14 @@ public class AppDbContext : DbContext
             .HasColumnName("MascotaId")
             .IsRequired();
 
+        entity.Property(r => r.PetNameSnapshot)
+            .HasColumnName("NombreMascotaSnapshot")
+            .IsRequired();
+
+        entity.Property(r => r.CustomerNameSnapshot)
+            .HasColumnName("NombreClienteSnapshot")
+            .IsRequired();
+
         entity.Property(r => r.ReceivedByUserId)
             .HasColumnName("RecibidoPorUsuarioId")
             .IsRequired();
@@ -563,7 +571,8 @@ public class AppDbContext : DbContext
             .HasColumnName("EdadAnios");
 
         entity.Property(x => x.DateOfDeath)
-            .HasColumnName("FechaFallecimiento");
+            .HasColumnName("FechaFallecimiento")
+            .HasColumnType("date");
 
         entity.Property(x => x.IsActive)
             .HasColumnName("Activo");

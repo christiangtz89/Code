@@ -48,5 +48,5 @@ public class UpdatePetDto
         ErrorMessage = "La edad debe estar entre 0 y 100 años.")]
     public int? AgeYears { get; set; }
 
-    public DateTime DateOfDeath { get; set; }
+    public DateOnly DateOfDeath { get; set; }
 }

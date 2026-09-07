@@ -6,6 +6,10 @@ public class Reception
 
     public Guid PetId { get; set; }
 
+    public string PetNameSnapshot { get; set; } = string.Empty;
+
+    public string CustomerNameSnapshot { get; set; } = string.Empty;
+
     public Guid ReceivedByUserId { get; set; }
 
     public Guid? CollectionId { get; set; }

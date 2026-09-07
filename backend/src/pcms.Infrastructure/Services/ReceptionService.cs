@@ -53,18 +53,11 @@ public class ReceptionService : IReceptionService
                 "Debe describir los objetos personales recibidos.");
         }
 
-        var pet = await _context.Pets
+        var pet = CustomerPetWorkflowRules.RequireEligiblePet(
+            await _context.Pets
             .Include(p => p.Customer)
             .Include(p => p.Reception)
-            .FirstOrDefaultAsync(p =>
-                p.Id == dto.PetId &&
-                p.IsActive);
-
-        if (pet == null)
-        {
-            throw new ArgumentException(
-                "La mascota no existe o está inactiva.");
-        }
+            .FirstOrDefaultAsync(p => p.Id == dto.PetId));
 
         if (pet.Reception != null)
         {
@@ -141,11 +134,15 @@ public class ReceptionService : IReceptionService
         }
 
         var currentTime = DateTime.UtcNow;
+        var identitySnapshot =
+            CustomerPetWorkflowRules.CaptureReceptionIdentity(pet);
 
         var reception = new Reception
         {
             Id = Guid.NewGuid(),
             PetId = pet.Id,
+            PetNameSnapshot = identitySnapshot.PetName,
+            CustomerNameSnapshot = identitySnapshot.CustomerName,
             ReceivedByUserId = receivedByUser.Id,
             VeterinaryClinicId =
         referral.Clinic?.Id,
@@ -179,11 +176,9 @@ public class ReceptionService : IReceptionService
         {
             Id = reception.Id,
             PetId = reception.PetId,
-            PetName = pet.Name,
+            PetName = reception.PetNameSnapshot,
             CustomerId = pet.CustomerId,
-            CustomerName =
-                pet.Customer.FirstName + " " +
-                pet.Customer.LastName,
+            CustomerName = reception.CustomerNameSnapshot,
             ReceivedByUserId =
                 reception.ReceivedByUserId,
             ReceivedByUserName =
@@ -252,12 +247,10 @@ public class ReceptionService : IReceptionService
                 Id = r.Id,
 
                 PetId = r.PetId,
-                PetName = r.Pet.Name,
+                PetName = r.PetNameSnapshot,
 
                 CustomerId = r.Pet.CustomerId,
-                CustomerName =
-                    r.Pet.Customer.FirstName + " " +
-                    r.Pet.Customer.LastName,
+                CustomerName = r.CustomerNameSnapshot,
 
                 ReceivedByUserId =
                     r.ReceivedByUserId,
@@ -323,12 +316,10 @@ public class ReceptionService : IReceptionService
                 Id = r.Id,
 
                 PetId = r.PetId,
-                PetName = r.Pet.Name,
+                PetName = r.PetNameSnapshot,
 
                 CustomerId = r.Pet.CustomerId,
-                CustomerName =
-                    r.Pet.Customer.FirstName + " " +
-                    r.Pet.Customer.LastName,
+                CustomerName = r.CustomerNameSnapshot,
 
                 ReceivedByUserId =
                     r.ReceivedByUserId,
@@ -390,12 +381,10 @@ public class ReceptionService : IReceptionService
                 Id = r.Id,
 
                 PetId = r.PetId,
-                PetName = r.Pet.Name,
+                PetName = r.PetNameSnapshot,
 
                 CustomerId = r.Pet.CustomerId,
-                CustomerName =
-                    r.Pet.Customer.FirstName + " " +
-                    r.Pet.Customer.LastName,
+                CustomerName = r.CustomerNameSnapshot,
 
                 ReceivedByUserId =
                     r.ReceivedByUserId,
@@ -706,14 +695,12 @@ public class ReceptionService : IReceptionService
             Id = reception.Id,
 
             PetId = reception.PetId,
-            PetName = reception.Pet.Name,
+            PetName = reception.PetNameSnapshot,
 
             CustomerId =
                 reception.Pet.CustomerId,
 
-            CustomerName =
-                reception.Pet.Customer.FirstName + " " +
-                reception.Pet.Customer.LastName,
+            CustomerName = reception.CustomerNameSnapshot,
 
             ReceivedByUserId =
                 reception.ReceivedByUserId,
@@ -825,13 +812,10 @@ public class ReceptionService : IReceptionService
                     r.QrCode.ToLower()
                         .Contains(normalizedSearch) ||
 
-                    r.Pet.Name.ToLower()
+                    r.PetNameSnapshot.ToLower()
                         .Contains(normalizedSearch) ||
 
-                    r.Pet.Customer.FirstName.ToLower()
-                        .Contains(normalizedSearch) ||
-
-                    r.Pet.Customer.LastName.ToLower()
+                    r.CustomerNameSnapshot.ToLower()
                         .Contains(normalizedSearch) ||
 
                     r.ReceivedByUser.FirstName.ToLower()
@@ -846,12 +830,10 @@ public class ReceptionService : IReceptionService
                 Id = r.Id,
 
                 PetId = r.PetId,
-                PetName = r.Pet.Name,
+                PetName = r.PetNameSnapshot,
 
                 CustomerId = r.Pet.CustomerId,
-                CustomerName =
-                    r.Pet.Customer.FirstName + " " +
-                    r.Pet.Customer.LastName,
+                CustomerName = r.CustomerNameSnapshot,
 
                 ReceivedByUserId =
                     r.ReceivedByUserId,

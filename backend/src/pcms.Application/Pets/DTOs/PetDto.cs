@@ -22,7 +22,7 @@ public class PetDto
 
     public int? AgeYears { get; set; }
 
-    public DateTime DateOfDeath { get; set; }
+    public DateOnly DateOfDeath { get; set; }
 
     public bool IsActive { get; set; }
 

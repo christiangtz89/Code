@@ -455,16 +455,13 @@ public class VeterinaryRequestService
 
         if (dto.ExistingPetId.HasValue)
         {
-            pet = await _context.Pets
+            pet = CustomerPetWorkflowRules.RequireEligiblePet(
+                await _context.Pets
                 .Include(p => p.Customer)
                 .Include(p => p.Reception)
                 .FirstOrDefaultAsync(p =>
                     p.Id ==
-                        dto.ExistingPetId.Value &&
-                    p.IsActive &&
-                    p.Customer.IsActive)
-                ?? throw new InvalidOperationException(
-                    "No se encontró una mascota activa válida.");
+                        dto.ExistingPetId.Value));
 
             if (pet.Reception != null)
             {
@@ -556,7 +553,7 @@ public class VeterinaryRequestService
                     request.AgeYears,
 
                 DateOfDeath =
-                    request.DateOfDeath,
+                    DateOnly.FromDateTime(request.DateOfDeath),
 
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -578,12 +575,18 @@ public class VeterinaryRequestService
                 r.QrCode == qrCode));
 
         var currentTime = DateTime.UtcNow;
+        var identitySnapshot =
+            CustomerPetWorkflowRules.CaptureReceptionIdentity(pet, customer);
 
         var reception = new Reception
         {
             Id = Guid.NewGuid(),
 
             PetId = pet.Id,
+
+            PetNameSnapshot = identitySnapshot.PetName,
+
+            CustomerNameSnapshot = identitySnapshot.CustomerName,
 
             ReceivedByUserId =
                 receivedByUser.Id,
