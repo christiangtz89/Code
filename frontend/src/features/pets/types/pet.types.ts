@@ -22,6 +22,25 @@ export interface PagedPets {
   totalPages: number;
 }
 
+export interface PetOwnerOption {
+  id: string;
+  displayName: string;
+}
+
+export interface PagedPetOwnerOptions {
+  items: PetOwnerOption[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface GetPetOwnerOptionsParams {
+  search?: string;
+  page: number;
+  pageSize: number;
+}
+
 export interface CreatePetPayload {
   customerId: string;
   name: string;

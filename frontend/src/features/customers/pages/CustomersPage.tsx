@@ -1,12 +1,8 @@
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { hasPermission } from "../../auth/utils/permissions";
 import {
   createCustomer,
   deactivateCustomer,
@@ -76,10 +72,14 @@ export function CustomersPage() {
     useState<Customer | null>(null);
 
   const isActive = statusFilter === "active";
+  const canManageCustomers = hasPermission("Customers.Manage");
+  const canViewPets = hasPermission("Pets.View");
   const normalizedSearch = debouncedSearch.trim();
+  const queryPage = normalizedSearch ? 1 : page;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      setPage(1);
       setDebouncedSearch(searchInput);
     }, 400);
 
@@ -88,15 +88,11 @@ export function CustomersPage() {
     };
   }, [searchInput]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, normalizedSearch, pageSize]);
-
   const customersQuery = useQuery({
     queryKey: [
       "customers",
       {
-        page,
+        page: queryPage,
         pageSize,
         isActive,
         search: normalizedSearch,
@@ -120,13 +116,11 @@ export function CustomersPage() {
       }
 
       return getCustomers({
-        page,
+        page: queryPage,
         pageSize,
         isActive,
       });
     },
-
-    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
@@ -284,18 +278,20 @@ export function CustomersPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setModalState({
-              mode: "create",
-              customer: null,
-            })
-          }
-          className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-        >
-          + Registrar cliente
-        </button>
+        {canManageCustomers && (
+          <button
+            type="button"
+            onClick={() =>
+              setModalState({
+                mode: "create",
+                customer: null,
+              })
+            }
+            className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            + Registrar cliente
+          </button>
+        )}
       </header>
 
       <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -303,7 +299,10 @@ export function CustomersPage() {
           <div className="flex rounded-xl bg-slate-100 p-1">
             <button
               type="button"
-              onClick={() => setStatusFilter("active")}
+              onClick={() => {
+                setPage(1);
+                setStatusFilter("active");
+              }}
               className={[
                 "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none",
                 statusFilter === "active"
@@ -316,7 +315,10 @@ export function CustomersPage() {
 
             <button
               type="button"
-              onClick={() => setStatusFilter("inactive")}
+              onClick={() => {
+                setPage(1);
+                setStatusFilter("inactive");
+              }}
               className={[
                 "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none",
                 statusFilter === "inactive"
@@ -340,7 +342,10 @@ export function CustomersPage() {
             {!normalizedSearch && (
               <select
                 value={pageSize}
-                onChange={(event) => setPageSize(Number(event.target.value))}
+                onChange={(event) => {
+                  setPage(1);
+                  setPageSize(Number(event.target.value));
+                }}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none"
                 aria-label="Clientes por página"
               >
@@ -398,6 +403,8 @@ export function CustomersPage() {
           <CustomersTable
             customers={customers}
             showingActive={isActive}
+            canManage={canManageCustomers}
+            canViewPets={canViewPets}
             pendingCustomerId={pendingCustomerId}
             onViewPets={setSelectedPetsCustomer}
             onEdit={(customer) =>
@@ -444,23 +451,27 @@ export function CustomersPage() {
           </footer>
         )}
 
-      <CustomerFormModal
-        isOpen={modalState !== null}
-        mode={modalState?.mode ?? "create"}
-        customer={modalState?.customer ?? null}
-        isSubmitting={isFormSubmitting}
-        onClose={() => {
-          if (!isFormSubmitting) {
-            setModalState(null);
-          }
-        }}
-        onSubmit={handleFormSubmit}
-      />
+      {canManageCustomers && (
+        <CustomerFormModal
+          isOpen={modalState !== null}
+          mode={modalState?.mode ?? "create"}
+          customer={modalState?.customer ?? null}
+          isSubmitting={isFormSubmitting}
+          onClose={() => {
+            if (!isFormSubmitting) {
+              setModalState(null);
+            }
+          }}
+          onSubmit={handleFormSubmit}
+        />
+      )}
 
-      <CustomerPetsModal
-        customer={selectedPetsCustomer}
-        onClose={() => setSelectedPetsCustomer(null)}
-      />
+      {canViewPets && (
+        <CustomerPetsModal
+          customer={selectedPetsCustomer}
+          onClose={() => setSelectedPetsCustomer(null)}
+        />
+      )}
     </section>
   );
 }

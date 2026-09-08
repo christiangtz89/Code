@@ -1,16 +1,12 @@
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { getCustomers } from "../../customers/api/customersApi";
+import { hasPermission } from "../../auth/utils/permissions";
 import {
   createPet,
   deactivatePet,
+  getPetOwnerOptions,
   getPets,
   restorePet,
   searchPets,
@@ -88,12 +84,22 @@ export function PetsPage() {
 
   const [modalState, setModalState] = useState<PetModalState | null>(null);
 
+  const [ownerSearchInput, setOwnerSearchInput] = useState("");
+  const [debouncedOwnerSearch, setDebouncedOwnerSearch] = useState("");
+  const [ownerPage, setOwnerPage] = useState(1);
+
   const isActive = statusFilter === "active";
+  const canManagePets = hasPermission("Pets.Manage");
 
   const normalizedSearch = debouncedSearch.trim();
+  const queryPage = normalizedSearch ? 1 : page;
+  const normalizedOwnerSearch = debouncedOwnerSearch.trim();
+  const ownerSearchPending =
+    ownerSearchInput.trim() !== normalizedOwnerSearch;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      setPage(1);
       setDebouncedSearch(searchInput);
     }, 400);
 
@@ -101,27 +107,32 @@ export function PetsPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    setPage(1);
-  }, [statusFilter, normalizedSearch, pageSize]);
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedOwnerSearch(ownerSearchInput);
+    }, 400);
 
-  const customersQuery = useQuery({
-    queryKey: ["customers", "pet-owner-options"],
+    return () => window.clearTimeout(timeoutId);
+  }, [ownerSearchInput]);
 
+  const ownerOptionsQuery = useQuery({
+    queryKey: [
+      "pet-owner-options",
+      { search: normalizedOwnerSearch, page: ownerPage },
+    ],
     queryFn: () =>
-      getCustomers({
-        page: 1,
-        pageSize: 100,
-        isActive: true,
+      getPetOwnerOptions({
+        search: normalizedOwnerSearch || undefined,
+        page: ownerPage,
+        pageSize: 20,
       }),
-
-    staleTime: 60_000,
+    enabled: canManagePets && modalState?.mode === "create",
   });
 
   const petsQuery = useQuery({
     queryKey: [
       "pets",
       {
-        page,
+        page: queryPage,
         pageSize,
         isActive,
         search: normalizedSearch,
@@ -145,13 +156,11 @@ export function PetsPage() {
       }
 
       return getPets({
-        page,
+        page: queryPage,
         pageSize,
         isActive,
       });
     },
-
-    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
@@ -302,7 +311,11 @@ export function PetsPage() {
 
   const totalPages = Math.max(petsQuery.data?.totalPages ?? 0, 1);
 
-  const customers = customersQuery.data?.items ?? [];
+  const ownerOptions = ownerOptionsQuery.data?.items ?? [];
+  const ownerTotalPages = Math.max(
+    ownerOptionsQuery.data?.totalPages ?? 0,
+    1,
+  );
 
   return (
     <section>
@@ -319,34 +332,34 @@ export function PetsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          disabled={customersQuery.isLoading || customers.length === 0}
-          onClick={() =>
-            setModalState({
-              mode: "create",
-              pet: null,
-            })
-          }
-          className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          + Registrar mascota
-        </button>
+        {canManagePets && (
+          <button
+            type="button"
+            onClick={() => {
+              setOwnerSearchInput("");
+              setDebouncedOwnerSearch("");
+              setOwnerPage(1);
+              setModalState({
+                mode: "create",
+                pet: null,
+              });
+            }}
+            className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            + Registrar mascota
+          </button>
+        )}
       </header>
-
-      {!customersQuery.isLoading && customers.length === 0 && (
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Debes registrar al menos un cliente activo antes de registrar una
-          mascota.
-        </div>
-      )}
 
       <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex rounded-xl bg-slate-100 p-1">
             <button
               type="button"
-              onClick={() => setStatusFilter("active")}
+              onClick={() => {
+                setPage(1);
+                setStatusFilter("active");
+              }}
               className={[
                 "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none",
                 statusFilter === "active"
@@ -359,7 +372,10 @@ export function PetsPage() {
 
             <button
               type="button"
-              onClick={() => setStatusFilter("inactive")}
+              onClick={() => {
+                setPage(1);
+                setStatusFilter("inactive");
+              }}
               className={[
                 "flex-1 rounded-lg px-4 py-2 text-sm font-medium transition sm:flex-none",
                 statusFilter === "inactive"
@@ -384,7 +400,10 @@ export function PetsPage() {
               <select
                 value={pageSize}
                 aria-label="Mascotas por página"
-                onChange={(event) => setPageSize(Number(event.target.value))}
+                onChange={(event) => {
+                  setPage(1);
+                  setPageSize(Number(event.target.value));
+                }}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none"
               >
                 <option value={10}>10 por página</option>
@@ -441,6 +460,7 @@ export function PetsPage() {
           <PetsTable
             pets={pets}
             showingActive={isActive}
+            canManage={canManagePets}
             pendingPetId={pendingPetId}
             onEdit={(pet) =>
               setModalState({
@@ -484,20 +504,33 @@ export function PetsPage() {
         </footer>
       )}
 
-      <PetFormModal
-        isOpen={modalState !== null}
-        mode={modalState?.mode ?? "create"}
-        pet={modalState?.pet ?? null}
-        customers={customers}
-        customersLoading={customersQuery.isLoading}
-        isSubmitting={isFormSubmitting}
-        onClose={() => {
-          if (!isFormSubmitting) {
-            setModalState(null);
+      {canManagePets && (
+        <PetFormModal
+          isOpen={modalState !== null}
+          mode={modalState?.mode ?? "create"}
+          pet={modalState?.pet ?? null}
+          ownerOptions={ownerOptions}
+          ownerOptionsLoading={
+            ownerOptionsQuery.isFetching || ownerSearchPending
           }
-        }}
-        onSubmit={handleFormSubmit}
-      />
+          ownerOptionsError={ownerOptionsQuery.isError}
+          ownerSearch={ownerSearchInput}
+          ownerPage={ownerPage}
+          ownerTotalPages={ownerTotalPages}
+          isSubmitting={isFormSubmitting}
+          onOwnerSearchChange={(value) => {
+            setOwnerSearchInput(value);
+            setOwnerPage(1);
+          }}
+          onOwnerPageChange={setOwnerPage}
+          onClose={() => {
+            if (!isFormSubmitting) {
+              setModalState(null);
+            }
+          }}
+          onSubmit={handleFormSubmit}
+        />
+      )}
     </section>
   );
 }

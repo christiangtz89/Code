@@ -3,6 +3,7 @@ import type { Pet } from "../types/pet.types";
 interface PetsTableProps {
   pets: Pet[];
   showingActive: boolean;
+  canManage: boolean;
   pendingPetId: string | null;
   onEdit: (pet: Pet) => void;
   onDeactivate: (pet: Pet) => void;
@@ -31,6 +32,7 @@ function formatDateOnly(value: string): string {
 export function PetsTable({
   pets,
   showingActive,
+  canManage,
   pendingPetId,
   onEdit,
   onDeactivate,
@@ -82,9 +84,11 @@ export function PetsTable({
                 Estado
               </th>
 
-              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Acciones
-              </th>
+              {canManage && (
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Acciones
+                </th>
+              )}
             </tr>
           </thead>
 
@@ -136,40 +140,42 @@ export function PetsTable({
                     </span>
                   </td>
 
-                  <td className="whitespace-nowrap px-5 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      {showingActive ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => onEdit(pet)}
-                            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                          >
-                            Editar
-                          </button>
+                  {canManage && (
+                    <td className="whitespace-nowrap px-5 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        {showingActive ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => onEdit(pet)}
+                              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              Editar
+                            </button>
 
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => onDeactivate(pet)}
+                              className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {isPending ? "Procesando..." : "Desactivar"}
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
                             disabled={isPending}
-                            onClick={() => onDeactivate(pet)}
-                            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                            onClick={() => onRestore(pet)}
+                            className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
                           >
-                            {isPending ? "Procesando..." : "Desactivar"}
+                            {isPending ? "Restaurando..." : "Restaurar"}
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => onRestore(pet)}
-                          className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                        >
-                          {isPending ? "Restaurando..." : "Restaurar"}
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}

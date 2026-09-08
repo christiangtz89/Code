@@ -4,6 +4,8 @@ import { getCustomerFullName } from "../utils/customerName";
 interface CustomersTableProps {
   customers: Customer[];
   showingActive: boolean;
+  canManage: boolean;
+  canViewPets: boolean;
   pendingCustomerId: string | null;
   onViewPets: (customer: Customer) => void;
   onEdit: (customer: Customer) => void;
@@ -30,6 +32,8 @@ function formatDate(value: string): string {
 export function CustomersTable({
   customers,
   showingActive,
+  canManage,
+  canViewPets,
   pendingCustomerId,
   onViewPets,
   onEdit,
@@ -78,9 +82,11 @@ export function CustomersTable({
                 Estado
               </th>
 
-              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Acciones
-              </th>
+              {(canManage || canViewPets) && (
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Acciones
+                </th>
+              )}
             </tr>
           </thead>
 
@@ -123,49 +129,54 @@ export function CustomersTable({
                     </span>
                   </td>
 
-                  <td className="whitespace-nowrap px-5 py-4 text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onViewPets(customer)}
-                        disabled={isPending}
-                        className="rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
-                      >
-                        Ver mascotas
-                      </button>
-
-                      {showingActive ? (
-                        <>
+                  {(canManage || canViewPets) && (
+                    <td className="whitespace-nowrap px-5 py-4 text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {canViewPets && (
                           <button
                             type="button"
-                            onClick={() => onEdit(customer)}
+                            onClick={() => onViewPets(customer)}
                             disabled={isPending}
-                            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                            className="rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
                           >
-                            Editar
+                            Ver mascotas
                           </button>
+                        )}
 
-                          <button
-                            type="button"
-                            onClick={() => onDeactivate(customer)}
-                            disabled={isPending}
-                            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-                          >
-                            {isPending ? "Procesando..." : "Desactivar"}
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onRestore(customer)}
-                          disabled={isPending}
-                          className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
-                        >
-                          {isPending ? "Restaurando..." : "Restaurar"}
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                        {canManage &&
+                          (showingActive ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onEdit(customer)}
+                                disabled={isPending}
+                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                              >
+                                Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => onDeactivate(customer)}
+                                disabled={isPending}
+                                className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                              >
+                                {isPending ? "Procesando..." : "Desactivar"}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onRestore(customer)}
+                              disabled={isPending}
+                              className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
+                            >
+                              {isPending ? "Restaurando..." : "Restaurar"}
+                            </button>
+                          ))}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}

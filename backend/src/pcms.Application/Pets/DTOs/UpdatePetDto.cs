@@ -39,7 +39,7 @@ public class UpdatePetDto
         typeof(decimal),
         "0.01",
         "999.99",
-        ErrorMessage = "El peso debe ser mayor que cero.")]
+        ErrorMessage = "El peso debe estar entre 0.01 y 999.99 kg.")]
     public decimal WeightKg { get; set; }
 
     [Range(

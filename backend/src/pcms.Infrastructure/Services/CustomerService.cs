@@ -16,13 +16,6 @@ public class CustomerService : ICustomerService
         _context = context;
     }
 
-    private static string? NormalizeOptional(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Trim();
-    }
-
 public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
     int page,
     int pageSize,
@@ -92,14 +85,21 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
     public async Task<CustomerDto> CreateAsync(
         CreateCustomerDto dto)
     {
+        var input = CustomerPetInputRules.NormalizeCustomer(
+            dto.FirstName,
+            dto.LastName,
+            dto.SecondLastName,
+            dto.Phone,
+            dto.Email);
+
         var customer = new Customer
 {
             Id = Guid.NewGuid(),
-            FirstName = dto.FirstName.Trim(),
-            LastName = dto.LastName.Trim(),
-            SecondLastName = NormalizeOptional(dto.SecondLastName),
-            Phone = dto.Phone.Trim(),
-            Email = dto.Email.Trim(),
+            FirstName = input.FirstName,
+            LastName = input.LastName,
+            SecondLastName = input.SecondLastName,
+            Phone = input.Phone,
+            Email = input.Email,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
 };
@@ -122,10 +122,17 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
         };
     }
 
-    public async Task<CustomerDto?> UpdateAsync(
+public async Task<CustomerDto?> UpdateAsync(
     Guid id,
     UpdateCustomerDto dto)
 {
+    var input = CustomerPetInputRules.NormalizeCustomer(
+        dto.FirstName,
+        dto.LastName,
+        dto.SecondLastName,
+        dto.Phone,
+        dto.Email);
+
     var customer = await _context.Customers
         .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -134,11 +141,11 @@ public async Task<PaginatedResult<CustomerDto>> GetAllAsync(
         return null;
 
 
-        customer.FirstName = dto.FirstName.Trim();
-        customer.LastName = dto.LastName.Trim();
-        customer.SecondLastName = NormalizeOptional(dto.SecondLastName);
-        customer.Phone = dto.Phone.Trim();
-        customer.Email = dto.Email.Trim();
+        customer.FirstName = input.FirstName;
+        customer.LastName = input.LastName;
+        customer.SecondLastName = input.SecondLastName;
+        customer.Phone = input.Phone;
+        customer.Email = input.Email;
 
 
     await _context.SaveChangesAsync();

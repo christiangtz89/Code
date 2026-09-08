@@ -1,3 +1,4 @@
+using pcms.Application.Common;
 using pcms.Application.Pets.DTOs;
 
 namespace pcms.Application.Pets.Interfaces;
@@ -28,4 +29,10 @@ public interface IPetService
     Task<IEnumerable<PetDto>> SearchAsync(
         string search,
         bool isActive);
+
+    Task<PaginatedResult<PetOwnerOptionDto>>
+        GetOwnerOptionsAsync(
+            string? search,
+            int page,
+            int pageSize);
 }

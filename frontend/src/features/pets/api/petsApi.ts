@@ -2,6 +2,8 @@ import { apiClient } from "../../../services/apiClient";
 import type {
   CreatePetPayload,
   GetPetsParams,
+  GetPetOwnerOptionsParams,
+  PagedPetOwnerOptions,
   PagedPets,
   Pet,
   SearchPetsParams,
@@ -20,6 +22,17 @@ export async function searchPets(params: SearchPetsParams): Promise<Pet[]> {
   const response = await apiClient.get<Pet[]>("/Pets/search", {
     params,
   });
+
+  return response.data;
+}
+
+export async function getPetOwnerOptions(
+  params: GetPetOwnerOptionsParams,
+): Promise<PagedPetOwnerOptions> {
+  const response = await apiClient.get<PagedPetOwnerOptions>(
+    "/Pets/owner-options",
+    { params },
+  );
 
   return response.data;
 }

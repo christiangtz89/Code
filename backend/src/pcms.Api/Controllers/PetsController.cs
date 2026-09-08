@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using pcms.Application.Common;
 using pcms.Application.Pets.DTOs;
 using pcms.Application.Pets.Interfaces;
 
@@ -31,10 +32,11 @@ public class PetsController : ControllerBase
                 new { id = pet.Id },
                 pet);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return BadRequest(new
             {
+                success = false,
                 message = ex.Message
             });
         }
@@ -70,6 +72,23 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
     return Ok(pets);
     }
 
+    [HttpGet("owner-options")]
+    [Authorize(Policy = "Pets.Manage")]
+    public async Task<
+        ActionResult<PaginatedResult<PetOwnerOptionDto>>>
+        GetOwnerOptions(
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        var owners = await _petService.GetOwnerOptionsAsync(
+            search,
+            page,
+            pageSize);
+
+        return Ok(owners);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PetDto>> GetById(Guid id)
     {
@@ -92,17 +111,28 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
         Guid id,
         UpdatePetDto dto)
     {
-        var pet = await _petService.UpdateAsync(id, dto);
-
-        if (pet == null)
+        try
         {
-            return NotFound(new
+            var pet = await _petService.UpdateAsync(id, dto);
+
+            if (pet == null)
             {
-                message = "Pet not found."
+                return NotFound(new
+                {
+                    message = "Pet not found."
+                });
+            }
+
+            return Ok(pet);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
             });
         }
-
-        return Ok(pet);
     }
 
     [HttpDelete("{id:guid}")]

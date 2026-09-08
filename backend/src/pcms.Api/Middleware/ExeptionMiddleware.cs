@@ -6,10 +6,14 @@ namespace pcms.Api.Middleware;
 public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
 
-    public ExceptionMiddleware(RequestDelegate next)
+    public ExceptionMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionMiddleware> logger)
     {
         _next = next;
+        _logger = logger;
     }
 
 
@@ -21,6 +25,15 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
+            if (ex is not ArgumentException)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unhandled exception while processing {Method} {Path}.",
+                    context.Request.Method,
+                    context.Request.Path);
+            }
+
             await HandleExceptionAsync(
                 context,
                 ex);
@@ -36,14 +49,20 @@ public class ExceptionMiddleware
             "application/json";
 
 
-        context.Response.StatusCode =
-            (int)HttpStatusCode.BadRequest;
+        var isValidationError =
+            exception is ArgumentException;
+
+        context.Response.StatusCode = isValidationError
+            ? (int)HttpStatusCode.BadRequest
+            : (int)HttpStatusCode.InternalServerError;
 
 
         var response = new
         {
             success = false,
-            message = exception.Message
+            message = isValidationError
+                ? exception.Message
+                : "Ocurrió un error interno. Intenta nuevamente."
         };
 
 

@@ -1,19 +1,23 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import type { Customer } from "../../customers/types/customer.types";
 import { petSchema, type PetFormValues } from "../schemas/petSchema";
-import type { Pet } from "../types/pet.types";
+import type { Pet, PetOwnerOption } from "../types/pet.types";
 import { getLocalDateInputValue, toDateInputValue } from "../utils/petDates";
-import { getCustomerFullName } from "../../customers/utils/customerName";
 
 interface PetFormModalProps {
   isOpen: boolean;
   mode: "create" | "edit";
   pet: Pet | null;
-  customers: Customer[];
-  customersLoading: boolean;
+  ownerOptions: PetOwnerOption[];
+  ownerOptionsLoading: boolean;
+  ownerOptionsError: boolean;
+  ownerSearch: string;
+  ownerPage: number;
+  ownerTotalPages: number;
   isSubmitting: boolean;
+  onOwnerSearchChange: (value: string) => void;
+  onOwnerPageChange: (page: number) => void;
   onClose: () => void;
   onSubmit: (values: PetFormValues) => Promise<void>;
 }
@@ -25,9 +29,15 @@ export function PetFormModal({
   isOpen,
   mode,
   pet,
-  customers,
-  customersLoading,
+  ownerOptions,
+  ownerOptionsLoading,
+  ownerOptionsError,
+  ownerSearch,
+  ownerPage,
+  ownerTotalPages,
   isSubmitting,
+  onOwnerSearchChange,
+  onOwnerPageChange,
   onClose,
   onSubmit,
 }: PetFormModalProps) {
@@ -35,6 +45,7 @@ export function PetFormModal({
     register,
     reset,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<PetFormValues>({
     resolver: zodResolver(petSchema),
@@ -130,25 +141,81 @@ export function PetFormModal({
             </label>
 
             {mode === "create" ? (
-              <select
-                id="pet-customer"
-                disabled={isSubmitting || customersLoading}
-                {...register("customerId")}
-                className={inputClassName}
-              >
-                <option value="">
-                  {customersLoading
-                    ? "Cargando clientes..."
-                    : "Selecciona un cliente"}
-                </option>
+              <>
+                <input
+                  id="pet-owner-search"
+                  type="search"
+                  value={ownerSearch}
+                  placeholder="Buscar propietario por nombre"
+                  disabled={isSubmitting}
+                  onChange={(event) => {
+                    setValue("customerId", "");
+                    onOwnerSearchChange(event.target.value);
+                  }}
+                  className={inputClassName}
+                />
 
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {getCustomerFullName(customer)}
-                    {customer.phone}
+                <select
+                  id="pet-customer"
+                  disabled={isSubmitting || ownerOptionsLoading}
+                  {...register("customerId")}
+                  className={inputClassName}
+                >
+                  <option value="">
+                    {ownerOptionsLoading
+                      ? "Buscando propietarios..."
+                      : ownerOptions.length === 0
+                        ? "No se encontraron propietarios activos"
+                        : "Selecciona un propietario"}
                   </option>
-                ))}
-              </select>
+
+                  {ownerOptions.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.displayName}
+                    </option>
+                  ))}
+                </select>
+
+                {ownerOptionsError && (
+                  <p className="mt-2 text-sm text-red-600">
+                    No fue posible buscar propietarios.
+                  </p>
+                )}
+
+                {ownerTotalPages > 1 && (
+                  <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                    <button
+                      type="button"
+                      disabled={ownerPage <= 1 || ownerOptionsLoading}
+                      onClick={() => {
+                        setValue("customerId", "");
+                        onOwnerPageChange(ownerPage - 1);
+                      }}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-slate-700 disabled:opacity-40"
+                    >
+                      Anterior
+                    </button>
+
+                    <span className="text-slate-500">
+                      Página {ownerPage} de {ownerTotalPages}
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={
+                        ownerPage >= ownerTotalPages || ownerOptionsLoading
+                      }
+                      onClick={() => {
+                        setValue("customerId", "");
+                        onOwnerPageChange(ownerPage + 1);
+                      }}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-slate-700 disabled:opacity-40"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <input
@@ -401,8 +468,8 @@ export function PetFormModal({
               type="submit"
               disabled={
                 isSubmitting ||
-                customersLoading ||
-                (mode === "create" && customers.length === 0)
+                ownerOptionsLoading ||
+                (mode === "create" && ownerOptions.length === 0)
               }
               className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >

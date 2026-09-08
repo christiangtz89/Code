@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using pcms.Application.Common;
 using pcms.Application.Pets.DTOs;
 using pcms.Application.Pets.Interfaces;
 using pcms.Domain.Entities;
@@ -51,6 +52,13 @@ if (dto.DateOfDeath > CustomerPetWorkflowRules.CurrentBusinessDate())
         "La fecha de fallecimiento no puede estar en el futuro.");
 }
 
+var input = CustomerPetInputRules.NormalizePet(
+    dto.Name,
+    dto.Species,
+    dto.Breed,
+    dto.Sex,
+    dto.Color);
+
     // Verify the customer exists
     var customer = await _context.Customers
     .FirstOrDefaultAsync(c =>
@@ -59,18 +67,19 @@ if (dto.DateOfDeath > CustomerPetWorkflowRules.CurrentBusinessDate())
 
 if (customer == null)
 {
-    throw new Exception("Customer not found.");
+    throw new ArgumentException(
+        "El cliente seleccionado no existe o está inactivo.");
 }
 
     var pet = new Pet
     {
         Id = Guid.NewGuid(),
         CustomerId = dto.CustomerId,
-        Name = dto.Name,
-        Species = dto.Species,
-        Breed = dto.Breed,
-        Sex = dto.Sex,
-        Color = dto.Color,
+        Name = input.Name,
+        Species = input.Species,
+        Breed = input.Breed,
+        Sex = input.Sex,
+        Color = input.Color,
         WeightKg = dto.WeightKg,
         AgeYears = dto.AgeYears,
         DateOfDeath = dto.DateOfDeath,
@@ -208,6 +217,13 @@ if (dto.DateOfDeath > CustomerPetWorkflowRules.CurrentBusinessDate())
         "La fecha de fallecimiento no puede estar en el futuro.");
 }
 
+var input = CustomerPetInputRules.NormalizePet(
+    dto.Name,
+    dto.Species,
+    dto.Breed,
+    dto.Sex,
+    dto.Color);
+
     var pet = await _context.Pets
         .Include(p => p.Customer)
         .FirstOrDefaultAsync(p =>
@@ -219,11 +235,11 @@ if (dto.DateOfDeath > CustomerPetWorkflowRules.CurrentBusinessDate())
         return null;
     }
 
-    pet.Name = dto.Name;
-    pet.Species = dto.Species;
-    pet.Breed = dto.Breed;
-    pet.Sex = dto.Sex;
-    pet.Color = dto.Color;
+    pet.Name = input.Name;
+    pet.Species = input.Species;
+    pet.Breed = input.Breed;
+    pet.Sex = input.Sex;
+    pet.Color = input.Color;
     pet.WeightKg = dto.WeightKg;
     pet.AgeYears = dto.AgeYears;
     pet.DateOfDeath = dto.DateOfDeath;
@@ -386,5 +402,70 @@ public async Task<IEnumerable<PetDto>>
             CreatedAt = p.CreatedAt
         })
         .ToListAsync();
+}
+
+public async Task<PaginatedResult<PetOwnerOptionDto>>
+    GetOwnerOptionsAsync(
+        string? search,
+        int page,
+        int pageSize)
+{
+    page = Math.Max(page, 1);
+    pageSize = Math.Clamp(pageSize, 1, 50);
+
+    var query = _context.Customers
+        .AsNoTracking()
+        .Where(customer => customer.IsActive);
+
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        var pattern = $"%{search.Trim()}%";
+
+        query = query.Where(customer =>
+            EF.Functions.ILike(customer.FirstName, pattern) ||
+            EF.Functions.ILike(customer.LastName, pattern) ||
+            (
+                customer.SecondLastName != null &&
+                EF.Functions.ILike(customer.SecondLastName, pattern)
+            ) ||
+            EF.Functions.ILike(
+                customer.FirstName + " " +
+                customer.LastName + " " +
+                (customer.SecondLastName ?? ""),
+                pattern));
+    }
+
+    var totalItems = await query.CountAsync();
+
+    var items = await query
+        .OrderBy(customer => customer.LastName)
+        .ThenBy(customer => customer.FirstName)
+        .ThenBy(customer => customer.SecondLastName)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(customer => new PetOwnerOptionDto
+        {
+            Id = customer.Id,
+            DisplayName =
+                customer.FirstName + " " +
+                customer.LastName +
+                (
+                    customer.SecondLastName == null ||
+                    customer.SecondLastName == ""
+                        ? ""
+                        : " " + customer.SecondLastName
+                )
+        })
+        .ToListAsync();
+
+    return new PaginatedResult<PetOwnerOptionDto>
+    {
+        Items = items,
+        Page = page,
+        PageSize = pageSize,
+        TotalItems = totalItems,
+        TotalPages = (int)Math.Ceiling(
+            totalItems / (double)pageSize)
+    };
 }
 }
