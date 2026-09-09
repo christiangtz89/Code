@@ -29,6 +29,7 @@ import {
   VeterinaryRequestStatus,
   type PaginatedVeterinaryRequests,
   type VeterinaryRequest,
+  type VeterinaryRequestListItem,
   type VeterinaryRequestStatus as VeterinaryRequestStatusValue,
 } from "../types/veterinaryRequest.types";
 
@@ -162,20 +163,62 @@ export function VeterinaryRequestsPage() {
     }
   }, [page, requestsQuery.data?.totalPages]);
 
-  const detailsRequestId = detailsRequest?.id ?? "";
-
-  const detailsQuery = useQuery({
-    queryKey: ["veterinary-requests", "detail", detailsRequestId],
-
-    queryFn: () => getVeterinaryRequestById(detailsRequestId),
-
-    enabled: detailsRequestId.length > 0,
-  });
-
   async function refreshRequests() {
     await queryClient.invalidateQueries({
       queryKey: ["veterinary-requests"],
     });
+  }
+
+  async function getRequestDetail(
+    request: VeterinaryRequestListItem,
+  ): Promise<VeterinaryRequest | null> {
+    try {
+      return await queryClient.fetchQuery({
+        queryKey: ["veterinary-requests", "detail", request.id],
+        queryFn: () => getVeterinaryRequestById(request.id),
+      });
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "No fue posible cargar el detalle de la solicitud.",
+        ),
+      );
+
+      return null;
+    }
+  }
+
+  async function openDetails(request: VeterinaryRequestListItem) {
+    const detail = await getRequestDetail(request);
+
+    if (detail) {
+      setDetailsRequest(detail);
+    }
+  }
+
+  async function openEdit(request: VeterinaryRequestListItem) {
+    const detail = await getRequestDetail(request);
+
+    if (detail) {
+      setFormModalState({ mode: "edit", request: detail });
+    }
+  }
+
+  async function openStatus(request: VeterinaryRequestListItem) {
+    const detail = await getRequestDetail(request);
+
+    if (detail) {
+      setStatusRequest(detail);
+    }
+  }
+
+  async function openConversion(request: VeterinaryRequestListItem) {
+    const detail = await getRequestDetail(request);
+
+    if (detail) {
+      setConversionRequest(detail);
+    }
   }
 
   const createMutation = useMutation({
@@ -340,8 +383,6 @@ export function VeterinaryRequestsPage() {
 
   const totalPages = Math.max(requestsQuery.data?.totalPages ?? 0, 1);
 
-  const displayedDetailsRequest = detailsQuery.data ?? detailsRequest;
-
   return (
     <section className="space-y-6">
       <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -480,15 +521,10 @@ export function VeterinaryRequestsPage() {
         <VeterinaryRequestsTable
           requests={requests}
           canManage={canManageRequests}
-          onView={setDetailsRequest}
-          onEdit={(request) =>
-            setFormModalState({
-              mode: "edit",
-              request,
-            })
-          }
-          onChangeStatus={setStatusRequest}
-          onConvert={setConversionRequest}
+          onView={openDetails}
+          onEdit={openEdit}
+          onChangeStatus={openStatus}
+          onConvert={openConversion}
         />
       )}
 
@@ -556,7 +592,7 @@ export function VeterinaryRequestsPage() {
 
       <VeterinaryRequestDetailsModal
         isOpen={detailsRequest !== null}
-        request={displayedDetailsRequest}
+        request={detailsRequest}
         onClose={() => setDetailsRequest(null)}
       />
     </section>

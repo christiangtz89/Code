@@ -65,6 +65,22 @@ export interface VeterinaryRequest {
   createdAt: string;
 }
 
+export interface VeterinaryRequestListItem {
+  id: string;
+  veterinaryClinicName: string | null;
+  referringVeterinarianName: string | null;
+  status: VeterinaryRequestStatus;
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerSecondLastName: string | null;
+  ownerPhone: string;
+  petName: string;
+  species: string;
+  breed: string;
+  approximateWeightKg: number;
+  submittedAt: string;
+}
+
 export interface CreateVeterinaryRequestPayload {
   veterinaryClinicId: string | null;
   referringVeterinarianId: string | null;
@@ -111,7 +127,7 @@ export interface ConvertVeterinaryRequestPayload {
 }
 
 export interface PaginatedVeterinaryRequests {
-  items: VeterinaryRequest[];
+  items: VeterinaryRequestListItem[];
   page: number;
   pageSize: number;
   totalItems: number;

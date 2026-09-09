@@ -16,14 +16,6 @@ public class VeterinarianService : IVeterinarianService
         _context = context;
     }
 
-    private static string? NormalizeOptional(
-        string? value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Trim();
-    }
-
     private static VeterinarianDto MapToDto(
         Veterinarian veterinarian,
         string? clinicName)
@@ -72,10 +64,12 @@ public class VeterinarianService : IVeterinarianService
             }
         }
 
-        var firstName = dto.FirstName.Trim();
-        var lastName = dto.LastName.Trim();
+        var firstName =
+            TextInputNormalization.Required(dto.FirstName);
+        var lastName =
+            TextInputNormalization.Required(dto.LastName);
         var secondLastName =
-            NormalizeOptional(dto.SecondLastName);
+            TextInputNormalization.Optional(dto.SecondLastName);
 
         if (string.IsNullOrWhiteSpace(firstName))
         {
@@ -89,29 +83,20 @@ public class VeterinarianService : IVeterinarianService
                 "Veterinarian last name is required.");
         }
 
-        var phone = NormalizeOptional(dto.Phone);
+        var phone = TextInputNormalization.Optional(dto.Phone);
 
-        var email = NormalizeOptional(dto.Email)?
+        var email = TextInputNormalization.Optional(dto.Email)?
             .ToLowerInvariant();
 
         var professionalLicenseNumber =
-            NormalizeOptional(
+            TextInputNormalization.Optional(
                 dto.ProfessionalLicenseNumber);
 
-        var normalizedSecondLastName =
-            secondLastName?.ToLowerInvariant() ?? string.Empty;
-
-        var duplicateExists =
-            await _context.Veterinarians.AnyAsync(v =>
-                v.IsActive &&
-                v.VeterinaryClinicId == clinicId &&
-                v.FirstName.ToLower() ==
-                    firstName.ToLower() &&
-                v.LastName.ToLower() ==
-                    lastName.ToLower() &&
-                (v.SecondLastName ?? string.Empty)
-                    .ToLower() ==
-                    normalizedSecondLastName);
+        var duplicateExists = await ActiveNameExistsAsync(
+            clinicId,
+            firstName,
+            lastName,
+            secondLastName);
 
         if (duplicateExists)
         {
@@ -121,14 +106,8 @@ public class VeterinarianService : IVeterinarianService
 
         if (professionalLicenseNumber != null)
         {
-            var normalizedLicense =
-                professionalLicenseNumber.ToLower();
-
-            var licenseExists =
-                await _context.Veterinarians.AnyAsync(v =>
-                    v.ProfessionalLicenseNumber != null &&
-                    v.ProfessionalLicenseNumber
-                        .ToLower() == normalizedLicense);
+            var licenseExists = await LicenseExistsAsync(
+                professionalLicenseNumber);
 
             if (licenseExists)
             {
@@ -348,10 +327,12 @@ public class VeterinarianService : IVeterinarianService
             }
         }
 
-        var firstName = dto.FirstName.Trim();
-        var lastName = dto.LastName.Trim();
+        var firstName =
+            TextInputNormalization.Required(dto.FirstName);
+        var lastName =
+            TextInputNormalization.Required(dto.LastName);
         var secondLastName =
-            NormalizeOptional(dto.SecondLastName);
+            TextInputNormalization.Optional(dto.SecondLastName);
 
         if (string.IsNullOrWhiteSpace(firstName))
         {
@@ -365,30 +346,21 @@ public class VeterinarianService : IVeterinarianService
                 "Veterinarian last name is required.");
         }
 
-        var phone = NormalizeOptional(dto.Phone);
+        var phone = TextInputNormalization.Optional(dto.Phone);
 
-        var email = NormalizeOptional(dto.Email)?
+        var email = TextInputNormalization.Optional(dto.Email)?
             .ToLowerInvariant();
 
         var professionalLicenseNumber =
-            NormalizeOptional(
+            TextInputNormalization.Optional(
                 dto.ProfessionalLicenseNumber);
 
-        var normalizedSecondLastName =
-            secondLastName?.ToLowerInvariant() ?? string.Empty;
-
-        var duplicateExists =
-            await _context.Veterinarians.AnyAsync(v =>
-                v.Id != id &&
-                v.IsActive &&
-                v.VeterinaryClinicId == clinicId &&
-                v.FirstName.ToLower() ==
-                    firstName.ToLower() &&
-                v.LastName.ToLower() ==
-                    lastName.ToLower() &&
-                (v.SecondLastName ?? string.Empty)
-                    .ToLower() ==
-                    normalizedSecondLastName);
+        var duplicateExists = await ActiveNameExistsAsync(
+            clinicId,
+            firstName,
+            lastName,
+            secondLastName,
+            id);
 
         if (duplicateExists)
         {
@@ -398,15 +370,9 @@ public class VeterinarianService : IVeterinarianService
 
         if (professionalLicenseNumber != null)
         {
-            var normalizedLicense =
-                professionalLicenseNumber.ToLower();
-
-            var licenseExists =
-                await _context.Veterinarians.AnyAsync(v =>
-                    v.Id != id &&
-                    v.ProfessionalLicenseNumber != null &&
-                    v.ProfessionalLicenseNumber
-                        .ToLower() == normalizedLicense);
+            var licenseExists = await LicenseExistsAsync(
+                professionalLicenseNumber,
+                id);
 
             if (licenseExists)
             {
@@ -479,8 +445,40 @@ public class VeterinarianService : IVeterinarianService
 
             if (!clinicIsActive)
             {
-                return false;
+                throw new InvalidOperationException(
+                    "The assigned veterinary clinic is inactive or no longer exists.");
             }
+        }
+
+        var firstName =
+            TextInputNormalization.Required(veterinarian.FirstName);
+        var lastName =
+            TextInputNormalization.Required(veterinarian.LastName);
+        var secondLastName =
+            TextInputNormalization.Optional(veterinarian.SecondLastName);
+
+        if (await ActiveNameExistsAsync(
+            veterinarian.VeterinaryClinicId,
+            firstName,
+            lastName,
+            secondLastName,
+            veterinarian.Id))
+        {
+            throw new InvalidOperationException(
+                "An active veterinarian with this name already exists for the selected clinic assignment.");
+        }
+
+        var professionalLicenseNumber =
+            TextInputNormalization.Optional(
+                veterinarian.ProfessionalLicenseNumber);
+
+        if (professionalLicenseNumber != null &&
+            await LicenseExistsAsync(
+                professionalLicenseNumber,
+                veterinarian.Id))
+        {
+            throw new InvalidOperationException(
+                "A veterinarian with this professional license number already exists.");
         }
 
         veterinarian.IsActive = true;
@@ -488,6 +486,44 @@ public class VeterinarianService : IVeterinarianService
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    private Task<bool> ActiveNameExistsAsync(
+        Guid? clinicId,
+        string firstName,
+        string lastName,
+        string? secondLastName,
+        Guid? excludedId = null)
+    {
+        var normalizedFirstName = firstName.ToLowerInvariant();
+        var normalizedLastName = lastName.ToLowerInvariant();
+        var normalizedSecondLastName =
+            secondLastName?.ToLowerInvariant() ?? string.Empty;
+
+        return _context.Veterinarians.AnyAsync(veterinarian =>
+            veterinarian.IsActive &&
+            (!excludedId.HasValue ||
+                veterinarian.Id != excludedId.Value) &&
+            veterinarian.VeterinaryClinicId == clinicId &&
+            veterinarian.FirstName.ToLower() == normalizedFirstName &&
+            veterinarian.LastName.ToLower() == normalizedLastName &&
+            (veterinarian.SecondLastName ?? string.Empty).ToLower() ==
+                normalizedSecondLastName);
+    }
+
+    private Task<bool> LicenseExistsAsync(
+        string professionalLicenseNumber,
+        Guid? excludedId = null)
+    {
+        var normalizedLicense =
+            professionalLicenseNumber.ToLowerInvariant();
+
+        return _context.Veterinarians.AnyAsync(veterinarian =>
+            (!excludedId.HasValue ||
+                veterinarian.Id != excludedId.Value) &&
+            veterinarian.ProfessionalLicenseNumber != null &&
+            veterinarian.ProfessionalLicenseNumber.ToLower() ==
+                normalizedLicense);
     }
 
     public async Task<PagedVeterinariansDto>

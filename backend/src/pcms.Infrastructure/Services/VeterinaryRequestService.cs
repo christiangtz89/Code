@@ -177,16 +177,12 @@ public class VeterinaryRequestService
         var totalItems =
             await query.CountAsync();
 
-        var ids = await query
+        var items = await ProjectListItems(query)
             .OrderByDescending(vr =>
                 vr.SubmittedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(vr => vr.Id)
             .ToListAsync();
-
-        var items =
-            await GetDtosByIdsAsync(ids);
 
         return new PagedVeterinaryRequestsDto
         {
@@ -778,17 +774,16 @@ public class VeterinaryRequestService
 
         var totalItems = await query.CountAsync();
 
-        var ids = await query
+        var items = await ProjectListItems(query)
             .OrderByDescending(vr =>
                 vr.SubmittedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(vr => vr.Id)
             .ToListAsync();
 
         return new PagedVeterinaryRequestsDto
         {
-            Items = await GetDtosByIdsAsync(ids),
+            Items = items,
             Page = page,
             PageSize = pageSize,
             TotalItems = totalItems,
@@ -1279,6 +1274,31 @@ public class VeterinaryRequestService
 
         return query.Where(vr =>
             vr.Status == status.Value);
+    }
+
+    private static IQueryable<VeterinaryRequestListItemDto>
+        ProjectListItems(
+            IQueryable<VeterinaryRequest> query)
+    {
+        return query.Select(request =>
+            new VeterinaryRequestListItemDto
+            {
+                Id = request.Id,
+                VeterinaryClinicName =
+                    request.VeterinaryClinicNameSnapshot,
+                ReferringVeterinarianName =
+                    request.ReferringVeterinarianNameSnapshot,
+                Status = request.Status,
+                OwnerFirstName = request.OwnerFirstName,
+                OwnerLastName = request.OwnerLastName,
+                OwnerSecondLastName = request.OwnerSecondLastName,
+                OwnerPhone = request.OwnerPhone,
+                PetName = request.PetName,
+                Species = request.Species,
+                Breed = request.Breed,
+                ApproximateWeightKg = request.ApproximateWeightKg,
+                SubmittedAt = request.SubmittedAt
+            });
     }
 
     private async Task<List<VeterinaryRequestDto>>

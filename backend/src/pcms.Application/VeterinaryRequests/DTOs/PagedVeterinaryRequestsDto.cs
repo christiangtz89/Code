@@ -2,8 +2,8 @@ namespace pcms.Application.VeterinaryRequests.DTOs;
 
 public class PagedVeterinaryRequestsDto
 {
-    public IEnumerable<VeterinaryRequestDto> Items { get; set; }
-        = new List<VeterinaryRequestDto>();
+    public IEnumerable<VeterinaryRequestListItemDto> Items { get; set; }
+        = new List<VeterinaryRequestListItemDto>();
 
     public int Page { get; set; }
 

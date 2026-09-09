@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using pcms.Application.Common;
 using pcms.Application.VeterinaryClinics.DTOs;
 using pcms.Application.VeterinaryClinics.Interfaces;
 using pcms.Domain.Entities;
@@ -19,7 +20,7 @@ public class VeterinaryClinicService
     public async Task<VeterinaryClinicDto> CreateAsync(
     CreateVeterinaryClinicDto dto)
 {
-    var clinicName = dto.Name.Trim();
+    var clinicName = TextInputNormalization.Required(dto.Name);
 
     if (string.IsNullOrWhiteSpace(clinicName))
     {
@@ -27,10 +28,8 @@ public class VeterinaryClinicService
             "Veterinary clinic name is required.");
     }
 
-    var clinicExists = await _context.VeterinaryClinics
-        .AnyAsync(v =>
-            v.IsActive &&
-            v.Name.ToLower() == clinicName.ToLower());
+    var clinicExists =
+        await ActiveNameExistsAsync(clinicName);
 
     if (clinicExists)
     {
@@ -42,10 +41,12 @@ public class VeterinaryClinicService
     {
         Id = Guid.NewGuid(),
         Name = clinicName,
-        Phone = dto.Phone?.Trim(),
-        Email = dto.Email?.Trim().ToLower(),
-        Address = dto.Address?.Trim(),
-        PrimaryContactName = dto.PrimaryContactName?.Trim(),
+        Phone = TextInputNormalization.Optional(dto.Phone),
+        Email = TextInputNormalization.Optional(dto.Email)?
+            .ToLowerInvariant(),
+        Address = TextInputNormalization.Optional(dto.Address),
+        PrimaryContactName =
+            TextInputNormalization.Optional(dto.PrimaryContactName),
         IsActive = true,
         CreatedAt = DateTime.UtcNow
     };
@@ -141,7 +142,7 @@ public class VeterinaryClinicService
         return null;
     }
 
-    var clinicName = dto.Name.Trim();
+    var clinicName = TextInputNormalization.Required(dto.Name);
 
     if (string.IsNullOrWhiteSpace(clinicName))
     {
@@ -149,11 +150,8 @@ public class VeterinaryClinicService
             "Veterinary clinic name is required.");
     }
 
-    var duplicateExists = await _context.VeterinaryClinics
-        .AnyAsync(v =>
-            v.Id != id &&
-            v.IsActive &&
-            v.Name.ToLower() == clinicName.ToLower());
+    var duplicateExists =
+        await ActiveNameExistsAsync(clinicName, id);
 
     if (duplicateExists)
     {
@@ -162,11 +160,12 @@ public class VeterinaryClinicService
     }
 
     clinic.Name = clinicName;
-    clinic.Phone = dto.Phone?.Trim();
-    clinic.Email = dto.Email?.Trim().ToLower();
-    clinic.Address = dto.Address?.Trim();
+    clinic.Phone = TextInputNormalization.Optional(dto.Phone);
+    clinic.Email = TextInputNormalization.Optional(dto.Email)?
+        .ToLowerInvariant();
+    clinic.Address = TextInputNormalization.Optional(dto.Address);
     clinic.PrimaryContactName =
-        dto.PrimaryContactName?.Trim();
+        TextInputNormalization.Optional(dto.PrimaryContactName);
 
     await _context.SaveChangesAsync();
 
@@ -214,12 +213,32 @@ public class VeterinaryClinicService
         return false;
     }
 
+    var clinicName = TextInputNormalization.Required(clinic.Name);
+
+    if (await ActiveNameExistsAsync(clinicName, clinic.Id))
+    {
+        throw new InvalidOperationException(
+            "An active veterinary clinic with this name already exists.");
+    }
+
     clinic.IsActive = true;
 
     await _context.SaveChangesAsync();
 
     return true;
 }
+
+    private Task<bool> ActiveNameExistsAsync(
+        string clinicName,
+        Guid? excludedId = null)
+    {
+        var normalizedName = clinicName.ToLowerInvariant();
+
+        return _context.VeterinaryClinics.AnyAsync(clinic =>
+            clinic.IsActive &&
+            (!excludedId.HasValue || clinic.Id != excludedId.Value) &&
+            clinic.Name.ToLower() == normalizedName);
+    }
 
     public async Task<PagedVeterinaryClinicsDto> SearchAsync(
     string search,

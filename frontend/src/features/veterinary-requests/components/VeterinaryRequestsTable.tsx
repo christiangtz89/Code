@@ -1,4 +1,4 @@
-import type { VeterinaryRequest } from "../types/veterinaryRequest.types";
+import type { VeterinaryRequestListItem } from "../types/veterinaryRequest.types";
 import { formatVeterinaryRequestDateTime } from "../utils/veterinaryRequestDisplay";
 import {
   canConvertVeterinaryRequest,
@@ -8,12 +8,12 @@ import {
 import { VeterinaryRequestStatusBadge } from "./VeterinaryRequestStatusBadge";
 
 interface VeterinaryRequestsTableProps {
-  requests: VeterinaryRequest[];
+  requests: VeterinaryRequestListItem[];
   canManage: boolean;
-  onView: (request: VeterinaryRequest) => void;
-  onEdit: (request: VeterinaryRequest) => void;
-  onChangeStatus: (request: VeterinaryRequest) => void;
-  onConvert: (request: VeterinaryRequest) => void;
+  onView: (request: VeterinaryRequestListItem) => void;
+  onEdit: (request: VeterinaryRequestListItem) => void;
+  onChangeStatus: (request: VeterinaryRequestListItem) => void;
+  onConvert: (request: VeterinaryRequestListItem) => void;
 }
 
 export function VeterinaryRequestsTable({

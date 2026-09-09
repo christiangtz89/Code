@@ -12,7 +12,7 @@ const optionalPhoneSchema = z
 const optionalEmailSchema = z
   .string()
   .trim()
-  .max(200, "El correo no puede exceder 200 caracteres.")
+  .max(150, "El correo no puede exceder 150 caracteres.")
   .refine(
     (value) => value === "" || z.string().email().safeParse(value).success,
     "Ingresa un correo electrónico válido.",

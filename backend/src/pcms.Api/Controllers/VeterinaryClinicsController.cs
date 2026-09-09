@@ -161,18 +161,29 @@ public class VeterinaryClinicsController : ControllerBase
     [Authorize(Policy = "VeterinaryClinics.Manage")]
     public async Task<IActionResult> Restore(Guid id)
     {
-        var success = await _clinicService.RestoreAsync(id);
-
-        if (!success)
+        try
         {
-            return NotFound(new
+            var success = await _clinicService.RestoreAsync(id);
+
+            if (!success)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Inactive veterinary clinic not found."
+                });
+            }
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
             {
                 success = false,
-                message = "Inactive veterinary clinic not found."
+                message = ex.Message
             });
         }
-
-        return NoContent();
     }
 
     [HttpGet("search")]
