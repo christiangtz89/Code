@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 
 import {
+  getMexicoBusinessDate,
   veterinaryRequestSchema,
   type VeterinaryRequestFormValues,
 } from "../schemas/veterinaryRequestSchema";
@@ -47,13 +48,6 @@ function buildVeterinarianName(veterinarian: VeterinarianOption): string {
   ]
     .filter(Boolean)
     .join(" ");
-}
-
-function getTodayLocalDate(): string {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60_000;
-
-  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 }
 
 function getDefaultValues(
@@ -525,7 +519,7 @@ export function VeterinaryRequestFormModal({
 
                 <input
                   type="date"
-                  max={getTodayLocalDate()}
+                  max={getMexicoBusinessDate()}
                   {...register("dateOfDeath")}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm"
                 />

@@ -793,6 +793,13 @@ public class AppDbContext : DbContext
             entity.Property(vr => vr.ReferringVeterinarianId)
                 .HasColumnName("VeterinarioReferenteId");
 
+            entity.Property(vr => vr.VeterinaryClinicNameSnapshot)
+                .HasColumnName("NombreVeterinariaSnapshot")
+                .HasMaxLength(150);
+
+            entity.Property(vr => vr.ReferringVeterinarianNameSnapshot)
+                .HasColumnName("NombreVeterinarioReferenteSnapshot");
+
             entity.Property(vr => vr.SubmittedByUserId)
                 .HasColumnName("RegistradoPorUsuarioId")
                 .IsRequired();
@@ -866,6 +873,7 @@ public class AppDbContext : DbContext
 
             entity.Property(vr => vr.DateOfDeath)
                 .HasColumnName("FechaFallecimiento")
+                .HasColumnType("date")
                 .IsRequired();
 
             entity.Property(vr => vr.RequestedCremationType)
@@ -941,7 +949,7 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(vr => vr.Reception)
-                .WithOne()
+                .WithOne(r => r.VeterinaryRequest)
                 .HasForeignKey<VeterinaryRequest>(
                     vr => vr.ReceptionId)
                 .IsRequired(false)

@@ -11,6 +11,10 @@ public class VeterinaryRequest
 
     public Guid? ReferringVeterinarianId { get; set; }
 
+    public string? VeterinaryClinicNameSnapshot { get; set; }
+
+    public string? ReferringVeterinarianNameSnapshot { get; set; }
+
     // User who submitted/registered the request
     public Guid SubmittedByUserId { get; set; }
 
@@ -59,7 +63,7 @@ public class VeterinaryRequest
 
     public int? AgeYears { get; set; }
 
-    public DateTime DateOfDeath { get; set; }
+    public DateOnly DateOfDeath { get; set; }
 
     // Requested cremation information
     public CremationType? RequestedCremationType { get; set; }

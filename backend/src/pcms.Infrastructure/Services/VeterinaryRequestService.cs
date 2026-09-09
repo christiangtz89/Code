@@ -28,15 +28,22 @@ public class VeterinaryRequestService
                 submittedByUserId,
                 "No se encontró un usuario activo para registrar la solicitud.");
 
-        ValidateRequestData(
-            dto.OwnerFirstName,
-            dto.OwnerLastName,
-            dto.OwnerPhone,
+        var ownerInput =
+            CustomerPetInputRules.NormalizeVeterinaryRequestOwner(
+                dto.OwnerFirstName,
+                dto.OwnerLastName,
+                dto.OwnerSecondLastName,
+                dto.OwnerPhone,
+                dto.OwnerEmail);
+
+        var petInput = CustomerPetInputRules.NormalizePet(
             dto.PetName,
             dto.Species,
             dto.Breed,
             dto.Sex,
-            dto.Color,
+            dto.Color);
+
+        ValidateRequestData(
             dto.ApproximateWeightKg,
             dto.DateOfDeath,
             dto.RequestedCremationType);
@@ -58,6 +65,17 @@ public class VeterinaryRequestService
             ReferringVeterinarianId =
                 referral.Veterinarian?.Id,
 
+            VeterinaryClinicNameSnapshot =
+                referral.Clinic?.Name,
+
+            ReferringVeterinarianNameSnapshot =
+                referral.Veterinarian is null
+                    ? null
+                    : BuildPersonName(
+                        referral.Veterinarian.FirstName,
+                        referral.Veterinarian.LastName,
+                        referral.Veterinarian.SecondLastName),
+
             SubmittedByUserId =
                 submittedByUser.Id,
 
@@ -65,35 +83,34 @@ public class VeterinaryRequestService
                 VeterinaryRequestStatus.Submitted,
 
             OwnerFirstName =
-                dto.OwnerFirstName.Trim(),
+                ownerInput.FirstName,
 
             OwnerLastName =
-                dto.OwnerLastName.Trim(),
+                ownerInput.LastName,
 
             OwnerSecondLastName =
-                NormalizeOptional(
-                    dto.OwnerSecondLastName),
+                ownerInput.SecondLastName,
 
             OwnerPhone =
-                dto.OwnerPhone.Trim(),
+                ownerInput.Phone,
 
             OwnerEmail =
-                NormalizeEmail(dto.OwnerEmail),
+                ownerInput.Email,
 
             PetName =
-                dto.PetName.Trim(),
+                petInput.Name,
 
             Species =
-                dto.Species.Trim(),
+                petInput.Species,
 
             Breed =
-                dto.Breed.Trim(),
+                petInput.Breed,
 
             Sex =
-                dto.Sex.Trim(),
+                petInput.Sex,
 
             Color =
-                dto.Color.Trim(),
+                petInput.Color,
 
             ApproximateWeightKg =
                 dto.ApproximateWeightKg,
@@ -102,7 +119,7 @@ public class VeterinaryRequestService
                 dto.AgeYears,
 
             DateOfDeath =
-                NormalizeToUtc(dto.DateOfDeath),
+                dto.DateOfDeath,
 
             RequestedCremationType =
                 dto.RequestedCremationType,
@@ -224,15 +241,22 @@ public class VeterinaryRequestService
                 "Solo se pueden editar solicitudes recibidas o en revisión.");
         }
 
-        ValidateRequestData(
-            dto.OwnerFirstName,
-            dto.OwnerLastName,
-            dto.OwnerPhone,
+        var ownerInput =
+            CustomerPetInputRules.NormalizeVeterinaryRequestOwner(
+                dto.OwnerFirstName,
+                dto.OwnerLastName,
+                dto.OwnerSecondLastName,
+                dto.OwnerPhone,
+                dto.OwnerEmail);
+
+        var petInput = CustomerPetInputRules.NormalizePet(
             dto.PetName,
             dto.Species,
             dto.Breed,
             dto.Sex,
-            dto.Color,
+            dto.Color);
+
+        ValidateRequestData(
             dto.ApproximateWeightKg,
             dto.DateOfDeath,
             dto.RequestedCremationType);
@@ -248,36 +272,46 @@ public class VeterinaryRequestService
         request.ReferringVeterinarianId =
             referral.Veterinarian?.Id;
 
+        request.VeterinaryClinicNameSnapshot =
+            referral.Clinic?.Name;
+
+        request.ReferringVeterinarianNameSnapshot =
+            referral.Veterinarian is null
+                ? null
+                : BuildPersonName(
+                    referral.Veterinarian.FirstName,
+                    referral.Veterinarian.LastName,
+                    referral.Veterinarian.SecondLastName);
+
         request.OwnerFirstName =
-            dto.OwnerFirstName.Trim();
+            ownerInput.FirstName;
 
         request.OwnerLastName =
-            dto.OwnerLastName.Trim();
+            ownerInput.LastName;
 
         request.OwnerSecondLastName =
-            NormalizeOptional(
-                dto.OwnerSecondLastName);
+            ownerInput.SecondLastName;
 
         request.OwnerPhone =
-            dto.OwnerPhone.Trim();
+            ownerInput.Phone;
 
         request.OwnerEmail =
-            NormalizeEmail(dto.OwnerEmail);
+            ownerInput.Email;
 
         request.PetName =
-            dto.PetName.Trim();
+            petInput.Name;
 
         request.Species =
-            dto.Species.Trim();
+            petInput.Species;
 
         request.Breed =
-            dto.Breed.Trim();
+            petInput.Breed;
 
         request.Sex =
-            dto.Sex.Trim();
+            petInput.Sex;
 
         request.Color =
-            dto.Color.Trim();
+            petInput.Color;
 
         request.ApproximateWeightKg =
             dto.ApproximateWeightKg;
@@ -286,7 +320,7 @@ public class VeterinaryRequestService
             dto.AgeYears;
 
         request.DateOfDeath =
-            NormalizeToUtc(dto.DateOfDeath);
+            dto.DateOfDeath;
 
         request.RequestedCremationType =
             dto.RequestedCremationType;
@@ -445,10 +479,7 @@ public class VeterinaryRequestService
                 "La solicitud ya fue convertida en una recepción.");
         }
 
-        var referral =
-            await ValidateReferralSourceAsync(
-                request.VeterinaryClinicId,
-                request.ReferringVeterinarianId);
+        await ValidateHistoricalReferralSourceAsync(request);
 
         Customer customer;
         Pet pet;
@@ -501,23 +532,31 @@ public class VeterinaryRequestService
             }
             else
             {
+                var customerInput =
+                    CustomerPetInputRules.NormalizeCustomer(
+                        request.OwnerFirstName,
+                        request.OwnerLastName,
+                        request.OwnerSecondLastName,
+                        request.OwnerPhone,
+                        request.OwnerEmail);
+
                 customer = new Customer
                 {
                     Id = Guid.NewGuid(),
 
                     FirstName =
-                        request.OwnerFirstName,
+                        customerInput.FirstName,
 
                     LastName =
-                        request.OwnerLastName,
+                        customerInput.LastName,
 
                     SecondLastName =
-                        request.OwnerSecondLastName,
+                        customerInput.SecondLastName,
 
                     Phone =
-                        request.OwnerPhone,
+                        customerInput.Phone,
 
-                    Email = request.OwnerEmail!,
+                    Email = customerInput.Email,
 
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow
@@ -526,25 +565,32 @@ public class VeterinaryRequestService
                 _context.Customers.Add(customer);
             }
 
+            var petInput = CustomerPetInputRules.NormalizePet(
+                request.PetName,
+                request.Species,
+                request.Breed,
+                request.Sex,
+                request.Color);
+
             pet = new Pet
             {
                 Id = Guid.NewGuid(),
                 CustomerId = customer.Id,
 
                 Name =
-                    request.PetName,
+                    petInput.Name,
 
                 Species =
-                    request.Species,
+                    petInput.Species,
 
                 Breed =
-                    request.Breed,
+                    petInput.Breed,
 
                 Sex =
-                    request.Sex,
+                    petInput.Sex,
 
                 Color =
-                    request.Color,
+                    petInput.Color,
 
                 WeightKg =
                     request.ApproximateWeightKg,
@@ -553,7 +599,7 @@ public class VeterinaryRequestService
                     request.AgeYears,
 
                 DateOfDeath =
-                    DateOnly.FromDateTime(request.DateOfDeath),
+                    request.DateOfDeath,
 
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -592,10 +638,10 @@ public class VeterinaryRequestService
                 receivedByUser.Id,
 
             VeterinaryClinicId =
-                referral.Clinic?.Id,
+                request.VeterinaryClinicId,
 
             ReferringVeterinarianId =
-                referral.Veterinarian?.Id,
+                request.ReferringVeterinarianId,
 
             ReceivedAt = currentTime,
 
@@ -698,34 +744,17 @@ public class VeterinaryRequestService
                         pattern) ||
 
                     (
-                        vr.VeterinaryClinic != null &&
+                        vr.VeterinaryClinicNameSnapshot != null &&
                         EF.Functions.ILike(
-                            vr.VeterinaryClinic.Name,
+                            vr.VeterinaryClinicNameSnapshot,
                             pattern)
                     ) ||
 
                     (
-                        vr.ReferringVeterinarian != null &&
-                        (
-                            EF.Functions.ILike(
-                                vr.ReferringVeterinarian
-                                    .FirstName,
-                                pattern) ||
-
-                            EF.Functions.ILike(
-                                vr.ReferringVeterinarian
-                                    .LastName,
-                                pattern) ||
-
-                            (
-                                vr.ReferringVeterinarian
-                                    .SecondLastName != null &&
-                                EF.Functions.ILike(
-                                    vr.ReferringVeterinarian
-                                        .SecondLastName,
-                                    pattern)
-                            )
-                        )
+                        vr.ReferringVeterinarianNameSnapshot != null &&
+                        EF.Functions.ILike(
+                            vr.ReferringVeterinarianNameSnapshot,
+                            pattern)
                     ) ||
 
                     (
@@ -800,33 +829,102 @@ public class VeterinaryRequestService
                 throw new InvalidOperationException(
                     "El veterinario referente no existe o está inactivo.");
             }
-
-            if (veterinarian
-                .VeterinaryClinicId
-                .HasValue)
-            {
-                if (clinic == null)
-                {
-                    throw new InvalidOperationException(
-                        "El veterinario seleccionado pertenece a una veterinaria; seleccione también la veterinaria asociada.");
-                }
-
-                if (veterinarian
-                        .VeterinaryClinicId.Value !=
-                    clinic.Id)
-                {
-                    throw new InvalidOperationException(
-                        "El veterinario referente no pertenece a la veterinaria seleccionada.");
-                }
-            }
-            else if (clinic != null)
-            {
-                throw new InvalidOperationException(
-                    "El veterinario seleccionado es independiente y no pertenece a la veterinaria seleccionada.");
-            }
         }
 
+        ValidateReferralRelationship(
+            clinic,
+            veterinarian);
+
         return (clinic, veterinarian);
+    }
+
+    private async Task ValidateHistoricalReferralSourceAsync(
+        VeterinaryRequest request)
+    {
+        if (!request.VeterinaryClinicId.HasValue &&
+            !request.ReferringVeterinarianId.HasValue)
+        {
+            throw new InvalidOperationException(
+                "La solicitud aprobada no conserva una fuente veterinaria válida.");
+        }
+
+        VeterinaryClinic? clinic = null;
+
+        if (request.VeterinaryClinicId.HasValue)
+        {
+            clinic = await _context.VeterinaryClinics
+                .AsNoTracking()
+                .FirstOrDefaultAsync(candidate =>
+                    candidate.Id == request.VeterinaryClinicId.Value);
+
+            if (clinic is null ||
+                string.IsNullOrWhiteSpace(
+                    request.VeterinaryClinicNameSnapshot))
+            {
+                throw new InvalidOperationException(
+                    "La identidad histórica de la veterinaria está incompleta o dañada.");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(
+                     request.VeterinaryClinicNameSnapshot))
+        {
+            throw new InvalidOperationException(
+                "La identidad histórica de la veterinaria no coincide con la solicitud aprobada.");
+        }
+
+        Veterinarian? veterinarian = null;
+
+        if (request.ReferringVeterinarianId.HasValue)
+        {
+            veterinarian = await _context.Veterinarians
+                .AsNoTracking()
+                .FirstOrDefaultAsync(candidate =>
+                    candidate.Id ==
+                    request.ReferringVeterinarianId.Value);
+
+            if (veterinarian is null ||
+                string.IsNullOrWhiteSpace(
+                    request.ReferringVeterinarianNameSnapshot))
+            {
+                throw new InvalidOperationException(
+                    "La identidad histórica del veterinario está incompleta o dañada.");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(
+                     request.ReferringVeterinarianNameSnapshot))
+        {
+            throw new InvalidOperationException(
+                "La identidad histórica del veterinario no coincide con la solicitud aprobada.");
+        }
+
+        ValidateReferralRelationship(
+            clinic,
+            veterinarian);
+    }
+
+    private static void ValidateReferralRelationship(
+        VeterinaryClinic? clinic,
+        Veterinarian? veterinarian)
+    {
+        if (veterinarian?.VeterinaryClinicId.HasValue == true)
+        {
+            if (clinic is null)
+            {
+                throw new InvalidOperationException(
+                    "El veterinario seleccionado pertenece a una veterinaria; seleccione también la veterinaria asociada.");
+            }
+
+            if (veterinarian.VeterinaryClinicId.Value != clinic.Id)
+            {
+                throw new InvalidOperationException(
+                    "El veterinario referente no pertenece a la veterinaria seleccionada.");
+            }
+        }
+        else if (veterinarian is not null && clinic is not null)
+        {
+            throw new InvalidOperationException(
+                "El veterinario seleccionado es independiente y no pertenece a la veterinaria seleccionada.");
+        }
     }
 
     private async Task<User> GetActiveUserAsync(
@@ -849,69 +947,10 @@ public class VeterinaryRequestService
     }
 
     private static void ValidateRequestData(
-        string ownerFirstName,
-        string ownerLastName,
-        string ownerPhone,
-        string petName,
-        string species,
-        string breed,
-        string sex,
-        string color,
         decimal approximateWeightKg,
-        DateTime dateOfDeath,
+        DateOnly dateOfDeath,
         CremationType? requestedCremationType)
     {
-        if (string.IsNullOrWhiteSpace(
-            ownerFirstName))
-        {
-            throw new ArgumentException(
-                "El nombre del propietario es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            ownerLastName))
-        {
-            throw new ArgumentException(
-                "El apellido paterno del propietario es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            ownerPhone))
-        {
-            throw new ArgumentException(
-                "El teléfono del propietario es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(petName))
-        {
-            throw new ArgumentException(
-                "El nombre de la mascota es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(species))
-        {
-            throw new ArgumentException(
-                "La especie es obligatoria.");
-        }
-
-        if (string.IsNullOrWhiteSpace(breed))
-        {
-            throw new ArgumentException(
-                "La raza es obligatoria.");
-        }
-
-        if (string.IsNullOrWhiteSpace(sex))
-        {
-            throw new ArgumentException(
-                "El sexo es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(color))
-        {
-            throw new ArgumentException(
-                "El color es obligatorio.");
-        }
-
         if (approximateWeightKg <= 0)
         {
             throw new ArgumentException(
@@ -924,10 +963,8 @@ public class VeterinaryRequestService
                 "La fecha de fallecimiento es obligatoria.");
         }
 
-        var dateOfDeathUtc =
-            NormalizeToUtc(dateOfDeath);
-
-        if (dateOfDeathUtc > DateTime.UtcNow)
+        if (dateOfDeath >
+            CustomerPetWorkflowRules.CurrentBusinessDate())
         {
             throw new ArgumentException(
                 "La fecha de fallecimiento no puede estar en el futuro.");
@@ -1041,21 +1078,13 @@ public class VeterinaryRequestService
                 request.VeterinaryClinicId,
 
             VeterinaryClinicName =
-                request.VeterinaryClinic?.Name,
+                request.VeterinaryClinicNameSnapshot,
 
             ReferringVeterinarianId =
                 request.ReferringVeterinarianId,
 
             ReferringVeterinarianName =
-                request.ReferringVeterinarian == null
-                    ? null
-                    : BuildPersonName(
-                        request.ReferringVeterinarian
-                            .FirstName,
-                        request.ReferringVeterinarian
-                            .LastName,
-                        request.ReferringVeterinarian
-                            .SecondLastName),
+                request.ReferringVeterinarianNameSnapshot,
 
             SubmittedByUserId =
                 request.SubmittedByUserId,
@@ -1180,29 +1209,4 @@ public class VeterinaryRequestService
             : value.Trim();
     }
 
-    private static string? NormalizeEmail(
-        string? value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Trim().ToLowerInvariant();
-    }
-
-    private static DateTime NormalizeToUtc(
-        DateTime value)
-    {
-        return value.Kind switch
-        {
-            DateTimeKind.Utc =>
-                value,
-
-            DateTimeKind.Local =>
-                value.ToUniversalTime(),
-
-            _ =>
-                DateTime.SpecifyKind(
-                    value,
-                    DateTimeKind.Utc)
-        };
-    }
 }

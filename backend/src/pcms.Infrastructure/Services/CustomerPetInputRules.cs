@@ -49,6 +49,46 @@ internal static class CustomerPetInputRules
             normalizedEmail);
     }
 
+    public static NormalizedVeterinaryRequestOwnerInput
+        NormalizeVeterinaryRequestOwner(
+            string? firstName,
+            string? lastName,
+            string? secondLastName,
+            string? phone,
+            string? email)
+    {
+        var normalizedPhone = NormalizeRequired(
+            phone,
+            "El teléfono",
+            7,
+            25);
+
+        if (!PhoneValidator.IsMatch(normalizedPhone))
+        {
+            throw new ArgumentException(
+                "El teléfono contiene caracteres no válidos.");
+        }
+
+        var normalizedEmail = NormalizeOptional(
+            email,
+            "El correo electrónico",
+            150);
+
+        if (normalizedEmail is not null &&
+            !EmailValidator.IsValid(normalizedEmail))
+        {
+            throw new ArgumentException(
+                "El correo electrónico no es válido.");
+        }
+
+        return new NormalizedVeterinaryRequestOwnerInput(
+            NormalizeRequired(firstName, "El nombre", 2, 100),
+            NormalizeRequired(lastName, "El apellido", 2, 100),
+            NormalizeOptional(secondLastName, "El apellido materno", 100),
+            normalizedPhone,
+            normalizedEmail?.ToLowerInvariant());
+    }
+
     public static NormalizedPetInput NormalizePet(
         string? name,
         string? species,
@@ -122,3 +162,10 @@ internal readonly record struct NormalizedPetInput(
     string Breed,
     string Sex,
     string Color);
+
+internal readonly record struct NormalizedVeterinaryRequestOwnerInput(
+    string FirstName,
+    string LastName,
+    string? SecondLastName,
+    string Phone,
+    string? Email);

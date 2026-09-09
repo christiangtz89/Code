@@ -15,6 +15,9 @@ export interface Reception {
   referringVeterinarianId: string | null;
   referringVeterinarianName: string | null;
 
+  isVeterinaryRequestOrigin: boolean;
+  veterinaryRequestId: string | null;
+
   receivedAt: string;
   qrCode: string;
   verifiedWeightKg: number;

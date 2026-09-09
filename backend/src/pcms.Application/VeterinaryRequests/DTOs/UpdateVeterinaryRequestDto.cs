@@ -10,12 +10,12 @@ public class UpdateVeterinaryRequestDto
     public Guid? ReferringVeterinarianId { get; set; }
 
     [Required]
-    [StringLength(100)]
+    [StringLength(100, MinimumLength = 2)]
     public string OwnerFirstName { get; set; }
         = string.Empty;
 
     [Required]
-    [StringLength(100)]
+    [StringLength(100, MinimumLength = 2)]
     public string OwnerLastName { get; set; }
         = string.Empty;
 
@@ -23,7 +23,7 @@ public class UpdateVeterinaryRequestDto
     public string? OwnerSecondLastName { get; set; }
 
     [Required]
-    [StringLength(30)]
+    [StringLength(25, MinimumLength = 7)]
     public string OwnerPhone { get; set; }
         = string.Empty;
 
@@ -32,7 +32,7 @@ public class UpdateVeterinaryRequestDto
     public string? OwnerEmail { get; set; }
 
     [Required]
-    [StringLength(100)]
+    [StringLength(100, MinimumLength = 2)]
     public string PetName { get; set; }
         = string.Empty;
 
@@ -71,7 +71,7 @@ public class UpdateVeterinaryRequestDto
             "La edad debe estar entre 0 y 100 años.")]
     public int? AgeYears { get; set; }
 
-    public DateTime DateOfDeath { get; set; }
+    public DateOnly DateOfDeath { get; set; }
 
     [EnumDataType(typeof(CremationType))]
     public CremationType? RequestedCremationType { get; set; }

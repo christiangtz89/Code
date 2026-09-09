@@ -20,8 +20,8 @@ const optionalEmailSchema = z
 const phoneSchema = z
   .string()
   .trim()
-  .min(1, "El teléfono es obligatorio.")
-  .max(30, "El teléfono no puede exceder 30 caracteres.")
+  .min(7, "El teléfono debe tener al menos 7 caracteres.")
+  .max(25, "El teléfono no puede exceder 25 caracteres.")
   .refine(
     (value) => /^[0-9+\-\s()]+$/.test(value),
     "El teléfono contiene caracteres no válidos.",
@@ -36,13 +36,13 @@ export const veterinaryRequestSchema = z
     ownerFirstName: z
       .string()
       .trim()
-      .min(1, "El nombre del propietario es obligatorio.")
+      .min(2, "El nombre del propietario debe tener al menos 2 caracteres.")
       .max(100),
 
     ownerLastName: z
       .string()
       .trim()
-      .min(1, "El apellido paterno es obligatorio.")
+      .min(2, "El apellido paterno debe tener al menos 2 caracteres.")
       .max(100),
 
     ownerSecondLastName: z.string().trim().max(100),
@@ -81,19 +81,11 @@ export const veterinaryRequestSchema = z
     dateOfDeath: z
       .string()
       .min(1, "La fecha de fallecimiento es obligatoria.")
-      .refine((value) => {
-        const date = new Date(`${value}T00:00:00`);
-
-        if (Number.isNaN(date.getTime())) {
-          return false;
-        }
-
-        const today = new Date();
-
-        today.setHours(23, 59, 59, 999);
-
-        return date <= today;
-      }, "La fecha de fallecimiento no puede estar en el futuro."),
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida.")
+      .refine(
+        (value) => value <= getMexicoBusinessDate(),
+        "La fecha de fallecimiento no puede estar en el futuro.",
+      ),
 
     requestedCremationType: z.union([
       z.literal(""),
@@ -121,3 +113,18 @@ export const veterinaryRequestSchema = z
 export type VeterinaryRequestFormValues = z.infer<
   typeof veterinaryRequestSchema
 >;
+
+export function getMexicoBusinessDate(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}

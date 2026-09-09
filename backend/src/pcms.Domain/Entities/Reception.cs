@@ -46,6 +46,8 @@ public class Reception
 
     public Veterinarian? ReferringVeterinarian { get; set; }
 
+    public VeterinaryRequest? VeterinaryRequest { get; set; }
+
     public Cremation? Cremation { get; set; }
 
     public ICollection<ReceptionPhoto> Photos { get; set; }

@@ -14,8 +14,9 @@ public class CreateVeterinaryRequestDto
             "El nombre del propietario es obligatorio.")]
     [StringLength(
         100,
+        MinimumLength = 2,
         ErrorMessage =
-            "El nombre del propietario no puede exceder 100 caracteres.")]
+            "El nombre del propietario debe tener entre 2 y 100 caracteres.")]
     public string OwnerFirstName { get; set; }
         = string.Empty;
 
@@ -24,8 +25,9 @@ public class CreateVeterinaryRequestDto
             "El apellido paterno del propietario es obligatorio.")]
     [StringLength(
         100,
+        MinimumLength = 2,
         ErrorMessage =
-            "El apellido paterno no puede exceder 100 caracteres.")]
+            "El apellido paterno debe tener entre 2 y 100 caracteres.")]
     public string OwnerLastName { get; set; }
         = string.Empty;
 
@@ -39,9 +41,10 @@ public class CreateVeterinaryRequestDto
         ErrorMessage =
             "El teléfono del propietario es obligatorio.")]
     [StringLength(
-        30,
+        25,
+        MinimumLength = 7,
         ErrorMessage =
-            "El teléfono no puede exceder 30 caracteres.")]
+            "El teléfono debe tener entre 7 y 25 caracteres.")]
     public string OwnerPhone { get; set; }
         = string.Empty;
 
@@ -120,7 +123,7 @@ public class CreateVeterinaryRequestDto
             "La edad debe estar entre 0 y 100 años.")]
     public int? AgeYears { get; set; }
 
-    public DateTime DateOfDeath { get; set; }
+    public DateOnly DateOfDeath { get; set; }
 
     [EnumDataType(
         typeof(CremationType),

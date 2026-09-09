@@ -197,6 +197,9 @@ public class ReceptionService : IReceptionService
                 : referringVeterinarian.FirstName + " " +
                 referringVeterinarian.LastName,
 
+            IsVeterinaryRequestOrigin = false,
+            VeterinaryRequestId = null,
+
             ReceivedAt = reception.ReceivedAt,
             QrCode = reception.QrCode,
             VerifiedWeightKg =
@@ -258,19 +261,35 @@ public class ReceptionService : IReceptionService
                     r.ReceivedByUser.FirstName + " " +
                     r.ReceivedByUser.LastName,
 
-                VeterinaryClinicId = r.VeterinaryClinicId,
+                VeterinaryClinicId = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicId
+                    : r.VeterinaryClinicId,
 
-                VeterinaryClinicName = r.VeterinaryClinic != null
-                    ? r.VeterinaryClinic.Name
-                    : null,
+                VeterinaryClinicName = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.VeterinaryClinic != null
+                        ? r.VeterinaryClinic.Name
+                        : null,
 
                 ReferringVeterinarianId =
-                    r.ReferringVeterinarianId,
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.ReferringVeterinarianId
+                        : r.ReferringVeterinarianId,
 
                 ReferringVeterinarianName =
-                    r.ReferringVeterinarian != null
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
-                        r.ReferringVeterinarian.LastName
+                            r.ReferringVeterinarian.LastName
+                            : null,
+
+                IsVeterinaryRequestOrigin =
+                    r.VeterinaryRequest != null,
+
+                VeterinaryRequestId =
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.Id
                         : null,
 
                 ReceivedAt = r.ReceivedAt,
@@ -327,18 +346,34 @@ public class ReceptionService : IReceptionService
                     r.ReceivedByUser.FirstName + " " +
                     r.ReceivedByUser.LastName,
 
-                VeterinaryClinicId = r.VeterinaryClinicId,
+                VeterinaryClinicId = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicId
+                    : r.VeterinaryClinicId,
 
-                VeterinaryClinicName = r.VeterinaryClinic != null
-                    ? r.VeterinaryClinic.Name
-                    : null,
+                VeterinaryClinicName = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.VeterinaryClinic != null
+                        ? r.VeterinaryClinic.Name
+                        : null,
 
-                ReferringVeterinarianId = r.ReferringVeterinarianId,
+                ReferringVeterinarianId = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.ReferringVeterinarianId
+                    : r.ReferringVeterinarianId,
 
                 ReferringVeterinarianName =
-                    r.ReferringVeterinarian != null
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
-                        r.ReferringVeterinarian.LastName
+                            r.ReferringVeterinarian.LastName
+                            : null,
+
+                IsVeterinaryRequestOrigin =
+                    r.VeterinaryRequest != null,
+
+                VeterinaryRequestId =
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.Id
                         : null,
 
                 ReceivedAt = r.ReceivedAt,
@@ -392,19 +427,35 @@ public class ReceptionService : IReceptionService
                     r.ReceivedByUser.FirstName + " " +
                     r.ReceivedByUser.LastName,
 
-                VeterinaryClinicId = r.VeterinaryClinicId,
+                VeterinaryClinicId = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicId
+                    : r.VeterinaryClinicId,
 
-                VeterinaryClinicName = r.VeterinaryClinic != null
-                    ? r.VeterinaryClinic.Name
-                    : null,
+                VeterinaryClinicName = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.VeterinaryClinic != null
+                        ? r.VeterinaryClinic.Name
+                        : null,
 
                 ReferringVeterinarianId =
-                    r.ReferringVeterinarianId,
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.ReferringVeterinarianId
+                        : r.ReferringVeterinarianId,
 
                 ReferringVeterinarianName =
-                    r.ReferringVeterinarian != null
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
-                         r.ReferringVeterinarian.LastName
+                            r.ReferringVeterinarian.LastName
+                            : null,
+
+                IsVeterinaryRequestOrigin =
+                    r.VeterinaryRequest != null,
+
+                VeterinaryRequestId =
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.Id
                         : null,
 
 
@@ -449,6 +500,7 @@ public class ReceptionService : IReceptionService
             .Include(r => r.Pet)
                 .ThenInclude(p => p.Customer)
             .Include(r => r.ReceivedByUser)
+            .Include(r => r.VeterinaryRequest)
             .FirstOrDefaultAsync(r =>
                 r.Id == id &&
                 r.IsActive);
@@ -648,23 +700,43 @@ public class ReceptionService : IReceptionService
             }
         }
 
-        var referral =
-            await ValidateReferralSourceAsync(
-                dto.VeterinaryClinicId,
-                dto.ReferringVeterinarianId,
-                dto.ReferralNotes);
+        VeterinaryClinic? veterinaryClinic = null;
+        Veterinarian? referringVeterinarian = null;
 
-        var veterinaryClinic =
-            referral.Clinic;
+        if (reception.VeterinaryRequest is { } veterinaryRequest)
+        {
+            if (dto.VeterinaryClinicId !=
+                    veterinaryRequest.VeterinaryClinicId ||
+                dto.ReferringVeterinarianId !=
+                    veterinaryRequest.ReferringVeterinarianId)
+            {
+                throw new InvalidOperationException(
+                    "La fuente de una recepción originada por solicitud veterinaria no puede modificarse.");
+            }
 
-        var referringVeterinarian =
-            referral.Veterinarian;
+            reception.VeterinaryClinicId =
+                veterinaryRequest.VeterinaryClinicId;
 
-        reception.VeterinaryClinicId =
-            referral.Clinic?.Id;
+            reception.ReferringVeterinarianId =
+                veterinaryRequest.ReferringVeterinarianId;
+        }
+        else
+        {
+            var referral =
+                await ValidateReferralSourceAsync(
+                    dto.VeterinaryClinicId,
+                    dto.ReferringVeterinarianId,
+                    dto.ReferralNotes);
 
-        reception.ReferringVeterinarianId =
-            referral.Veterinarian?.Id;
+            veterinaryClinic = referral.Clinic;
+            referringVeterinarian = referral.Veterinarian;
+
+            reception.VeterinaryClinicId =
+                referral.Clinic?.Id;
+
+            reception.ReferringVeterinarianId =
+                referral.Veterinarian?.Id;
+        }
 
         reception.ReferralNotes =
             string.IsNullOrWhiteSpace(
@@ -710,20 +782,32 @@ public class ReceptionService : IReceptionService
                 reception.ReceivedByUser.LastName,
 
             VeterinaryClinicId =
+                reception.VeterinaryRequest?.VeterinaryClinicId ??
                 reception.VeterinaryClinicId,
 
             VeterinaryClinicName =
-                veterinaryClinic?.Name,
+                reception.VeterinaryRequest is { } request
+                    ? request.VeterinaryClinicNameSnapshot
+                    : veterinaryClinic?.Name,
 
             ReferringVeterinarianId =
+                reception.VeterinaryRequest?.ReferringVeterinarianId ??
                 reception.ReferringVeterinarianId,
 
             ReferringVeterinarianName =
-                referringVeterinarian == null
+                reception.VeterinaryRequest is { } originRequest
+                    ? originRequest.ReferringVeterinarianNameSnapshot
+                    : referringVeterinarian == null
                     ? null
                     : referringVeterinarian.FirstName +
                       " " +
                       referringVeterinarian.LastName,
+
+            IsVeterinaryRequestOrigin =
+                reception.VeterinaryRequest is not null,
+
+            VeterinaryRequestId =
+                reception.VeterinaryRequest?.Id,
 
             ReceivedAt =
                 reception.ReceivedAt,
@@ -841,19 +925,35 @@ public class ReceptionService : IReceptionService
                     r.ReceivedByUser.FirstName + " " +
                     r.ReceivedByUser.LastName,
 
-                VeterinaryClinicId = r.VeterinaryClinicId,
+                VeterinaryClinicId = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicId
+                    : r.VeterinaryClinicId,
 
-                VeterinaryClinicName = r.VeterinaryClinic != null
-                    ? r.VeterinaryClinic.Name
-                    : null,
+                VeterinaryClinicName = r.VeterinaryRequest != null
+                    ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.VeterinaryClinic != null
+                        ? r.VeterinaryClinic.Name
+                        : null,
 
                 ReferringVeterinarianId =
-                    r.ReferringVeterinarianId,
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.ReferringVeterinarianId
+                        : r.ReferringVeterinarianId,
 
                 ReferringVeterinarianName =
-                    r.ReferringVeterinarian != null
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
-                         r.ReferringVeterinarian.LastName
+                            r.ReferringVeterinarian.LastName
+                            : null,
+
+                IsVeterinaryRequestOrigin =
+                    r.VeterinaryRequest != null,
+
+                VeterinaryRequestId =
+                    r.VeterinaryRequest != null
+                        ? r.VeterinaryRequest.Id
                         : null,
 
                 ReceivedAt = r.ReceivedAt,

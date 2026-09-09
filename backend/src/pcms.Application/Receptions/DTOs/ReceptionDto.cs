@@ -24,6 +24,10 @@ public class ReceptionDto
 
     public string? ReferringVeterinarianName { get; set; }
 
+    public bool IsVeterinaryRequestOrigin { get; set; }
+
+    public Guid? VeterinaryRequestId { get; set; }
+
     public DateTime ReceivedAt { get; set; }
 
     public string QrCode { get; set; } = string.Empty;
