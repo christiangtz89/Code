@@ -1,4 +1,5 @@
 using pcms.Application.VeterinaryRequests.DTOs;
+using pcms.Application.Common;
 using pcms.Domain.Enums;
 
 namespace pcms.Application.VeterinaryRequests.Interfaces;
@@ -31,7 +32,34 @@ public interface IVeterinaryRequestService
         ConvertVeterinaryRequestDto dto,
         Guid receivedByUserId);
 
-    Task<IEnumerable<VeterinaryRequestDto>> SearchAsync(
+    Task<PagedVeterinaryRequestsDto> SearchAsync(
         string search,
-        VeterinaryRequestStatus? status);
+        VeterinaryRequestStatus? status,
+        int page,
+        int pageSize);
+
+    Task<PaginatedResult<VeterinaryRequestClinicOptionDto>>
+        GetClinicOptionsAsync(
+            string? search,
+            int page,
+            int pageSize);
+
+    Task<PaginatedResult<VeterinaryRequestVeterinarianOptionDto>>
+        GetVeterinarianOptionsAsync(
+            Guid? veterinaryClinicId,
+            string? search,
+            int page,
+            int pageSize);
+
+    Task<PaginatedResult<VeterinaryRequestCustomerOptionDto>>
+        GetCustomerOptionsAsync(
+            string? search,
+            int page,
+            int pageSize);
+
+    Task<PaginatedResult<VeterinaryRequestPetOptionDto>>
+        GetPetOptionsAsync(
+            string? search,
+            int page,
+            int pageSize);
 }

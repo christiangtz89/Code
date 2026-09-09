@@ -9,6 +9,7 @@ import { VeterinaryRequestStatusBadge } from "./VeterinaryRequestStatusBadge";
 
 interface VeterinaryRequestsTableProps {
   requests: VeterinaryRequest[];
+  canManage: boolean;
   onView: (request: VeterinaryRequest) => void;
   onEdit: (request: VeterinaryRequest) => void;
   onChangeStatus: (request: VeterinaryRequest) => void;
@@ -17,6 +18,7 @@ interface VeterinaryRequestsTableProps {
 
 export function VeterinaryRequestsTable({
   requests,
+  canManage,
   onView,
   onEdit,
   onChangeStatus,
@@ -160,7 +162,7 @@ export function VeterinaryRequestsTable({
                         Ver detalle
                       </button>
 
-                      {canEdit && (
+                      {canManage && canEdit && (
                         <button
                           type="button"
                           onClick={() => onEdit(request)}
@@ -170,7 +172,7 @@ export function VeterinaryRequestsTable({
                         </button>
                       )}
 
-                      {canChangeStatus && (
+                      {canManage && canChangeStatus && (
                         <button
                           type="button"
                           onClick={() => onChangeStatus(request)}
@@ -180,7 +182,7 @@ export function VeterinaryRequestsTable({
                         </button>
                       )}
 
-                      {canConvert && (
+                      {canManage && canConvert && (
                         <button
                           type="button"
                           onClick={() => onConvert(request)}

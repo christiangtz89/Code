@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using pcms.Application.Common;
 using pcms.Application.VeterinaryRequests.DTOs;
 using pcms.Application.VeterinaryRequests.Interfaces;
 using pcms.Domain.Entities;
@@ -688,14 +689,20 @@ public class VeterinaryRequestService
         return await GetByIdAsync(request.Id);
     }
 
-    public async Task<IEnumerable<VeterinaryRequestDto>>
+    public async Task<PagedVeterinaryRequestsDto>
         SearchAsync(
             string search,
-            VeterinaryRequestStatus? status)
+            VeterinaryRequestStatus? status,
+            int page,
+            int pageSize)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
-            return Array.Empty<VeterinaryRequestDto>();
+            return new PagedVeterinaryRequestsDto
+            {
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
         var term = search.Trim();
@@ -769,14 +776,260 @@ public class VeterinaryRequestService
                 query,
                 status);
 
+        var totalItems = await query.CountAsync();
+
         var ids = await query
             .OrderByDescending(vr =>
                 vr.SubmittedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(vr => vr.Id)
             .ToListAsync();
 
-        return await GetDtosByIdsAsync(ids);
+        return new PagedVeterinaryRequestsDto
+        {
+            Items = await GetDtosByIdsAsync(ids),
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
+        };
     }
+
+    public async Task<
+        PaginatedResult<VeterinaryRequestClinicOptionDto>>
+        GetClinicOptionsAsync(
+            string? search,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.VeterinaryClinics
+            .AsNoTracking()
+            .Where(clinic => clinic.IsActive);
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+            query = query.Where(clinic =>
+                EF.Functions.ILike(clinic.Name, pattern));
+        }
+
+        var totalItems = await query.CountAsync();
+        var items = await query
+            .OrderBy(clinic => clinic.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(clinic => new VeterinaryRequestClinicOptionDto
+            {
+                Id = clinic.Id,
+                DisplayName = clinic.Name
+            })
+            .ToListAsync();
+
+        return CreateLookupResult(
+            items,
+            page,
+            pageSize,
+            totalItems);
+    }
+
+    public async Task<
+        PaginatedResult<VeterinaryRequestVeterinarianOptionDto>>
+        GetVeterinarianOptionsAsync(
+            Guid? veterinaryClinicId,
+            string? search,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.Veterinarians
+            .AsNoTracking()
+            .Where(veterinarian =>
+                veterinarian.IsActive &&
+                (veterinaryClinicId.HasValue
+                    ? veterinarian.VeterinaryClinicId ==
+                        veterinaryClinicId.Value &&
+                      veterinarian.VeterinaryClinic!.IsActive
+                    : veterinarian.VeterinaryClinicId == null));
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+            query = query.Where(veterinarian =>
+                EF.Functions.ILike(veterinarian.FirstName, pattern) ||
+                EF.Functions.ILike(veterinarian.LastName, pattern) ||
+                (veterinarian.SecondLastName != null &&
+                    EF.Functions.ILike(
+                        veterinarian.SecondLastName,
+                        pattern)));
+        }
+
+        var totalItems = await query.CountAsync();
+        var items = await query
+            .OrderBy(veterinarian => veterinarian.LastName)
+            .ThenBy(veterinarian => veterinarian.SecondLastName)
+            .ThenBy(veterinarian => veterinarian.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(veterinarian =>
+                new VeterinaryRequestVeterinarianOptionDto
+                {
+                    Id = veterinarian.Id,
+                    DisplayName =
+                        veterinarian.FirstName + " " +
+                        veterinarian.LastName +
+                        (veterinarian.SecondLastName == null
+                            ? string.Empty
+                            : " " + veterinarian.SecondLastName),
+                    VeterinaryClinicId =
+                        veterinarian.VeterinaryClinicId
+                })
+            .ToListAsync();
+
+        return CreateLookupResult(
+            items,
+            page,
+            pageSize,
+            totalItems);
+    }
+
+    public async Task<
+        PaginatedResult<VeterinaryRequestCustomerOptionDto>>
+        GetCustomerOptionsAsync(
+            string? search,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.Customers
+            .AsNoTracking()
+            .Where(customer => customer.IsActive);
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+            query = query.Where(customer =>
+                EF.Functions.ILike(customer.FirstName, pattern) ||
+                EF.Functions.ILike(customer.LastName, pattern) ||
+                (customer.SecondLastName != null &&
+                    EF.Functions.ILike(
+                        customer.SecondLastName,
+                        pattern)));
+        }
+
+        var totalItems = await query.CountAsync();
+        var items = await query
+            .OrderBy(customer => customer.LastName)
+            .ThenBy(customer => customer.SecondLastName)
+            .ThenBy(customer => customer.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(customer => new VeterinaryRequestCustomerOptionDto
+            {
+                Id = customer.Id,
+                DisplayName =
+                    customer.FirstName + " " +
+                    customer.LastName +
+                    (customer.SecondLastName == null
+                        ? string.Empty
+                        : " " + customer.SecondLastName)
+            })
+            .ToListAsync();
+
+        return CreateLookupResult(
+            items,
+            page,
+            pageSize,
+            totalItems);
+    }
+
+    public async Task<
+        PaginatedResult<VeterinaryRequestPetOptionDto>>
+        GetPetOptionsAsync(
+            string? search,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.Pets
+            .AsNoTracking()
+            .Where(pet =>
+                pet.IsActive &&
+                pet.Customer.IsActive &&
+                pet.Reception == null);
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+            query = query.Where(pet =>
+                EF.Functions.ILike(pet.Name, pattern) ||
+                EF.Functions.ILike(pet.Customer.FirstName, pattern) ||
+                EF.Functions.ILike(pet.Customer.LastName, pattern) ||
+                (pet.Customer.SecondLastName != null &&
+                    EF.Functions.ILike(
+                        pet.Customer.SecondLastName,
+                        pattern)));
+        }
+
+        var totalItems = await query.CountAsync();
+        var items = await query
+            .OrderBy(pet => pet.Name)
+            .ThenBy(pet => pet.Customer.LastName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(pet => new VeterinaryRequestPetOptionDto
+            {
+                Id = pet.Id,
+                CustomerId = pet.CustomerId,
+                DisplayName =
+                    pet.Name + " · " +
+                    pet.Customer.FirstName + " " +
+                    pet.Customer.LastName +
+                    (pet.Customer.SecondLastName == null
+                        ? string.Empty
+                        : " " + pet.Customer.SecondLastName)
+            })
+            .ToListAsync();
+
+        return CreateLookupResult(
+            items,
+            page,
+            pageSize,
+            totalItems);
+    }
+
+    private static PaginatedResult<T> CreateLookupResult<T>(
+        IEnumerable<T> items,
+        int page,
+        int pageSize,
+        int totalItems) =>
+        new()
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
+        };
 
     private async Task<
         (

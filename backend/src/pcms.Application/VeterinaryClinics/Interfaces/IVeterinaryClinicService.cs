@@ -22,7 +22,9 @@ public interface IVeterinaryClinicService
 
     Task<bool> RestoreAsync(Guid id);
 
-    Task<IEnumerable<VeterinaryClinicDto>> SearchAsync(
+    Task<PagedVeterinaryClinicsDto> SearchAsync(
         string search,
-        bool isActive);
+        bool isActive,
+        int page,
+        int pageSize);
 }

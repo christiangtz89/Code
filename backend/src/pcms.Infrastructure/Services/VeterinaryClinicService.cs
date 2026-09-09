@@ -221,49 +221,55 @@ public class VeterinaryClinicService
     return true;
 }
 
-    public async Task<IEnumerable<VeterinaryClinicDto>> SearchAsync(
+    public async Task<PagedVeterinaryClinicsDto> SearchAsync(
     string search,
-    bool isActive)
+    bool isActive,
+    int page,
+    int pageSize)
 {
-    var normalizedSearch = search.Trim().ToLower();
+    var normalizedSearch = search.Trim();
 
     if (string.IsNullOrWhiteSpace(normalizedSearch))
     {
-        return Array.Empty<VeterinaryClinicDto>();
+        return new PagedVeterinaryClinicsDto
+        {
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    return await _context.VeterinaryClinics
+    var pattern = $"%{normalizedSearch}%";
+
+    var query = _context.VeterinaryClinics
         .AsNoTracking()
         .Where(v =>
             v.IsActive == isActive &&
             (
-                v.Name.ToLower().Contains(normalizedSearch) ||
+                EF.Functions.ILike(v.Name, pattern) ||
                 (
                     v.Phone != null &&
-                    v.Phone
-                        .ToLower()
-                        .Contains(normalizedSearch)
+                    EF.Functions.ILike(v.Phone, pattern)
                 ) ||
                 (
                     v.Email != null &&
-                    v.Email
-                        .ToLower()
-                        .Contains(normalizedSearch)
+                    EF.Functions.ILike(v.Email, pattern)
                 ) ||
                 (
                     v.Address != null &&
-                    v.Address
-                        .ToLower()
-                        .Contains(normalizedSearch)
+                    EF.Functions.ILike(v.Address, pattern)
                 ) ||
                 (
                     v.PrimaryContactName != null &&
-                    v.PrimaryContactName
-                        .ToLower()
-                        .Contains(normalizedSearch)
+                    EF.Functions.ILike(v.PrimaryContactName, pattern)
                 )
-            ))
+            ));
+
+    var totalItems = await query.CountAsync();
+
+    var items = await query
         .OrderBy(v => v.Name)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
         .Select(v => new VeterinaryClinicDto
         {
             Id = v.Id,
@@ -277,5 +283,15 @@ public class VeterinaryClinicService
             CreatedAt = v.CreatedAt
         })
         .ToListAsync();
+
+    return new PagedVeterinaryClinicsDto
+    {
+        Items = items,
+        Page = page,
+        PageSize = pageSize,
+        TotalItems = totalItems,
+        TotalPages = (int)Math.Ceiling(
+            totalItems / (double)pageSize)
+    };
 }
 }

@@ -4,10 +4,17 @@ import type {
   ConvertVeterinaryRequestPayload,
   CreateVeterinaryRequestPayload,
   GetVeterinaryRequestsParams,
+  GetVeterinaryRequestLookupParams,
+  GetVeterinaryRequestVeterinarianLookupParams,
+  PaginatedLookup,
   PaginatedVeterinaryRequests,
   SearchVeterinaryRequestsParams,
   UpdateVeterinaryRequestPayload,
   VeterinaryRequest,
+  VeterinaryRequestClinicOption,
+  VeterinaryRequestCustomerOption,
+  VeterinaryRequestPetOption,
+  VeterinaryRequestVeterinarianOption,
 } from "../types/veterinaryRequest.types";
 
 const VETERINARY_REQUESTS_URL = "/VeterinaryRequests";
@@ -84,13 +91,53 @@ export async function convertVeterinaryRequest(
 
 export async function searchVeterinaryRequests(
   params: SearchVeterinaryRequestsParams,
-): Promise<VeterinaryRequest[]> {
-  const response = await apiClient.get<VeterinaryRequest[]>(
+): Promise<PaginatedVeterinaryRequests> {
+  const response = await apiClient.get<PaginatedVeterinaryRequests>(
     `${VETERINARY_REQUESTS_URL}/search`,
     {
       params,
     },
   );
+
+  return response.data;
+}
+
+export async function getVeterinaryRequestClinicOptions(
+  params: GetVeterinaryRequestLookupParams,
+): Promise<PaginatedLookup<VeterinaryRequestClinicOption>> {
+  const response = await apiClient.get<
+    PaginatedLookup<VeterinaryRequestClinicOption>
+  >(`${VETERINARY_REQUESTS_URL}/lookup/clinics`, { params });
+
+  return response.data;
+}
+
+export async function getVeterinaryRequestVeterinarianOptions(
+  params: GetVeterinaryRequestVeterinarianLookupParams,
+): Promise<PaginatedLookup<VeterinaryRequestVeterinarianOption>> {
+  const response = await apiClient.get<
+    PaginatedLookup<VeterinaryRequestVeterinarianOption>
+  >(`${VETERINARY_REQUESTS_URL}/lookup/veterinarians`, { params });
+
+  return response.data;
+}
+
+export async function getVeterinaryRequestCustomerOptions(
+  params: GetVeterinaryRequestLookupParams,
+): Promise<PaginatedLookup<VeterinaryRequestCustomerOption>> {
+  const response = await apiClient.get<
+    PaginatedLookup<VeterinaryRequestCustomerOption>
+  >(`${VETERINARY_REQUESTS_URL}/lookup/customers`, { params });
+
+  return response.data;
+}
+
+export async function getVeterinaryRequestPetOptions(
+  params: GetVeterinaryRequestLookupParams,
+): Promise<PaginatedLookup<VeterinaryRequestPetOption>> {
+  const response = await apiClient.get<
+    PaginatedLookup<VeterinaryRequestPetOption>
+  >(`${VETERINARY_REQUESTS_URL}/lookup/pets`, { params });
 
   return response.data;
 }

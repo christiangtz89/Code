@@ -127,4 +127,46 @@ export interface GetVeterinaryRequestsParams {
 export interface SearchVeterinaryRequestsParams {
   search: string;
   status?: VeterinaryRequestStatus;
+  page: number;
+  pageSize: number;
+}
+
+export interface VeterinaryRequestClinicOption {
+  id: string;
+  displayName: string;
+}
+
+export interface VeterinaryRequestVeterinarianOption {
+  id: string;
+  displayName: string;
+  veterinaryClinicId: string | null;
+}
+
+export interface VeterinaryRequestCustomerOption {
+  id: string;
+  displayName: string;
+}
+
+export interface VeterinaryRequestPetOption {
+  id: string;
+  customerId: string;
+  displayName: string;
+}
+
+export interface PaginatedLookup<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface GetVeterinaryRequestLookupParams {
+  search?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface GetVeterinaryRequestVeterinarianLookupParams extends GetVeterinaryRequestLookupParams {
+  veterinaryClinicId?: string;
 }

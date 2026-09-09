@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using pcms.Application.Common;
 using pcms.Application.Veterinarians.DTOs;
 using pcms.Application.Veterinarians.Interfaces;
 
@@ -55,7 +56,8 @@ public class VeterinariansController : ControllerBase
     public async Task<ActionResult<PagedVeterinariansDto>> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
-        [FromQuery] bool isActive = true)
+        [FromQuery] bool isActive = true,
+        [FromQuery] Guid? veterinaryClinicId = null)
     {
         if (page < 1)
         {
@@ -80,7 +82,8 @@ public class VeterinariansController : ControllerBase
     await _veterinarianService.GetAllAsync(
         page,
         pageSize,
-        isActive);
+        isActive,
+        veterinaryClinicId);
 
         return Ok(veterinarians);
     }
@@ -199,9 +202,12 @@ public class VeterinariansController : ControllerBase
 
     [HttpGet("search")]
     public async Task<
-        ActionResult<IEnumerable<VeterinarianDto>>> Search(
+        ActionResult<PagedVeterinariansDto>> Search(
         [FromQuery] string search,
-        [FromQuery] bool isActive = true)
+        [FromQuery] bool isActive = true,
+        [FromQuery] Guid? veterinaryClinicId = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -212,11 +218,42 @@ public class VeterinariansController : ControllerBase
             });
         }
 
+        if (page < 1 || pageSize < 1 || pageSize > 100)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Invalid pagination parameters."
+            });
+        }
+
         var veterinarians =
             await _veterinarianService.SearchAsync(
                 search,
-                isActive);
+                isActive,
+                veterinaryClinicId,
+                page,
+                pageSize);
 
         return Ok(veterinarians);
+    }
+
+    [HttpGet("clinic-options")]
+    public async Task<
+        ActionResult<PaginatedResult<VeterinarianClinicOptionDto>>>
+        GetClinicOptions(
+            [FromQuery] string? search = null,
+            [FromQuery] bool? isActive = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        var options =
+            await _veterinarianService.GetClinicOptionsAsync(
+                search,
+                isActive,
+                page,
+                pageSize);
+
+        return Ok(options);
     }
 }

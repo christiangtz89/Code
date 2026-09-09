@@ -23,8 +23,8 @@ export async function getVeterinaryClinics(
 
 export async function searchVeterinaryClinics(
   params: SearchVeterinaryClinicsParams,
-): Promise<VeterinaryClinic[]> {
-  const response = await apiClient.get<VeterinaryClinic[]>(
+): Promise<PaginatedVeterinaryClinics> {
+  const response = await apiClient.get<PaginatedVeterinaryClinics>(
     "/VeterinaryClinics/search",
     {
       params,

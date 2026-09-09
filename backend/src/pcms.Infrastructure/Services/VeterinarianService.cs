@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using pcms.Application.Common;
 using pcms.Application.Veterinarians.DTOs;
 using pcms.Application.Veterinarians.Interfaces;
 using pcms.Domain.Entities;
@@ -163,7 +164,8 @@ public class VeterinarianService : IVeterinarianService
     public async Task<PagedVeterinariansDto> GetAllAsync(
         int page,
         int pageSize,
-        bool isActive)
+        bool isActive,
+        Guid? veterinaryClinicId)
     {
         var query = _context.Veterinarians
             .AsNoTracking()
@@ -173,7 +175,9 @@ public class VeterinarianService : IVeterinarianService
                     !isActive ||
                     v.VeterinaryClinicId == null ||
                     v.VeterinaryClinic!.IsActive
-                ));
+                ) &&
+                (!veterinaryClinicId.HasValue ||
+                    v.VeterinaryClinicId == veterinaryClinicId.Value));
 
         var totalItems = await query.CountAsync();
 
@@ -486,21 +490,30 @@ public class VeterinarianService : IVeterinarianService
         return true;
     }
 
-    public async Task<IEnumerable<VeterinarianDto>>
+    public async Task<PagedVeterinariansDto>
         SearchAsync(
             string search,
-            bool isActive)
+            bool isActive,
+            Guid? veterinaryClinicId,
+            int page,
+            int pageSize)
     {
         var normalizedSearch =
-            search.Trim().ToLower();
+            search.Trim();
 
         if (string.IsNullOrWhiteSpace(
             normalizedSearch))
         {
-            return Array.Empty<VeterinarianDto>();
+            return new PagedVeterinariansDto
+            {
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
-        return await _context.Veterinarians
+        var pattern = $"%{normalizedSearch}%";
+
+        var query = _context.Veterinarians
             .AsNoTracking()
             .Where(v =>
                 v.IsActive == isActive &&
@@ -509,53 +522,49 @@ public class VeterinarianService : IVeterinarianService
                     v.VeterinaryClinicId == null ||
                     v.VeterinaryClinic!.IsActive
                 ) &&
+                (!veterinaryClinicId.HasValue ||
+                    v.VeterinaryClinicId == veterinaryClinicId.Value) &&
                 (
-                    v.FirstName
-                        .ToLower()
-                        .Contains(normalizedSearch) ||
+                    EF.Functions.ILike(v.FirstName, pattern) ||
 
-                    v.LastName
-                        .ToLower()
-                        .Contains(normalizedSearch) ||
+                    EF.Functions.ILike(v.LastName, pattern) ||
 
                     (
                         v.SecondLastName != null &&
-                        v.SecondLastName
-                            .ToLower()
-                            .Contains(normalizedSearch)
+                        EF.Functions.ILike(v.SecondLastName, pattern)
                     ) ||
 
                     (
                         v.VeterinaryClinic != null &&
-                        v.VeterinaryClinic.Name
-                            .ToLower()
-                            .Contains(normalizedSearch)
+                        EF.Functions.ILike(v.VeterinaryClinic.Name, pattern)
                     ) ||
 
                     (
                         v.Phone != null &&
-                        v.Phone
-                            .ToLower()
-                            .Contains(normalizedSearch)
+                        EF.Functions.ILike(v.Phone, pattern)
                     ) ||
 
                     (
                         v.Email != null &&
-                        v.Email
-                            .ToLower()
-                            .Contains(normalizedSearch)
+                        EF.Functions.ILike(v.Email, pattern)
                     ) ||
 
                     (
                         v.ProfessionalLicenseNumber != null &&
-                        v.ProfessionalLicenseNumber
-                            .ToLower()
-                            .Contains(normalizedSearch)
+                        EF.Functions.ILike(
+                            v.ProfessionalLicenseNumber,
+                            pattern)
                     )
-                ))
+                ));
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
             .OrderBy(v => v.LastName)
             .ThenBy(v => v.SecondLastName)
             .ThenBy(v => v.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(v => new VeterinarianDto
             {
                 Id = v.Id,
@@ -577,5 +586,69 @@ public class VeterinarianService : IVeterinarianService
                 CreatedAt = v.CreatedAt
             })
             .ToListAsync();
+
+        return new PagedVeterinariansDto
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
+        };
+    }
+
+    public async Task<PaginatedResult<VeterinarianClinicOptionDto>>
+        GetClinicOptionsAsync(
+            string? search,
+            bool? isActive,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.VeterinaryClinics
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(clinic =>
+                clinic.IsActive == isActive.Value);
+        }
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+            query = query.Where(clinic =>
+                EF.Functions.ILike(clinic.Name, pattern));
+        }
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
+            .OrderBy(clinic => clinic.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(clinic => new VeterinarianClinicOptionDto
+            {
+                Id = clinic.Id,
+                DisplayName = clinic.Name,
+                IsActive = clinic.IsActive
+            })
+            .ToListAsync();
+
+        return new PaginatedResult<VeterinarianClinicOptionDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
+        };
     }
 }

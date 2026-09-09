@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import type { VeterinaryClinic } from "../../veterinary-clinics/types/veterinaryClinic.types";
+import { getVeterinarianClinicOptions } from "../api/veterinariansApi";
 import {
   veterinarianSchema,
   type VeterinarianFormValues,
@@ -12,8 +13,6 @@ interface VeterinarianFormModalProps {
   isOpen: boolean;
   mode: "create" | "edit";
   veterinarian: Veterinarian | null;
-  clinics: VeterinaryClinic[];
-  isLoadingClinics: boolean;
   isSubmitting: boolean;
   onClose: () => void;
   onSubmit: (values: VeterinarianFormValues) => Promise<void>;
@@ -23,12 +22,14 @@ export function VeterinarianFormModal({
   isOpen,
   mode,
   veterinarian,
-  clinics,
-  isLoadingClinics,
   isSubmitting,
   onClose,
   onSubmit,
 }: VeterinarianFormModalProps) {
+  const [clinicSearchInput, setClinicSearchInput] = useState("");
+  const [debouncedClinicSearch, setDebouncedClinicSearch] = useState("");
+  const [clinicPage, setClinicPage] = useState(1);
+
   const {
     register,
     reset,
@@ -48,10 +49,63 @@ export function VeterinarianFormModal({
     },
   });
 
+  const normalizedClinicSearch = debouncedClinicSearch.trim();
+  const clinicSearchPending =
+    clinicSearchInput.trim() !== normalizedClinicSearch;
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setClinicPage(1);
+      setDebouncedClinicSearch(clinicSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [clinicSearchInput]);
+
+  const clinicOptionsQuery = useQuery({
+    queryKey: [
+      "veterinarian-clinic-options",
+      "form",
+      { search: normalizedClinicSearch, page: clinicPage },
+    ],
+    queryFn: () =>
+      getVeterinarianClinicOptions({
+        search: normalizedClinicSearch || undefined,
+        isActive: true,
+        page: clinicPage,
+        pageSize: 20,
+      }),
+    enabled: isOpen,
+  });
+
+  const clinicOptions = useMemo(() => {
+    const options = clinicOptionsQuery.data?.items ?? [];
+
+    if (
+      veterinarian?.veterinaryClinicId &&
+      veterinarian.veterinaryClinicName &&
+      !options.some((option) => option.id === veterinarian.veterinaryClinicId)
+    ) {
+      return [
+        {
+          id: veterinarian.veterinaryClinicId,
+          displayName: veterinarian.veterinaryClinicName,
+        },
+        ...options,
+      ];
+    }
+
+    return options;
+  }, [clinicOptionsQuery.data?.items, veterinarian]);
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
+
+    setClinicSearchInput("");
+    setDebouncedClinicSearch("");
+    setClinicPage(1);
 
     reset({
       veterinaryClinicId: veterinarian?.veterinaryClinicId ?? "",
@@ -132,22 +186,74 @@ export function VeterinarianFormModal({
 
             <select
               id="veterinarian-clinic"
-              disabled={isSubmitting || isLoadingClinics}
+              disabled={
+                isSubmitting ||
+                clinicOptionsQuery.isFetching ||
+                clinicSearchPending
+              }
               {...register("veterinaryClinicId")}
               className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             >
               <option value="">
-                {isLoadingClinics
+                {clinicOptionsQuery.isLoading
                   ? "Cargando veterinarias..."
                   : "Sin veterinaria asignada"}
               </option>
 
-              {clinics.map((clinic) => (
+              {clinicOptions.map((clinic) => (
                 <option key={clinic.id} value={clinic.id}>
-                  {clinic.name}
+                  {clinic.displayName}
+                  {clinic.isActive === false ? " — Inactiva" : ""}
                 </option>
               ))}
             </select>
+
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <input
+                type="search"
+                value={clinicSearchInput}
+                onChange={(event) => setClinicSearchInput(event.target.value)}
+                placeholder="Buscar veterinaria por nombre"
+                disabled={isSubmitting}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:max-w-xs"
+              />
+
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setClinicPage((current) => Math.max(1, current - 1))
+                  }
+                  disabled={clinicPage <= 1 || clinicOptionsQuery.isFetching}
+                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                >
+                  Anterior
+                </button>
+                <span>
+                  Página {clinicPage} de{" "}
+                  {Math.max(clinicOptionsQuery.data?.totalPages ?? 0, 1)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setClinicPage((current) =>
+                      Math.min(
+                        current + 1,
+                        Math.max(clinicOptionsQuery.data?.totalPages ?? 0, 1),
+                      ),
+                    )
+                  }
+                  disabled={
+                    clinicOptionsQuery.isFetching ||
+                    clinicPage >=
+                      Math.max(clinicOptionsQuery.data?.totalPages ?? 0, 1)
+                  }
+                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
 
             {errors.veterinaryClinicId && (
               <p className="mt-2 text-sm text-red-600">
@@ -328,7 +434,7 @@ export function VeterinarianFormModal({
 
             <button
               type="submit"
-              disabled={isSubmitting || isLoadingClinics}
+              disabled={isSubmitting || clinicOptionsQuery.isLoading}
               className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting

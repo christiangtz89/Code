@@ -1,17 +1,9 @@
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-import { getCustomers } from "../../customers/api/customersApi";
-import { getPets } from "../../pets/api/petsApi";
-import { getVeterinarians } from "../../veterinarians/api/veterinariansApi";
-import { getVeterinaryClinics } from "../../veterinary-clinics/api/veterinaryClinicsApi";
+import { hasPermission } from "../../auth/utils/permissions";
 
 import {
   changeVeterinaryRequestStatus,
@@ -109,11 +101,14 @@ export function VeterinaryRequestsPage() {
     useState<VeterinaryRequest | null>(null);
 
   const normalizedSearch = debouncedSearch.trim();
+  const searchPending = searchInput.trim() !== normalizedSearch;
+  const canManageRequests = hasPermission("VeterinaryRequests.Manage");
 
   const selectedStatus = statusFilter === "all" ? undefined : statusFilter;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      setPage(1);
       setDebouncedSearch(searchInput);
     }, 400);
 
@@ -121,10 +116,6 @@ export function VeterinaryRequestsPage() {
       window.clearTimeout(timeoutId);
     };
   }, [searchInput]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [normalizedSearch, pageSize, statusFilter]);
 
   const requestsQuery = useQuery({
     queryKey: [
@@ -139,22 +130,16 @@ export function VeterinaryRequestsPage() {
 
     queryFn: async (): Promise<PaginatedVeterinaryRequests> => {
       if (normalizedSearch) {
-        const items = await searchVeterinaryRequests({
+        return searchVeterinaryRequests({
           search: normalizedSearch,
+          page,
+          pageSize,
           ...(selectedStatus !== undefined
             ? {
                 status: selectedStatus,
               }
             : {}),
         });
-
-        return {
-          items,
-          page: 1,
-          pageSize: items.length,
-          totalItems: items.length,
-          totalPages: items.length > 0 ? 1 : 0,
-        };
       }
 
       return getVeterinaryRequests({
@@ -167,22 +152,15 @@ export function VeterinaryRequestsPage() {
           : {}),
       });
     },
-
-    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
     const totalPages = requestsQuery.data?.totalPages;
 
-    if (
-      !normalizedSearch &&
-      totalPages &&
-      totalPages > 0 &&
-      page > totalPages
-    ) {
+    if (totalPages && totalPages > 0 && page > totalPages) {
       setPage(totalPages);
     }
-  }, [normalizedSearch, page, requestsQuery.data?.totalPages]);
+  }, [page, requestsQuery.data?.totalPages]);
 
   const detailsRequestId = detailsRequest?.id ?? "";
 
@@ -192,62 +170,6 @@ export function VeterinaryRequestsPage() {
     queryFn: () => getVeterinaryRequestById(detailsRequestId),
 
     enabled: detailsRequestId.length > 0,
-  });
-
-  const shouldLoadReferralOptions = formModalState !== null;
-
-  const clinicsQuery = useQuery({
-    queryKey: ["veterinary-clinics", "request-options"],
-
-    queryFn: () =>
-      getVeterinaryClinics({
-        page: 1,
-        pageSize: 100,
-        isActive: true,
-      }),
-
-    enabled: shouldLoadReferralOptions,
-  });
-
-  const veterinariansQuery = useQuery({
-    queryKey: ["veterinarians", "request-options"],
-
-    queryFn: () =>
-      getVeterinarians({
-        page: 1,
-        pageSize: 100,
-        isActive: true,
-      }),
-
-    enabled: shouldLoadReferralOptions,
-  });
-
-  const shouldLoadConversionOptions = conversionRequest !== null;
-
-  const customersQuery = useQuery({
-    queryKey: ["customers", "veterinary-request-conversion"],
-
-    queryFn: () =>
-      getCustomers({
-        page: 1,
-        pageSize: 100,
-        isActive: true,
-      }),
-
-    enabled: shouldLoadConversionOptions,
-  });
-
-  const petsQuery = useQuery({
-    queryKey: ["pets", "veterinary-request-conversion"],
-
-    queryFn: () =>
-      getPets({
-        page: 1,
-        pageSize: 100,
-        isActive: true,
-      }),
-
-    enabled: shouldLoadConversionOptions,
   });
 
   async function refreshRequests() {
@@ -418,14 +340,6 @@ export function VeterinaryRequestsPage() {
 
   const totalPages = Math.max(requestsQuery.data?.totalPages ?? 0, 1);
 
-  const clinics = clinicsQuery.data?.items ?? [];
-
-  const veterinarians = veterinariansQuery.data?.items ?? [];
-
-  const customers = customersQuery.data?.items ?? [];
-
-  const pets = petsQuery.data?.items ?? [];
-
   const displayedDetailsRequest = detailsQuery.data ?? detailsRequest;
 
   return (
@@ -446,18 +360,20 @@ export function VeterinaryRequestsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setFormModalState({
-              mode: "create",
-              request: null,
-            })
-          }
-          className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-        >
-          + Registrar solicitud
-        </button>
+        {canManageRequests && (
+          <button
+            type="button"
+            onClick={() =>
+              setFormModalState({
+                mode: "create",
+                request: null,
+              })
+            }
+            className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            + Registrar solicitud
+          </button>
+        )}
       </header>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -469,10 +385,12 @@ export function VeterinaryRequestsPage() {
                 const value = event.target.value;
 
                 if (value === "all") {
+                  setPage(1);
                   setStatusFilter("all");
                   return;
                 }
 
+                setPage(1);
                 setStatusFilter(Number(value) as VeterinaryRequestStatusValue);
               }}
               className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
@@ -505,7 +423,10 @@ export function VeterinaryRequestsPage() {
             {!normalizedSearch && (
               <select
                 value={pageSize}
-                onChange={(event) => setPageSize(Number(event.target.value))}
+                onChange={(event) => {
+                  setPage(1);
+                  setPageSize(Number(event.target.value));
+                }}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
               >
                 <option value={10}>10 por página</option>
@@ -547,7 +468,7 @@ export function VeterinaryRequestsPage() {
         </div>
       </div>
 
-      {requestsQuery.isLoading ? (
+      {requestsQuery.isLoading || searchPending ? (
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-500">
           Cargando solicitudes...
         </div>
@@ -558,6 +479,7 @@ export function VeterinaryRequestsPage() {
       ) : (
         <VeterinaryRequestsTable
           requests={requests}
+          canManage={canManageRequests}
           onView={setDetailsRequest}
           onEdit={(request) =>
             setFormModalState({
@@ -570,7 +492,7 @@ export function VeterinaryRequestsPage() {
         />
       )}
 
-      {!normalizedSearch && totalPages > 1 && (
+      {!searchPending && totalPages > 1 && (
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500">
             Página {page} de {totalPages}
@@ -600,66 +522,37 @@ export function VeterinaryRequestsPage() {
         </div>
       )}
 
-      <VeterinaryRequestFormModal
-        isOpen={formModalState !== null}
-        mode={formModalState?.mode ?? "create"}
-        request={formModalState?.request ?? null}
-        clinics={clinics.map((clinic) => ({
-          id: clinic.id,
-          name: clinic.name,
-        }))}
-        veterinarians={veterinarians.map((veterinarian) => ({
-          id: veterinarian.id,
+      {canManageRequests && (
+        <VeterinaryRequestFormModal
+          isOpen={formModalState !== null}
+          mode={formModalState?.mode ?? "create"}
+          request={formModalState?.request ?? null}
+          isSubmitting={createMutation.isPending || updateMutation.isPending}
+          onClose={() => setFormModalState(null)}
+          onCreate={handleCreate}
+          onUpdate={handleUpdate}
+        />
+      )}
 
-          veterinaryClinicId: veterinarian.veterinaryClinicId,
+      {canManageRequests && (
+        <VeterinaryRequestStatusModal
+          isOpen={statusRequest !== null}
+          request={statusRequest}
+          isSubmitting={statusMutation.isPending}
+          onClose={() => setStatusRequest(null)}
+          onSubmit={handleChangeStatus}
+        />
+      )}
 
-          firstName: veterinarian.firstName,
-
-          lastName: veterinarian.lastName,
-
-          secondLastName: veterinarian.secondLastName,
-        }))}
-        isLoadingOptions={
-          clinicsQuery.isLoading || veterinariansQuery.isLoading
-        }
-        isSubmitting={createMutation.isPending || updateMutation.isPending}
-        onClose={() => setFormModalState(null)}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-      />
-
-      <VeterinaryRequestStatusModal
-        isOpen={statusRequest !== null}
-        request={statusRequest}
-        isSubmitting={statusMutation.isPending}
-        onClose={() => setStatusRequest(null)}
-        onSubmit={handleChangeStatus}
-      />
-
-      <VeterinaryRequestConversionModal
-        isOpen={conversionRequest !== null}
-        request={conversionRequest}
-        customers={customers.map((customer) => ({
-          id: customer.id,
-
-          name: [customer.firstName, customer.lastName, customer.secondLastName]
-            .filter(Boolean)
-            .join(" "),
-
-          phone: customer.phone,
-        }))}
-        pets={pets.map((pet) => ({
-          id: pet.id,
-          customerId: pet.customerId,
-          name: pet.name,
-
-          customerName: pet.customerName ?? null,
-        }))}
-        isLoadingOptions={customersQuery.isLoading || petsQuery.isLoading}
-        isSubmitting={conversionMutation.isPending}
-        onClose={() => setConversionRequest(null)}
-        onSubmit={handleConvert}
-      />
+      {canManageRequests && (
+        <VeterinaryRequestConversionModal
+          isOpen={conversionRequest !== null}
+          request={conversionRequest}
+          isSubmitting={conversionMutation.isPending}
+          onClose={() => setConversionRequest(null)}
+          onSubmit={handleConvert}
+        />
+      )}
 
       <VeterinaryRequestDetailsModal
         isOpen={detailsRequest !== null}

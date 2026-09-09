@@ -1,12 +1,8 @@
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { hasPermission } from "../../auth/utils/permissions";
 import {
   createVeterinaryClinic,
   deactivateVeterinaryClinic,
@@ -101,9 +97,13 @@ export function VeterinaryClinicsPage() {
   const isActive = statusFilter === "active";
 
   const normalizedSearch = debouncedSearch.trim();
+  const searchPending = searchInput.trim() !== normalizedSearch;
+  const canManageClinics = hasPermission("VeterinaryClinics.Manage");
+  const canViewVeterinarians = hasPermission("Veterinarians.View");
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      setPage(1);
       setDebouncedSearch(searchInput);
     }, 400);
 
@@ -111,10 +111,6 @@ export function VeterinaryClinicsPage() {
       window.clearTimeout(timeoutId);
     };
   }, [searchInput]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, normalizedSearch, pageSize]);
 
   const clinicsQuery = useQuery({
     queryKey: [
@@ -129,18 +125,12 @@ export function VeterinaryClinicsPage() {
 
     queryFn: async (): Promise<PaginatedVeterinaryClinics> => {
       if (normalizedSearch) {
-        const items = await searchVeterinaryClinics({
+        return searchVeterinaryClinics({
           search: normalizedSearch,
           isActive,
+          page,
+          pageSize,
         });
-
-        return {
-          items,
-          page: 1,
-          pageSize: items.length,
-          totalItems: items.length,
-          totalPages: items.length > 0 ? 1 : 0,
-        };
       }
 
       return getVeterinaryClinics({
@@ -149,22 +139,15 @@ export function VeterinaryClinicsPage() {
         isActive,
       });
     },
-
-    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
     const totalPages = clinicsQuery.data?.totalPages;
 
-    if (
-      !normalizedSearch &&
-      totalPages !== undefined &&
-      totalPages > 0 &&
-      page > totalPages
-    ) {
+    if (totalPages !== undefined && totalPages > 0 && page > totalPages) {
       setPage(totalPages);
     }
-  }, [clinicsQuery.data?.totalPages, normalizedSearch, page]);
+  }, [clinicsQuery.data?.totalPages, page]);
 
   async function refreshClinics() {
     await queryClient.invalidateQueries({
@@ -327,18 +310,20 @@ export function VeterinaryClinicsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setModalState({
-              mode: "create",
-              clinic: null,
-            })
-          }
-          className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-        >
-          + Registrar veterinaria
-        </button>
+        {canManageClinics && (
+          <button
+            type="button"
+            onClick={() =>
+              setModalState({
+                mode: "create",
+                clinic: null,
+              })
+            }
+            className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            + Registrar veterinaria
+          </button>
+        )}
       </header>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -346,7 +331,10 @@ export function VeterinaryClinicsPage() {
           <div className="inline-flex rounded-xl bg-slate-100 p-1">
             <button
               type="button"
-              onClick={() => setStatusFilter("active")}
+              onClick={() => {
+                setPage(1);
+                setStatusFilter("active");
+              }}
               className={[
                 "rounded-lg px-4 py-2 text-sm font-medium transition",
                 statusFilter === "active"
@@ -359,7 +347,10 @@ export function VeterinaryClinicsPage() {
 
             <button
               type="button"
-              onClick={() => setStatusFilter("inactive")}
+              onClick={() => {
+                setPage(1);
+                setStatusFilter("inactive");
+              }}
               className={[
                 "rounded-lg px-4 py-2 text-sm font-medium transition",
                 statusFilter === "inactive"
@@ -389,8 +380,10 @@ export function VeterinaryClinicsPage() {
 
               <select
                 value={pageSize}
-                onChange={(event) => setPageSize(Number(event.target.value))}
-                disabled={Boolean(normalizedSearch)}
+                onChange={(event) => {
+                  setPage(1);
+                  setPageSize(Number(event.target.value));
+                }}
                 className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none disabled:bg-slate-100"
               >
                 <option value={10}>10</option>
@@ -402,7 +395,7 @@ export function VeterinaryClinicsPage() {
         </div>
       </div>
 
-      {clinicsQuery.isLoading && (
+      {(clinicsQuery.isLoading || searchPending) && (
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-14 text-center text-sm text-slate-500">
           Cargando veterinarias...
         </div>
@@ -414,11 +407,13 @@ export function VeterinaryClinicsPage() {
         </div>
       )}
 
-      {!clinicsQuery.isLoading && !clinicsQuery.isError && (
+      {!clinicsQuery.isLoading && !searchPending && !clinicsQuery.isError && (
         <VeterinaryClinicsTable
           clinics={clinics}
           showingActive={isActive}
           pendingClinicId={pendingClinicId}
+          canManage={canManageClinics}
+          canViewVeterinarians={canViewVeterinarians}
           onViewVeterinarians={setSelectedVeterinariansClinic}
           onEdit={(clinic) =>
             setModalState({
@@ -431,57 +426,57 @@ export function VeterinaryClinicsPage() {
         />
       )}
 
-      {!normalizedSearch &&
-        !clinicsQuery.isLoading &&
-        !clinicsQuery.isError && (
-          <footer className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500">
-              {totalItems === 1
-                ? "1 veterinaria"
-                : `${totalItems} veterinarias`}
-            </p>
+      {!clinicsQuery.isLoading && !searchPending && !clinicsQuery.isError && (
+        <footer className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">
+            {totalItems === 1 ? "1 veterinaria" : `${totalItems} veterinarias`}
+          </p>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={page <= 1}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Anterior
-              </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={page <= 1}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Anterior
+            </button>
 
-              <span className="text-sm text-slate-600">
-                Página {page} de {Math.max(totalPages, 1)}
-              </span>
+            <span className="text-sm text-slate-600">
+              Página {page} de {Math.max(totalPages, 1)}
+            </span>
 
-              <button
-                type="button"
-                onClick={() =>
-                  setPage((current) => Math.min(totalPages, current + 1))
-                }
-                disabled={totalPages === 0 || page >= totalPages}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Siguiente
-              </button>
-            </div>
-          </footer>
-        )}
+            <button
+              type="button"
+              onClick={() =>
+                setPage((current) => Math.min(totalPages, current + 1))
+              }
+              disabled={totalPages === 0 || page >= totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </footer>
+      )}
 
-      <VeterinaryClinicFormModal
-        isOpen={modalState !== null}
-        mode={modalState?.mode ?? "create"}
-        clinic={modalState?.clinic ?? null}
-        isSubmitting={isFormSubmitting}
-        onClose={() => setModalState(null)}
-        onSubmit={handleFormSubmit}
-      />
+      {canManageClinics && (
+        <VeterinaryClinicFormModal
+          isOpen={modalState !== null}
+          mode={modalState?.mode ?? "create"}
+          clinic={modalState?.clinic ?? null}
+          isSubmitting={isFormSubmitting}
+          onClose={() => setModalState(null)}
+          onSubmit={handleFormSubmit}
+        />
+      )}
 
-      <ClinicVeterinariansModal
-        clinic={selectedVeterinariansClinic}
-        onClose={() => setSelectedVeterinariansClinic(null)}
-      />
+      {canViewVeterinarians && (
+        <ClinicVeterinariansModal
+          clinic={selectedVeterinariansClinic}
+          onClose={() => setSelectedVeterinariansClinic(null)}
+        />
+      )}
     </section>
   );
 }

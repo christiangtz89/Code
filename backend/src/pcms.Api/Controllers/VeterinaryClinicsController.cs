@@ -177,9 +177,11 @@ public class VeterinaryClinicsController : ControllerBase
 
     [HttpGet("search")]
     public async Task<
-        ActionResult<IEnumerable<VeterinaryClinicDto>>> Search(
+        ActionResult<PagedVeterinaryClinicsDto>> Search(
         [FromQuery] string search,
-        [FromQuery] bool isActive = true)
+        [FromQuery] bool isActive = true,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -190,9 +192,20 @@ public class VeterinaryClinicsController : ControllerBase
             });
         }
 
+        if (page < 1 || pageSize < 1 || pageSize > 100)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Invalid pagination parameters."
+            });
+        }
+
         var clinics = await _clinicService.SearchAsync(
             search,
-            isActive);
+            isActive,
+            page,
+            pageSize);
 
         return Ok(clinics);
     }

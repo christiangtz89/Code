@@ -1,25 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import {
+  getVeterinaryRequestCustomerOptions,
+  getVeterinaryRequestPetOptions,
+} from "../api/veterinaryRequestsApi";
 import {
   veterinaryRequestConversionSchema,
   type VeterinaryRequestConversionFormValues,
 } from "../schemas/veterinaryRequestConversionSchema";
 import type { VeterinaryRequest } from "../types/veterinaryRequest.types";
-
-export interface VeterinaryRequestCustomerOption {
-  id: string;
-  name: string;
-  phone?: string | null;
-}
-
-export interface VeterinaryRequestPetOption {
-  id: string;
-  customerId: string;
-  name: string;
-  customerName?: string | null;
-}
 
 type ConversionMode = "new" | "existingCustomer" | "existingPet";
 
@@ -27,10 +19,6 @@ interface VeterinaryRequestConversionModalProps {
   isOpen: boolean;
   request: VeterinaryRequest | null;
 
-  customers: VeterinaryRequestCustomerOption[];
-  pets: VeterinaryRequestPetOption[];
-
-  isLoadingOptions: boolean;
   isSubmitting: boolean;
 
   onClose: () => void;
@@ -41,14 +29,17 @@ interface VeterinaryRequestConversionModalProps {
 export function VeterinaryRequestConversionModal({
   isOpen,
   request,
-  customers,
-  pets,
-  isLoadingOptions,
   isSubmitting,
   onClose,
   onSubmit,
 }: VeterinaryRequestConversionModalProps) {
   const [conversionMode, setConversionMode] = useState<ConversionMode>("new");
+  const [customerSearchInput, setCustomerSearchInput] = useState("");
+  const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
+  const [customerPage, setCustomerPage] = useState(1);
+  const [petSearchInput, setPetSearchInput] = useState("");
+  const [debouncedPetSearch, setDebouncedPetSearch] = useState("");
+  const [petPage, setPetPage] = useState(1);
 
   const {
     register,
@@ -71,12 +62,70 @@ export function VeterinaryRequestConversionModal({
     },
   });
 
+  const normalizedCustomerSearch = debouncedCustomerSearch.trim();
+  const normalizedPetSearch = debouncedPetSearch.trim();
+  const customerSearchPending =
+    customerSearchInput.trim() !== normalizedCustomerSearch;
+  const petSearchPending = petSearchInput.trim() !== normalizedPetSearch;
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setCustomerPage(1);
+      setDebouncedCustomerSearch(customerSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [customerSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPetPage(1);
+      setDebouncedPetSearch(petSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [petSearchInput]);
+
+  const customersQuery = useQuery({
+    queryKey: [
+      "veterinary-request-customer-options",
+      { search: normalizedCustomerSearch, page: customerPage },
+    ],
+    queryFn: () =>
+      getVeterinaryRequestCustomerOptions({
+        search: normalizedCustomerSearch || undefined,
+        page: customerPage,
+        pageSize: 20,
+      }),
+    enabled: isOpen && conversionMode === "existingCustomer",
+  });
+
+  const petsQuery = useQuery({
+    queryKey: [
+      "veterinary-request-pet-options",
+      { search: normalizedPetSearch, page: petPage },
+    ],
+    queryFn: () =>
+      getVeterinaryRequestPetOptions({
+        search: normalizedPetSearch || undefined,
+        page: petPage,
+        pageSize: 20,
+      }),
+    enabled: isOpen && conversionMode === "existingPet",
+  });
+
   useEffect(() => {
     if (!isOpen || !request) {
       return;
     }
 
     setConversionMode("new");
+    setCustomerSearchInput("");
+    setDebouncedCustomerSearch("");
+    setCustomerPage(1);
+    setPetSearchInput("");
+    setDebouncedPetSearch("");
+    setPetPage(1);
 
     reset({
       existingCustomerId: "",
@@ -105,6 +154,9 @@ export function VeterinaryRequestConversionModal({
 
     setValue("existingPetId", "");
   }
+
+  const customers = customersQuery.data?.items ?? [];
+  const pets = petsQuery.data?.items ?? [];
 
   const submitConversion = handleSubmit((values) => {
     if (conversionMode === "existingCustomer" && !values.existingCustomerId) {
@@ -255,18 +307,61 @@ export function VeterinaryRequestConversionModal({
 
               <select
                 {...register("existingCustomerId")}
-                disabled={isLoadingOptions}
+                disabled={customersQuery.isFetching || customerSearchPending}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
               >
                 <option value="">Seleccionar cliente</option>
 
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
-                    {customer.name}
-                    {customer.phone ? ` · ${customer.phone}` : ""}
+                    {customer.displayName}
                   </option>
                 ))}
               </select>
+
+              <input
+                type="search"
+                value={customerSearchInput}
+                onChange={(event) => setCustomerSearchInput(event.target.value)}
+                placeholder="Buscar cliente por nombre"
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCustomerPage((current) => Math.max(1, current - 1))
+                  }
+                  disabled={customerPage <= 1 || customersQuery.isFetching}
+                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                >
+                  Anterior
+                </button>
+                <span>
+                  Página {customerPage} de{" "}
+                  {Math.max(customersQuery.data?.totalPages ?? 0, 1)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCustomerPage((current) =>
+                      Math.min(
+                        current + 1,
+                        Math.max(customersQuery.data?.totalPages ?? 0, 1),
+                      ),
+                    )
+                  }
+                  disabled={
+                    customersQuery.isFetching ||
+                    customerPage >=
+                      Math.max(customersQuery.data?.totalPages ?? 0, 1)
+                  }
+                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                >
+                  Siguiente
+                </button>
+              </div>
 
               {errors.existingCustomerId && (
                 <p className="mt-1 text-xs text-red-600">
@@ -284,18 +379,60 @@ export function VeterinaryRequestConversionModal({
 
               <select
                 {...register("existingPetId")}
-                disabled={isLoadingOptions}
+                disabled={petsQuery.isFetching || petSearchPending}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
               >
                 <option value="">Seleccionar mascota</option>
 
                 {pets.map((pet) => (
                   <option key={pet.id} value={pet.id}>
-                    {pet.name}
-                    {pet.customerName ? ` · ${pet.customerName}` : ""}
+                    {pet.displayName}
                   </option>
                 ))}
               </select>
+
+              <input
+                type="search"
+                value={petSearchInput}
+                onChange={(event) => setPetSearchInput(event.target.value)}
+                placeholder="Buscar mascota o propietario"
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPetPage((current) => Math.max(1, current - 1))
+                  }
+                  disabled={petPage <= 1 || petsQuery.isFetching}
+                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                >
+                  Anterior
+                </button>
+                <span>
+                  Página {petPage} de{" "}
+                  {Math.max(petsQuery.data?.totalPages ?? 0, 1)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPetPage((current) =>
+                      Math.min(
+                        current + 1,
+                        Math.max(petsQuery.data?.totalPages ?? 0, 1),
+                      ),
+                    )
+                  }
+                  disabled={
+                    petsQuery.isFetching ||
+                    petPage >= Math.max(petsQuery.data?.totalPages ?? 0, 1)
+                  }
+                  className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                >
+                  Siguiente
+                </button>
+              </div>
 
               {errors.existingPetId && (
                 <p className="mt-1 text-xs text-red-600">

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using pcms.Application.Common;
 using pcms.Application.VeterinaryRequests.DTOs;
 using pcms.Application.VeterinaryRequests.Interfaces;
 using pcms.Domain.Enums;
@@ -267,12 +268,13 @@ public class VeterinaryRequestsController
 
     [HttpGet("search")]
     public async Task<
-        ActionResult<
-            IEnumerable<VeterinaryRequestDto>>>
+        ActionResult<PagedVeterinaryRequestsDto>>
         Search(
             [FromQuery] string search,
             [FromQuery]
-            VeterinaryRequestStatus? status = null)
+            VeterinaryRequestStatus? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -289,13 +291,78 @@ public class VeterinaryRequestsController
                 "El estado de la solicitud no es válido.");
         }
 
+        if (page < 1 || pageSize < 1 || pageSize > 100)
+        {
+            return BadRequest(
+                "Los parámetros de paginación no son válidos.");
+        }
+
         var requests =
             await _veterinaryRequestService
                 .SearchAsync(
                     search,
-                    status);
+                    status,
+                    page,
+                    pageSize);
 
         return Ok(requests);
+    }
+
+    [HttpGet("lookup/clinics")]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
+    public async Task<ActionResult<
+        PaginatedResult<VeterinaryRequestClinicOptionDto>>>
+        GetClinicOptions(
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        return Ok(await _veterinaryRequestService
+            .GetClinicOptionsAsync(search, page, pageSize));
+    }
+
+    [HttpGet("lookup/veterinarians")]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
+    public async Task<ActionResult<
+        PaginatedResult<VeterinaryRequestVeterinarianOptionDto>>>
+        GetVeterinarianOptions(
+            [FromQuery] Guid? veterinaryClinicId = null,
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        return Ok(await _veterinaryRequestService
+            .GetVeterinarianOptionsAsync(
+                veterinaryClinicId,
+                search,
+                page,
+                pageSize));
+    }
+
+    [HttpGet("lookup/customers")]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
+    public async Task<ActionResult<
+        PaginatedResult<VeterinaryRequestCustomerOptionDto>>>
+        GetCustomerOptions(
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        return Ok(await _veterinaryRequestService
+            .GetCustomerOptionsAsync(search, page, pageSize));
+    }
+
+    [HttpGet("lookup/pets")]
+    [Authorize(Policy = "VeterinaryRequests.Manage")]
+    public async Task<ActionResult<
+        PaginatedResult<VeterinaryRequestPetOptionDto>>>
+        GetPetOptions(
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        return Ok(await _veterinaryRequestService
+            .GetPetOptionsAsync(search, page, pageSize));
     }
 
     private Guid? GetCurrentUserId()

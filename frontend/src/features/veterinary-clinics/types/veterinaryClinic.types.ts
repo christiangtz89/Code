@@ -34,6 +34,8 @@ export interface GetVeterinaryClinicsParams {
 export interface SearchVeterinaryClinicsParams {
   search: string;
   isActive: boolean;
+  page: number;
+  pageSize: number;
 }
 
 export interface Veterinarian {

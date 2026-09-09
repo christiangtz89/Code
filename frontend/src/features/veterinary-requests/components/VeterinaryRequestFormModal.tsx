@@ -1,36 +1,28 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import {
+  getVeterinaryRequestClinicOptions,
+  getVeterinaryRequestVeterinarianOptions,
+} from "../api/veterinaryRequestsApi";
 import {
   getMexicoBusinessDate,
   veterinaryRequestSchema,
   type VeterinaryRequestFormValues,
 } from "../schemas/veterinaryRequestSchema";
-import type { VeterinaryRequest } from "../types/veterinaryRequest.types";
-
-export interface VeterinaryClinicOption {
-  id: string;
-  name: string;
-}
-
-export interface VeterinarianOption {
-  id: string;
-  veterinaryClinicId: string | null;
-  firstName: string;
-  lastName: string;
-  secondLastName?: string | null;
-}
+import type {
+  VeterinaryRequest,
+  VeterinaryRequestClinicOption,
+  VeterinaryRequestVeterinarianOption,
+} from "../types/veterinaryRequest.types";
 
 interface VeterinaryRequestFormModalProps {
   isOpen: boolean;
   mode: "create" | "edit";
   request: VeterinaryRequest | null;
 
-  clinics: VeterinaryClinicOption[];
-  veterinarians: VeterinarianOption[];
-
-  isLoadingOptions: boolean;
   isSubmitting: boolean;
 
   onClose: () => void;
@@ -38,16 +30,6 @@ interface VeterinaryRequestFormModalProps {
   onCreate: (values: VeterinaryRequestFormValues) => void;
 
   onUpdate: (values: VeterinaryRequestFormValues) => void;
-}
-
-function buildVeterinarianName(veterinarian: VeterinarianOption): string {
-  return [
-    veterinarian.firstName,
-    veterinarian.lastName,
-    veterinarian.secondLastName,
-  ]
-    .filter(Boolean)
-    .join(" ");
 }
 
 function getDefaultValues(
@@ -98,14 +80,20 @@ export function VeterinaryRequestFormModal({
   isOpen,
   mode,
   request,
-  clinics,
-  veterinarians,
-  isLoadingOptions,
   isSubmitting,
   onClose,
   onCreate,
   onUpdate,
 }: VeterinaryRequestFormModalProps) {
+  const [clinicSearchInput, setClinicSearchInput] = useState("");
+  const [debouncedClinicSearch, setDebouncedClinicSearch] = useState("");
+  const [clinicPage, setClinicPage] = useState(1);
+  const [veterinarianSearchInput, setVeterinarianSearchInput] = useState("");
+  const [debouncedVeterinarianSearch, setDebouncedVeterinarianSearch] =
+    useState("");
+  const [veterinarianPage, setVeterinarianPage] = useState(1);
+  const [referralNotice, setReferralNotice] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -123,57 +111,111 @@ export function VeterinaryRequestFormModal({
 
   const selectedVeterinarianId = watch("referringVeterinarianId");
 
-  const availableVeterinarians = useMemo(() => {
-    if (selectedClinicId) {
-      return veterinarians.filter(
-        (veterinarian) => veterinarian.veterinaryClinicId === selectedClinicId,
-      );
-    }
+  const normalizedClinicSearch = debouncedClinicSearch.trim();
+  const normalizedVeterinarianSearch = debouncedVeterinarianSearch.trim();
+  const clinicSearchPending =
+    clinicSearchInput.trim() !== normalizedClinicSearch;
+  const veterinarianSearchPending =
+    veterinarianSearchInput.trim() !== normalizedVeterinarianSearch;
 
-    return veterinarians.filter(
-      (veterinarian) => veterinarian.veterinaryClinicId === null,
-    );
-  }, [selectedClinicId, veterinarians]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setClinicPage(1);
+      setDebouncedClinicSearch(clinicSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [clinicSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setVeterinarianPage(1);
+      setDebouncedVeterinarianSearch(veterinarianSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [veterinarianSearchInput]);
+
+  const clinicsQuery = useQuery({
+    queryKey: [
+      "veterinary-request-clinic-options",
+      { search: normalizedClinicSearch, page: clinicPage },
+    ],
+    queryFn: () =>
+      getVeterinaryRequestClinicOptions({
+        search: normalizedClinicSearch || undefined,
+        page: clinicPage,
+        pageSize: 20,
+      }),
+    enabled: isOpen,
+  });
+
+  const veterinariansQuery = useQuery({
+    queryKey: [
+      "veterinary-request-veterinarian-options",
+      {
+        veterinaryClinicId: selectedClinicId,
+        search: normalizedVeterinarianSearch,
+        page: veterinarianPage,
+      },
+    ],
+    queryFn: () =>
+      getVeterinaryRequestVeterinarianOptions({
+        veterinaryClinicId: selectedClinicId || undefined,
+        search: normalizedVeterinarianSearch || undefined,
+        page: veterinarianPage,
+        pageSize: 20,
+      }),
+    enabled: isOpen,
+  });
+
+  const clinics = useMemo(() => {
+    const options = clinicsQuery.data?.items ?? [];
+    const current: VeterinaryRequestClinicOption | null =
+      request?.veterinaryClinicId && request.veterinaryClinicName
+        ? {
+            id: request.veterinaryClinicId,
+            displayName: request.veterinaryClinicName,
+          }
+        : null;
+
+    return current && !options.some((option) => option.id === current.id)
+      ? [current, ...options]
+      : options;
+  }, [clinicsQuery.data?.items, request]);
+
+  const veterinarians = useMemo(() => {
+    const options = veterinariansQuery.data?.items ?? [];
+    const current: VeterinaryRequestVeterinarianOption | null =
+      request?.referringVeterinarianId &&
+      request.referringVeterinarianName &&
+      selectedClinicId === (request.veterinaryClinicId ?? "")
+        ? {
+            id: request.referringVeterinarianId,
+            displayName: request.referringVeterinarianName,
+            veterinaryClinicId: request.veterinaryClinicId,
+          }
+        : null;
+
+    return current && !options.some((option) => option.id === current.id)
+      ? [current, ...options]
+      : options;
+  }, [request, selectedClinicId, veterinariansQuery.data?.items]);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
+    setClinicSearchInput("");
+    setDebouncedClinicSearch("");
+    setClinicPage(1);
+    setVeterinarianSearchInput("");
+    setDebouncedVeterinarianSearch("");
+    setVeterinarianPage(1);
+    setReferralNotice(null);
     reset(getDefaultValues(request));
   }, [isOpen, request, mode, reset]);
-
-  useEffect(() => {
-    if (!selectedVeterinarianId) {
-      return;
-    }
-
-    const veterinarian = veterinarians.find(
-      (item) => item.id === selectedVeterinarianId,
-    );
-
-    if (!veterinarian) {
-      setValue("referringVeterinarianId", "");
-      return;
-    }
-
-    if (
-      selectedClinicId &&
-      veterinarian.veterinaryClinicId !== selectedClinicId
-    ) {
-      setValue("referringVeterinarianId", "", {
-        shouldValidate: true,
-      });
-
-      return;
-    }
-
-    if (!selectedClinicId && veterinarian.veterinaryClinicId !== null) {
-      setValue("referringVeterinarianId", "", {
-        shouldValidate: true,
-      });
-    }
-  }, [selectedClinicId, selectedVeterinarianId, setValue, veterinarians]);
 
   if (!isOpen) {
     return null;
@@ -236,18 +278,82 @@ export function VeterinaryRequestFormModal({
 
                 <select
                   id="veterinaryClinicId"
-                  {...register("veterinaryClinicId")}
-                  disabled={isLoadingOptions}
+                  {...register("veterinaryClinicId", {
+                    onChange: (event) => {
+                      const nextClinicId = event.target.value as string;
+
+                      setVeterinarianPage(1);
+                      setVeterinarianSearchInput("");
+                      setDebouncedVeterinarianSearch("");
+
+                      if (
+                        selectedVeterinarianId &&
+                        nextClinicId !== selectedClinicId
+                      ) {
+                        setValue("referringVeterinarianId", "", {
+                          shouldValidate: true,
+                        });
+                        setReferralNotice(
+                          "Se quitó el veterinario porque cambiaste la veterinaria. Selecciona una referencia compatible.",
+                        );
+                      }
+                    },
+                  })}
+                  disabled={clinicsQuery.isFetching || clinicSearchPending}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
                 >
                   <option value="">Sin veterinaria</option>
 
                   {clinics.map((clinic) => (
                     <option key={clinic.id} value={clinic.id}>
-                      {clinic.name}
+                      {clinic.displayName}
                     </option>
                   ))}
                 </select>
+
+                <input
+                  type="search"
+                  value={clinicSearchInput}
+                  onChange={(event) => setClinicSearchInput(event.target.value)}
+                  placeholder="Buscar veterinaria"
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setClinicPage((current) => Math.max(1, current - 1))
+                    }
+                    disabled={clinicPage <= 1 || clinicsQuery.isFetching}
+                    className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                  >
+                    Anterior
+                  </button>
+                  <span>
+                    Página {clinicPage} de{" "}
+                    {Math.max(clinicsQuery.data?.totalPages ?? 0, 1)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setClinicPage((current) =>
+                        Math.min(
+                          current + 1,
+                          Math.max(clinicsQuery.data?.totalPages ?? 0, 1),
+                        ),
+                      )
+                    }
+                    disabled={
+                      clinicsQuery.isFetching ||
+                      clinicPage >=
+                        Math.max(clinicsQuery.data?.totalPages ?? 0, 1)
+                    }
+                    className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                  >
+                    Siguiente
+                  </button>
+                </div>
 
                 {errors.veterinaryClinicId && (
                   <p className="mt-1 text-xs text-red-600">
@@ -266,18 +372,70 @@ export function VeterinaryRequestFormModal({
 
                 <select
                   id="referringVeterinarianId"
-                  {...register("referringVeterinarianId")}
-                  disabled={isLoadingOptions}
+                  {...register("referringVeterinarianId", {
+                    onChange: () => setReferralNotice(null),
+                  })}
+                  disabled={
+                    veterinariansQuery.isFetching || veterinarianSearchPending
+                  }
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
                 >
                   <option value="">Sin veterinario</option>
 
-                  {availableVeterinarians.map((veterinarian) => (
+                  {veterinarians.map((veterinarian) => (
                     <option key={veterinarian.id} value={veterinarian.id}>
-                      {buildVeterinarianName(veterinarian)}
+                      {veterinarian.displayName}
                     </option>
                   ))}
                 </select>
+
+                <input
+                  type="search"
+                  value={veterinarianSearchInput}
+                  onChange={(event) =>
+                    setVeterinarianSearchInput(event.target.value)
+                  }
+                  placeholder="Buscar veterinario"
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVeterinarianPage((current) => Math.max(1, current - 1))
+                    }
+                    disabled={
+                      veterinarianPage <= 1 || veterinariansQuery.isFetching
+                    }
+                    className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                  >
+                    Anterior
+                  </button>
+                  <span>
+                    Página {veterinarianPage} de{" "}
+                    {Math.max(veterinariansQuery.data?.totalPages ?? 0, 1)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVeterinarianPage((current) =>
+                        Math.min(
+                          current + 1,
+                          Math.max(veterinariansQuery.data?.totalPages ?? 0, 1),
+                        ),
+                      )
+                    }
+                    disabled={
+                      veterinariansQuery.isFetching ||
+                      veterinarianPage >=
+                        Math.max(veterinariansQuery.data?.totalPages ?? 0, 1)
+                    }
+                    className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
+                  >
+                    Siguiente
+                  </button>
+                </div>
 
                 {errors.referringVeterinarianId && (
                   <p className="mt-1 text-xs text-red-600">
@@ -286,6 +444,12 @@ export function VeterinaryRequestFormModal({
                 )}
               </div>
             </div>
+
+            {referralNotice && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {referralNotice}
+              </p>
+            )}
           </section>
 
           <section className="rounded-2xl border border-slate-200 p-5">

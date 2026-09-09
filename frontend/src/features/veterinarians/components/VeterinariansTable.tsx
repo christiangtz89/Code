@@ -5,6 +5,7 @@ interface VeterinariansTableProps {
   veterinarians: Veterinarian[];
   showingActive: boolean;
   pendingVeterinarianId: string | null;
+  canManage: boolean;
   onEdit: (veterinarian: Veterinarian) => void;
   onDeactivate: (veterinarian: Veterinarian) => void;
   onRestore: (veterinarian: Veterinarian) => void;
@@ -18,6 +19,7 @@ export function VeterinariansTable({
   veterinarians,
   showingActive,
   pendingVeterinarianId,
+  canManage,
   onEdit,
   onDeactivate,
   onRestore,
@@ -68,9 +70,11 @@ export function VeterinariansTable({
                 Estado
               </th>
 
-              <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Acciones
-              </th>
+              {canManage && (
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Acciones
+                </th>
+              )}
             </tr>
           </thead>
 
@@ -120,40 +124,42 @@ export function VeterinariansTable({
                     </span>
                   </td>
 
-                  <td className="px-5 py-4 text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      {showingActive ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => onEdit(veterinarian)}
-                            disabled={isPending}
-                            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                          >
-                            Editar
-                          </button>
+                  {canManage && (
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {showingActive ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onEdit(veterinarian)}
+                              disabled={isPending}
+                              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              Editar
+                            </button>
 
+                            <button
+                              type="button"
+                              onClick={() => onDeactivate(veterinarian)}
+                              disabled={isPending}
+                              className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {isPending ? "Procesando..." : "Desactivar"}
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => onDeactivate(veterinarian)}
+                            onClick={() => onRestore(veterinarian)}
                             disabled={isPending}
-                            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                            className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
                           >
-                            {isPending ? "Procesando..." : "Desactivar"}
+                            {isPending ? "Restaurando..." : "Restaurar"}
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onRestore(veterinarian)}
-                          disabled={isPending}
-                          className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
-                        >
-                          {isPending ? "Restaurando..." : "Restaurar"}
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}

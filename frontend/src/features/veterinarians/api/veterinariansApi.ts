@@ -1,7 +1,9 @@
 import { apiClient } from "../../../services/apiClient";
 import type {
   GetVeterinariansParams,
+  GetVeterinarianClinicOptionsParams,
   PaginatedVeterinarians,
+  PaginatedVeterinarianClinicOptions,
   SearchVeterinariansParams,
   Veterinarian,
   VeterinarianPayload,
@@ -22,12 +24,23 @@ export async function getVeterinarians(
 
 export async function searchVeterinarians(
   params: SearchVeterinariansParams,
-): Promise<Veterinarian[]> {
-  const response = await apiClient.get<Veterinarian[]>(
+): Promise<PaginatedVeterinarians> {
+  const response = await apiClient.get<PaginatedVeterinarians>(
     "/Veterinarians/search",
     {
       params,
     },
+  );
+
+  return response.data;
+}
+
+export async function getVeterinarianClinicOptions(
+  params: GetVeterinarianClinicOptionsParams,
+): Promise<PaginatedVeterinarianClinicOptions> {
+  const response = await apiClient.get<PaginatedVeterinarianClinicOptions>(
+    "/Veterinarians/clinic-options",
+    { params },
   );
 
   return response.data;
