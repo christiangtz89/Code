@@ -1179,6 +1179,10 @@ public class AppDbContext : DbContext
                 .HasColumnName("Precio")
                 .HasPrecision(12, 2);
 
+            entity.Property(e => e.RequiredCollectionPaymentAmount)
+                .HasColumnName("MontoPagoRequeridoRecoleccion")
+                .HasPrecision(12, 2);
+
             entity.Property(x => x.IsPublic)
             .HasColumnName("EsPublico")
             .HasDefaultValue(true);
@@ -1460,7 +1464,11 @@ public class AppDbContext : DbContext
         // Payment account table configuration
         modelBuilder.Entity<PaymentAccount>(entity =>
         {
-            entity.ToTable("CuentasPago");
+            entity.ToTable(
+                "CuentasPago",
+                table => table.HasCheckConstraint(
+                    "CK_CuentasPago_Contexto",
+                    "\"CremacionId\" IS NOT NULL OR \"RecoleccionId\" IS NOT NULL"));
 
             entity.HasKey(pa => pa.Id);
 
@@ -1468,13 +1476,29 @@ public class AppDbContext : DbContext
                 .HasColumnName("Id");
 
             entity.Property(pa => pa.CremationId)
-                .HasColumnName("CremacionId")
-                .IsRequired();
+                .HasColumnName("CremacionId");
+
+            entity.Property(pa => pa.CollectionId)
+                .HasColumnName("RecoleccionId");
+
+            entity.Property(pa => pa.CremationPriceId)
+                .HasColumnName("PrecioCremacionId");
+
+            entity.Property(pa => pa.CremationPackageId)
+                .HasColumnName("PaqueteCremacionId");
+
+            entity.Property(pa => pa.PackageName)
+                .HasColumnName("NombrePaqueteSnapshot")
+                .HasMaxLength(150);
 
             entity.Property(pa => pa.ServiceTotal)
                 .HasColumnName("TotalServicio")
                 .HasPrecision(12, 2)
                 .IsRequired();
+
+            entity.Property(pa => pa.RequiredCollectionPaymentAmount)
+                .HasColumnName("MontoPagoRequeridoRecoleccion")
+                .HasPrecision(12, 2);
 
             entity.Property(pa => pa.CreatedAt)
                 .HasColumnName("FechaCreacion")
@@ -1486,11 +1510,35 @@ public class AppDbContext : DbContext
             entity.HasIndex(pa => pa.CremationId)
                 .IsUnique();
 
+            entity.HasIndex(pa => pa.CollectionId)
+                .IsUnique()
+                .HasFilter("\"RecoleccionId\" IS NOT NULL");
+
+            entity.HasIndex(pa => pa.CremationPriceId);
+
+            entity.HasIndex(pa => pa.CremationPackageId);
+
             entity.HasOne(pa => pa.Cremation)
                 .WithOne(c => c.PaymentAccount)
                 .HasForeignKey<PaymentAccount>(
                     pa => pa.CremationId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(pa => pa.Collection)
+                .WithOne()
+                .HasForeignKey<PaymentAccount>(pa => pa.CollectionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(pa => pa.CremationPrice)
+                .WithMany()
+                .HasForeignKey(pa => pa.CremationPriceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(pa => pa.CremationPackage)
+                .WithMany()
+                .HasForeignKey(pa => pa.CremationPackageId)
+                .OnDelete(DeleteBehavior.Restrict);
+
         });
 
         // Payment transaction table configuration

@@ -46,6 +46,24 @@ export function PaymentSummaryCard({ account }: PaymentSummaryCardProps) {
         </div>
       </div>
 
+      {account.requiredCollectionPaymentAmount !== null && (
+        <div
+          className={`mt-5 rounded-xl border px-4 py-3 text-sm ${
+            account.isCollectionPaymentSatisfied
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-amber-200 bg-amber-50 text-amber-800"
+          }`}
+        >
+          Pago requerido para recepción:{" "}
+          <strong>
+            {formatPaymentCurrency(account.requiredCollectionPaymentAmount)}
+          </strong>
+          {account.isCollectionPaymentSatisfied
+            ? " — cubierto"
+            : " — pendiente"}
+        </div>
+      )}
+
       <div className="mt-5 grid gap-4 border-t border-slate-200 pt-5 sm:grid-cols-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">

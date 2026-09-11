@@ -43,6 +43,23 @@ export const cremationPriceSchema = z
         "El precio excede el máximo permitido.",
       ),
 
+    requiredCollectionPaymentAmount: z
+      .string()
+      .trim()
+      .min(1, "El pago requerido para la recolección es obligatorio.")
+      .refine(
+        (value) => /^\d+(?:[.,]\d{1,2})?$/.test(value),
+        "Ingresa un pago requerido válido con máximo dos decimales.",
+      )
+      .refine(
+        (value) => Number(value.replace(",", ".")) > 0,
+        "El pago requerido debe ser mayor que cero.",
+      )
+      .refine(
+        (value) => Number(value.replace(",", ".")) <= 9999999999.99,
+        "El pago requerido excede el máximo permitido.",
+      ),
+
     isPublic: z.boolean(),
 
     isActive: z.boolean(),
@@ -53,6 +70,17 @@ export const cremationPriceSchema = z
         code: "custom",
         path: ["maximumWeightKg"],
         message: "El peso máximo debe ser mayor al peso mínimo.",
+      });
+    }
+
+    if (
+      Number(data.requiredCollectionPaymentAmount.replace(",", ".")) >
+      Number(data.price.replace(",", "."))
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["requiredCollectionPaymentAmount"],
+        message: "El pago requerido no puede exceder el precio del servicio.",
       });
     }
   });

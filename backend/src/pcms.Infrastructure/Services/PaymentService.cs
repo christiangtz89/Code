@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using pcms.Application.Payments.DTOs;
 using pcms.Application.Payments.Interfaces;
+using pcms.Application.CremationPricing.Interfaces;
 using pcms.Domain.Entities;
 using pcms.Domain.Enums;
 using pcms.Infrastructure.Persistence;
@@ -11,10 +12,14 @@ namespace pcms.Infrastructure.Services;
 public class PaymentService : IPaymentService
 {
     private readonly AppDbContext _context;
+    private readonly ICremationPricingService _cremationPricingService;
 
-    public PaymentService(AppDbContext context)
+    public PaymentService(
+        AppDbContext context,
+        ICremationPricingService cremationPricingService)
     {
         _context = context;
+        _cremationPricingService = cremationPricingService;
     }
 
     public async Task<PaymentAccountDto> CreateAccountAsync(
@@ -29,6 +34,7 @@ public class PaymentService : IPaymentService
         var cremation =
     await _context.Cremations
         .AsNoTracking()
+        .Include(c => c.CremationPackage)
         .FirstOrDefaultAsync(c =>
             c.Id == dto.CremationId &&
             c.IsActive);
@@ -62,6 +68,12 @@ public class PaymentService : IPaymentService
             Id = Guid.NewGuid(),
             CremationId = dto.CremationId,
 
+            CremationPackageId =
+                cremation.CremationPackageId,
+
+            PackageName =
+                cremation.PackageName,
+
             ServiceTotal =
     quotedPrice,
             CreatedAt = DateTime.UtcNow
@@ -70,6 +82,122 @@ public class PaymentService : IPaymentService
         _context.PaymentAccounts.Add(account);
 
         await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(account.Id)
+            ?? throw new InvalidOperationException(
+                "No fue posible recuperar la cuenta de pago creada.");
+    }
+
+    public async Task<PaymentAccountDto>
+        CreateCollectionAccountAsync(
+            CreateCollectionPaymentAccountDto dto)
+    {
+        if (dto.CollectionId == Guid.Empty ||
+            dto.CremationPriceId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "Debe seleccionar una recolección y un precio de servicio válidos.");
+        }
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var collection = await _context.Collections
+            .Include(current => current.Pet)
+                .ThenInclude(pet => pet.Customer)
+            .Include(current => current.Reception)
+            .FirstOrDefaultAsync(current =>
+                current.Id == dto.CollectionId &&
+                current.IsActive);
+
+        if (collection == null)
+        {
+            throw new InvalidOperationException(
+                "No se encontró una recolección activa.");
+        }
+
+        if (collection.Status != CollectionStatus.Collected ||
+            !collection.CollectedByUserId.HasValue ||
+            !collection.CollectedAt.HasValue ||
+            collection.Reception != null)
+        {
+            throw new InvalidOperationException(
+                "La cuenta de pago solo puede prepararse para una recolección con custodia confirmada y sin recepción.");
+        }
+
+        if (await _context.PaymentAccounts.AnyAsync(account =>
+                account.CollectionId == collection.Id))
+        {
+            throw new InvalidOperationException(
+                "La recolección ya tiene una cuenta de pago.");
+        }
+
+        var selectedPrice = await _context.CremationPrices
+            .AsNoTracking()
+            .Include(price => price.CremationPackage)
+            .FirstOrDefaultAsync(price =>
+                price.Id == dto.CremationPriceId &&
+                price.IsActive &&
+                price.CremationPackage.IsActive);
+
+        if (selectedPrice == null)
+        {
+            throw new InvalidOperationException(
+                "El precio de servicio seleccionado no existe o está inactivo.");
+        }
+
+        var expectedCremationType =
+            selectedPrice.CremationPackage.PackageType ==
+                CremationPackageType.AshesReturn
+                ? CremationType.Individual
+                : CremationType.Communal;
+
+        if (selectedPrice.CremationType != expectedCremationType)
+        {
+            throw new InvalidOperationException(
+                "El precio seleccionado no corresponde al tipo de cremación del paquete.");
+        }
+
+        var weightKg =
+            collection.ApproximateWeightKg ??
+            collection.Pet.WeightKg;
+
+        var quote = await _cremationPricingService.GetQuoteAsync(
+            selectedPrice.CremationPackageId,
+            weightKg,
+            selectedPrice.CremationType);
+
+        if (quote.MinimumWeightKg != selectedPrice.MinimumWeightKg ||
+            quote.MaximumWeightKg != selectedPrice.MaximumWeightKg ||
+            quote.Price != selectedPrice.Price)
+        {
+            throw new InvalidOperationException(
+                "El precio seleccionado no corresponde al peso de la recolección.");
+        }
+
+        if (quote.RequiredCollectionPaymentAmount is not decimal required ||
+            required <= 0m)
+        {
+            throw new InvalidOperationException(
+                "El precio del servicio no tiene configurado el pago requerido para recolección.");
+        }
+
+        var account = new PaymentAccount
+        {
+            Id = Guid.NewGuid(),
+            CollectionId = collection.Id,
+            CremationPriceId = selectedPrice.Id,
+            CremationPackageId = selectedPrice.CremationPackageId,
+            PackageName = selectedPrice.CremationPackage.Name,
+            ServiceTotal = quote.Price,
+            RequiredCollectionPaymentAmount = required,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.PaymentAccounts.Add(account);
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return await GetByIdAsync(account.Id)
             ?? throw new InvalidOperationException(
@@ -98,6 +226,52 @@ public class PaymentService : IPaymentService
                     PackageName = c.PackageName
                 })
             .ToListAsync();
+    }
+
+    public async Task<IEnumerable<PaymentCollectionOptionDto>>
+        GetAvailableCollectionOptionsAsync()
+    {
+        return await (
+            from collection in _context.Collections.AsNoTracking()
+            let weightKg = collection.ApproximateWeightKg ??
+                collection.Pet.WeightKg
+            from price in _context.CremationPrices.AsNoTracking()
+            where collection.IsActive &&
+                collection.Status == CollectionStatus.Collected &&
+                collection.Reception == null &&
+                !_context.PaymentAccounts.Any(account =>
+                    account.CollectionId == collection.Id) &&
+                price.IsActive &&
+                price.CremationPackage.IsActive &&
+                price.RequiredCollectionPaymentAmount.HasValue &&
+                price.RequiredCollectionPaymentAmount.Value > 0m &&
+                price.RequiredCollectionPaymentAmount.Value <= price.Price &&
+                ((price.CremationPackage.PackageType ==
+                        CremationPackageType.AshesReturn &&
+                    price.CremationType == CremationType.Individual) ||
+                 (price.CremationPackage.PackageType ==
+                        CremationPackageType.NoAshes &&
+                    price.CremationType == CremationType.Communal)) &&
+                weightKg >= price.MinimumWeightKg &&
+                weightKg <= price.MaximumWeightKg
+            orderby collection.CreatedAt descending,
+                price.CremationPackage.DisplayOrder,
+                price.CremationPackage.Name
+            select new PaymentCollectionOptionDto
+            {
+                CollectionId = collection.Id,
+                CremationPriceId = price.Id,
+                QrCode = collection.QrCode,
+                PetName = collection.Pet.Name,
+                CustomerName =
+                    collection.Pet.Customer.FirstName + " " +
+                    collection.Pet.Customer.LastName,
+                PackageName = price.CremationPackage.Name,
+                WeightKg = weightKg,
+                ServiceTotal = price.Price,
+                RequiredCollectionPaymentAmount =
+                    price.RequiredCollectionPaymentAmount ?? 0m
+            }).ToListAsync();
     }
 
     public async Task<PagedPaymentAccountsDto> GetAllAsync(
@@ -247,6 +421,7 @@ public class PaymentService : IPaymentService
 
         var account = await _context.PaymentAccounts
             .Include(pa => pa.Cremation)
+            .Include(pa => pa.Collection)
             .Include(pa => pa.Payments)
             .FirstOrDefaultAsync(pa =>
                 pa.Id == paymentAccountId);
@@ -257,10 +432,15 @@ public class PaymentService : IPaymentService
                 "No se encontró la cuenta de pago.");
         }
 
-        if (!account.Cremation.IsActive)
+        var serviceIsActive =
+            account.Cremation?.IsActive == true ||
+            (account.Collection?.IsActive == true &&
+             account.Collection.Status != CollectionStatus.Cancelled);
+
+        if (!serviceIsActive)
         {
             throw new InvalidOperationException(
-                "No se pueden registrar pagos para una cremación inactiva.");
+                "No se pueden registrar pagos para un servicio inactivo o cancelado.");
         }
 
         var amountPaid = account.Payments.Sum(
@@ -352,18 +532,29 @@ public class PaymentService : IPaymentService
         var query = _context.PaymentAccounts
             .AsNoTracking()
             .Where(pa =>
-                EF.Functions.ILike(
-                    pa.Cremation.Reception.QrCode,
-                    pattern) ||
-                EF.Functions.ILike(
-                    pa.Cremation.Reception.PetNameSnapshot,
-                    pattern) ||
-                EF.Functions.ILike(
-                    pa.Cremation.Reception.CustomerNameSnapshot,
-                    pattern) ||
-                EF.Functions.ILike(
-                    pa.Cremation.PackageName,
-                    pattern));
+                (pa.Cremation != null &&
+                 (EF.Functions.ILike(
+                      pa.Cremation.Reception.QrCode,
+                      pattern) ||
+                  EF.Functions.ILike(
+                      pa.Cremation.Reception.PetNameSnapshot,
+                      pattern) ||
+                  EF.Functions.ILike(
+                      pa.Cremation.Reception.CustomerNameSnapshot,
+                      pattern))) ||
+                (pa.Collection != null &&
+                 (EF.Functions.ILike(
+                      pa.Collection.QrCode,
+                      pattern) ||
+                  EF.Functions.ILike(
+                      pa.Collection.Pet.Name,
+                      pattern) ||
+                  EF.Functions.ILike(
+                      pa.Collection.Pet.Customer.FirstName + " " +
+                      pa.Collection.Pet.Customer.LastName,
+                      pattern))) ||
+                (pa.PackageName != null &&
+                 EF.Functions.ILike(pa.PackageName, pattern)));
 
         query = ApplyStatusFilter(
             query,
@@ -438,9 +629,14 @@ public class PaymentService : IPaymentService
             .Where(pa =>
                 orderedIds.Contains(pa.Id))
             .Include(pa => pa.Cremation)
-                .ThenInclude(c => c.Reception)
+                .ThenInclude(c => c!.Reception)
                     .ThenInclude(r => r.Pet)
                         .ThenInclude(p => p.Customer)
+            .Include(pa => pa.Collection)
+                .ThenInclude(c => c!.Pet)
+                    .ThenInclude(p => p.Customer)
+            .Include(pa => pa.Collection)
+                .ThenInclude(c => c!.Reception)
             .Include(pa => pa.Payments)
                 .ThenInclude(payment =>
                     payment.RecordedByUser)
@@ -474,8 +670,11 @@ public class PaymentService : IPaymentService
         PaymentAccount account)
     {
         var cremation = account.Cremation;
-        var reception = cremation.Reception;
-        var pet = reception.Pet;
+        var collection = account.Collection;
+        var reception = cremation?.Reception ?? collection?.Reception;
+        var pet = reception?.Pet ?? collection?.Pet
+            ?? throw new InvalidOperationException(
+                "La cuenta de pago no tiene un contexto de servicio válido.");
 
         var amountPaid = account.Payments.Sum(
             payment => payment.Amount);
@@ -488,15 +687,28 @@ public class PaymentService : IPaymentService
         {
             Id = account.Id,
             CremationId = account.CremationId,
-            ReceptionId = cremation.ReceptionId,
-            QrCode = reception.QrCode,
-            PetId = reception.Pet.Id,
-            PetName = reception.PetNameSnapshot,
+            CollectionId = account.CollectionId,
+            ReceptionId = reception?.Id,
+            QrCode = reception?.QrCode ?? collection!.QrCode,
+            PetId = pet.Id,
+            PetName = reception?.PetNameSnapshot ?? pet.Name,
             CustomerId = pet.CustomerId,
-            CustomerName = reception.CustomerNameSnapshot,
-            PackageName = cremation.PackageName,
-            IsCremationActive = cremation.IsActive,
+            CustomerName = reception?.CustomerNameSnapshot ??
+                BuildUserName(
+                    pet.Customer.FirstName,
+                    pet.Customer.LastName),
+            PackageName = account.PackageName ??
+                cremation?.PackageName ??
+                string.Empty,
+            IsCremationActive = cremation?.IsActive ??
+                collection?.IsActive == true,
             ServiceTotal = account.ServiceTotal,
+            RequiredCollectionPaymentAmount =
+                account.RequiredCollectionPaymentAmount,
+            IsCollectionPaymentSatisfied =
+                !account.RequiredCollectionPaymentAmount.HasValue ||
+                amountPaid >=
+                    account.RequiredCollectionPaymentAmount.Value,
             AmountPaid = amountPaid,
             Balance = balance,
             Status = GetPaymentStatus(

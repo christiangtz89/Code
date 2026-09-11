@@ -99,6 +99,21 @@ export function PaymentsTable({
                       <p className="mt-1 text-xs font-medium text-slate-500">
                         QR: {account.qrCode}
                       </p>
+
+                      {account.requiredCollectionPaymentAmount !== null && (
+                        <p
+                          className={`mt-2 text-xs font-semibold ${
+                            account.isCollectionPaymentSatisfied
+                              ? "text-emerald-700"
+                              : "text-amber-700"
+                          }`}
+                        >
+                          Pago para recepción{" "}
+                          {account.isCollectionPaymentSatisfied
+                            ? "cubierto"
+                            : "pendiente"}
+                        </p>
+                      )}
                     </div>
                   </td>
 
@@ -164,7 +179,7 @@ export function PaymentsTable({
 
                       {!account.isCremationActive && (
                         <span className="px-3 py-1 text-right text-xs font-medium text-slate-500">
-                          Cremación inactiva
+                          Servicio inactivo
                         </span>
                       )}
                     </div>

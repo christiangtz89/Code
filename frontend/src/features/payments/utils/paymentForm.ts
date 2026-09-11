@@ -1,5 +1,6 @@
 import {
   PaymentMethod,
+  type CreateCollectionPaymentAccountPayload,
   type CreatePaymentAccountPayload,
   type CreatePaymentPayload,
 } from "../types/payment.types";
@@ -40,7 +41,18 @@ export function createPaymentAccountPayload(
   values: CreatePaymentAccountFormValues,
 ): CreatePaymentAccountPayload {
   return {
-    cremationId: values.cremationId,
+    cremationId: values.selectionId,
+  };
+}
+
+export function createCollectionPaymentAccountPayload(
+  values: CreatePaymentAccountFormValues,
+): CreateCollectionPaymentAccountPayload {
+  const [collectionId, cremationPriceId] = values.selectionId.split("|");
+
+  return {
+    collectionId,
+    cremationPriceId,
   };
 }
 

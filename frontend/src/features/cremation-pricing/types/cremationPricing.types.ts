@@ -44,6 +44,8 @@ export interface CremationPrice {
 
   price: number;
 
+  requiredCollectionPaymentAmount: number | null;
+
   isPublic: boolean;
 
   isActive: boolean;
@@ -63,6 +65,8 @@ export interface CreateCremationPricePayload {
   maximumWeightKg: number;
 
   price: number;
+
+  requiredCollectionPaymentAmount: number;
 
   isPublic: boolean;
 
@@ -87,4 +91,6 @@ export interface CremationPriceQuote {
   maximumWeightKg: number;
 
   price: number;
+
+  requiredCollectionPaymentAmount: number | null;
 }

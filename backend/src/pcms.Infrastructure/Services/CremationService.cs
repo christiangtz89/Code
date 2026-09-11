@@ -155,6 +155,44 @@ public class CremationService : ICremationService
         reception.VerifiedWeightKg,
         cremationType);
 
+        PaymentAccount? collectionPaymentAccount = null;
+        var quotedPrice = quote.Price;
+
+        if (reception.CollectionId.HasValue)
+        {
+            collectionPaymentAccount = await _context.PaymentAccounts
+                .Include(account => account.Payments)
+                .FirstOrDefaultAsync(account =>
+                    account.CollectionId == reception.CollectionId.Value);
+
+            if (collectionPaymentAccount != null &&
+                collectionPaymentAccount.CremationPackageId != package.Id)
+            {
+                throw new InvalidOperationException(
+                    "El paquete seleccionado no corresponde al servicio asociado al pago de la recolección.");
+            }
+
+            if (collectionPaymentAccount != null &&
+                collectionPaymentAccount.ServiceTotal <= 0m)
+            {
+                throw new InvalidOperationException(
+                    "La cuenta de pago no tiene un precio histórico válido.");
+            }
+
+            if (collectionPaymentAccount != null)
+            {
+                quotedPrice = collectionPaymentAccount.ServiceTotal;
+            }
+
+            if (collectionPaymentAccount != null &&
+                collectionPaymentAccount.Payments.Sum(payment =>
+                    payment.Amount) > quotedPrice)
+            {
+                throw new InvalidOperationException(
+                    "Los pagos registrados exceden el precio cotizado para la cremación.");
+            }
+        }
+
         ValidateScheduledAt(dto.ScheduledAt);
 
         if (dto.ScheduledAt.HasValue &&
@@ -207,7 +245,7 @@ public class CremationService : ICremationService
             AccessoryDescription = accessoryDescription,
             IncludesCertificate = package.IncludesCertificate,
             QuotedPrice =
-    quote.Price,
+    quotedPrice,
 
             QuotedWeightKg =
     quote.WeightKg,
@@ -233,6 +271,12 @@ public class CremationService : ICremationService
         };
 
         _context.Cremations.Add(cremation);
+
+        if (collectionPaymentAccount != null)
+        {
+            collectionPaymentAccount.CremationId = cremation.Id;
+            collectionPaymentAccount.UpdatedAt = currentTime;
+        }
 
         await _context.SaveChangesAsync();
 

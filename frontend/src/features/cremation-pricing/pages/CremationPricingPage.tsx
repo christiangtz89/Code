@@ -333,6 +333,10 @@ export function CremationPricingPage() {
                     Precio
                   </th>
 
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Pago para recepción
+                  </th>
+
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Visibilidad
                   </th>
@@ -365,6 +369,12 @@ export function CremationPricingPage() {
 
                     <td className="px-4 py-3 text-right text-sm font-semibold text-slate-900">
                       {formatCurrency(price.price)}
+                    </td>
+
+                    <td className="px-4 py-3 text-right text-sm font-medium text-slate-700">
+                      {price.requiredCollectionPaymentAmount === null
+                        ? "Sin configurar"
+                        : formatCurrency(price.requiredCollectionPaymentAmount)}
                     </td>
 
                     <td className="px-4 py-3 text-center">

@@ -872,6 +872,36 @@ public class CollectionService : ICollectionService
                 "La recolección debe conservar al menos una fotografía activa de identificación o evidencia antes de crear la recepción.");
         }
 
+        var paymentAccount = await _context.PaymentAccounts
+            .Include(account => account.Payments)
+            .FirstOrDefaultAsync(account =>
+                account.CollectionId == collection.Id);
+
+        if (paymentAccount == null)
+        {
+            throw new InvalidOperationException(
+                "Debe registrarse la cuenta y el pago requerido de la recolección antes de crear la recepción.");
+        }
+
+        if (paymentAccount.RequiredCollectionPaymentAmount
+                is not decimal requiredPaymentAmount ||
+            requiredPaymentAmount <= 0m)
+        {
+            throw new InvalidOperationException(
+                "La cuenta no tiene configurado un pago requerido válido para la recolección.");
+        }
+
+        var amountPaid = paymentAccount.Payments.Sum(
+            payment => payment.Amount);
+
+        if (amountPaid < requiredPaymentAmount)
+        {
+            throw new InvalidOperationException(
+                $"El pago requerido para recibir la mascota es de " +
+                $"{requiredPaymentAmount:0.00} MXN; se han registrado " +
+                $"{amountPaid:0.00} MXN.");
+        }
+
         if (collection.Reception != null)
         {
             throw new InvalidOperationException(

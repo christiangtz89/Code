@@ -8,8 +8,14 @@ public interface IPaymentService
     Task<PaymentAccountDto> CreateAccountAsync(
         CreatePaymentAccountDto dto);
 
+    Task<PaymentAccountDto> CreateCollectionAccountAsync(
+        CreateCollectionPaymentAccountDto dto);
+
     Task<IEnumerable<PaymentCremationOptionDto>>
         GetAvailableCremationOptionsAsync();
+
+    Task<IEnumerable<PaymentCollectionOptionDto>>
+        GetAvailableCollectionOptionsAsync();
 
     Task<PagedPaymentAccountsDto> GetAllAsync(
         int page,

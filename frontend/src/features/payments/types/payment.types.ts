@@ -32,8 +32,9 @@ export interface Payment {
 
 export interface PaymentAccount {
   id: string;
-  cremationId: string;
-  receptionId: string;
+  cremationId: string | null;
+  collectionId: string | null;
+  receptionId: string | null;
   qrCode: string;
   petId: string;
   petName: string;
@@ -42,6 +43,8 @@ export interface PaymentAccount {
   packageName: string;
   isCremationActive: boolean;
   serviceTotal: number;
+  requiredCollectionPaymentAmount: number | null;
+  isCollectionPaymentSatisfied: boolean;
   amountPaid: number;
   balance: number;
   status: PaymentStatus;
@@ -52,6 +55,11 @@ export interface PaymentAccount {
 
 export interface CreatePaymentAccountPayload {
   cremationId: string;
+}
+
+export interface CreateCollectionPaymentAccountPayload {
+  collectionId: string;
+  cremationPriceId: string;
 }
 
 export interface CreatePaymentPayload {
@@ -87,4 +95,16 @@ export interface PaymentCremationOption {
   petName: string;
   customerName: string;
   packageName: string;
+}
+
+export interface PaymentCollectionOption {
+  collectionId: string;
+  cremationPriceId: string;
+  qrCode: string;
+  petName: string;
+  customerName: string;
+  packageName: string;
+  weightKg: number;
+  serviceTotal: number;
+  requiredCollectionPaymentAmount: number;
 }

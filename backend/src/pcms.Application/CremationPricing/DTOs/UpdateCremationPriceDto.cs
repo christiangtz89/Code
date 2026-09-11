@@ -24,6 +24,14 @@ public class UpdateCremationPriceDto
         ErrorMessage = "El precio debe ser mayor que cero.")]
     public decimal Price { get; set; }
 
+    [Range(
+        typeof(decimal),
+        "0.01",
+        "9999999999.99",
+        ErrorMessage =
+            "El pago requerido para recolección debe ser mayor que cero.")]
+    public decimal RequiredCollectionPaymentAmount { get; set; }
+
     public bool IsPublic { get; set; } = true;
 
     public bool IsActive { get; set; }

@@ -18,6 +18,8 @@ public class CremationPrice
 
     public decimal Price { get; set; }
 
+    public decimal? RequiredCollectionPaymentAmount { get; set; }
+
     public bool IsPublic { get; set; } = true;
 
     public bool IsActive { get; set; } = true;

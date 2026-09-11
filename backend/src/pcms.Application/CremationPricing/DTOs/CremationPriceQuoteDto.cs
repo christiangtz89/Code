@@ -19,4 +19,6 @@ public class CremationPriceQuoteDto
     public decimal MaximumWeightKg { get; set; }
 
     public decimal Price { get; set; }
+
+    public decimal? RequiredCollectionPaymentAmount { get; set; }
 }

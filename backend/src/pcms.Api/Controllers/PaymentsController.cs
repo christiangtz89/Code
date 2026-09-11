@@ -20,6 +20,32 @@ public class PaymentsController : ControllerBase
         _paymentService = paymentService;
     }
 
+    [HttpPost("accounts/collection")]
+    [Authorize(Policy = "Payments.Manage")]
+    public async Task<ActionResult<PaymentAccountDto>>
+        CreateCollectionAccount(
+            CreateCollectionPaymentAccountDto dto)
+    {
+        try
+        {
+            var account = await _paymentService
+                .CreateCollectionAccountAsync(dto);
+
+            return CreatedAtAction(
+                nameof(GetById),
+                new { id = account.Id },
+                account);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
     [HttpPost("accounts")]
     [Authorize(Policy = "Payments.Manage")]
     public async Task<ActionResult<PaymentAccountDto>>
@@ -282,5 +308,16 @@ public class PaymentsController : ControllerBase
                 .GetAvailableCremationOptionsAsync();
 
         return Ok(cremations);
+    }
+
+    [HttpGet("options/collections")]
+    [Authorize(Policy = "Payments.Manage")]
+    public async Task<
+        ActionResult<IEnumerable<PaymentCollectionOptionDto>>>
+        GetAvailableCollectionOptions()
+    {
+        return Ok(
+            await _paymentService
+                .GetAvailableCollectionOptionsAsync());
     }
 }

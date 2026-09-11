@@ -10,7 +10,9 @@ import toast from "react-hot-toast";
 
 import {
   addPayment,
+  createCollectionPaymentAccount,
   createPaymentAccount,
+  getAvailablePaymentCollections,
   getAvailablePaymentCremations,
   getPaymentAccountById,
   getPaymentAccounts,
@@ -30,6 +32,7 @@ import {
 } from "../types/payment.types";
 import {
   createPaymentAccountPayload,
+  createCollectionPaymentAccountPayload,
   createPaymentPayload,
 } from "../utils/paymentForm";
 
@@ -170,6 +173,14 @@ export function PaymentsPage() {
     enabled: isAccountModalOpen,
   });
 
+  const availableCollectionsQuery = useQuery({
+    queryKey: ["payments", "options", "collections"],
+
+    queryFn: getAvailablePaymentCollections,
+
+    enabled: isAccountModalOpen,
+  });
+
   const detailsAccountId = detailsAccount?.id ?? "";
 
   const detailsAccountQuery = useQuery({
@@ -188,7 +199,11 @@ export function PaymentsPage() {
 
   const createAccountMutation = useMutation({
     mutationFn: (values: CreatePaymentAccountFormValues) =>
-      createPaymentAccount(createPaymentAccountPayload(values)),
+      values.sourceType === "collection"
+        ? createCollectionPaymentAccount(
+            createCollectionPaymentAccountPayload(values),
+          )
+        : createPaymentAccount(createPaymentAccountPayload(values)),
 
     onSuccess: refreshPayments,
   });
@@ -407,7 +422,11 @@ export function PaymentsPage() {
       <PaymentAccountFormModal
         isOpen={isAccountModalOpen}
         cremations={availableCremationsQuery.data ?? []}
-        isLoadingCremations={availableCremationsQuery.isLoading}
+        collections={availableCollectionsQuery.data ?? []}
+        isLoadingOptions={
+          availableCremationsQuery.isLoading ||
+          availableCollectionsQuery.isLoading
+        }
         isSubmitting={isAccountSubmitting}
         onClose={() => {
           if (!isAccountSubmitting) {

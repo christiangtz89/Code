@@ -1,12 +1,14 @@
 import { apiClient } from "../../../services/apiClient";
 import type {
   CreatePaymentAccountPayload,
+  CreateCollectionPaymentAccountPayload,
   CreatePaymentPayload,
   GetPaymentAccountsParams,
   PaginatedPaymentAccounts,
   Payment,
   PaymentAccount,
   PaymentCremationOption,
+  PaymentCollectionOption,
   SearchPaymentAccountsParams,
 } from "../types/payment.types";
 
@@ -69,6 +71,17 @@ export async function createPaymentAccount(
   return response.data;
 }
 
+export async function createCollectionPaymentAccount(
+  payload: CreateCollectionPaymentAccountPayload,
+): Promise<PaymentAccount> {
+  const response = await apiClient.post<PaymentAccount>(
+    `${PAYMENTS_URL}/accounts/collection`,
+    payload,
+  );
+
+  return response.data;
+}
+
 export async function addPayment(
   paymentAccountId: string,
   payload: CreatePaymentPayload,
@@ -96,6 +109,16 @@ export async function getAvailablePaymentCremations(): Promise<
 > {
   const response = await apiClient.get<PaymentCremationOption[]>(
     `${PAYMENTS_URL}/options/cremations`,
+  );
+
+  return response.data;
+}
+
+export async function getAvailablePaymentCollections(): Promise<
+  PaymentCollectionOption[]
+> {
+  const response = await apiClient.get<PaymentCollectionOption[]>(
+    `${PAYMENTS_URL}/options/collections`,
   );
 
   return response.data;

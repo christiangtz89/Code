@@ -6,9 +6,11 @@ public class PaymentAccountDto
 {
     public Guid Id { get; set; }
 
-    public Guid CremationId { get; set; }
+    public Guid? CremationId { get; set; }
 
-    public Guid ReceptionId { get; set; }
+    public Guid? CollectionId { get; set; }
+
+    public Guid? ReceptionId { get; set; }
 
     public string QrCode { get; set; } = string.Empty;
 
@@ -25,6 +27,10 @@ public class PaymentAccountDto
     public bool IsCremationActive { get; set; }
 
     public decimal ServiceTotal { get; set; }
+
+    public decimal? RequiredCollectionPaymentAmount { get; set; }
+
+    public bool IsCollectionPaymentSatisfied { get; set; }
 
     public decimal AmountPaid { get; set; }
 

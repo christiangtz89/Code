@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const createPaymentAccountSchema = z.object({
-  cremationId: z.string().uuid("Selecciona una cremación válida."),
+  sourceType: z.enum(["collection", "cremation"]),
+  selectionId: z.string().min(1, "Selecciona un servicio válido."),
 });
 
 export type CreatePaymentAccountFormValues = z.infer<

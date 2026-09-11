@@ -20,6 +20,8 @@ public class CremationPriceDto
 
     public decimal Price { get; set; }
 
+    public decimal? RequiredCollectionPaymentAmount { get; set; }
+
     public bool IsPublic { get; set; }
 
     public bool IsActive { get; set; }

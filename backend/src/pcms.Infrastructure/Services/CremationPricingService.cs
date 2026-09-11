@@ -104,6 +104,7 @@ public class CremationPricingService : ICremationPricingService
             dto.MinimumWeightKg,
             dto.MaximumWeightKg,
             dto.Price,
+            dto.RequiredCollectionPaymentAmount,
             dto.CremationType);
 
         var configuration =
@@ -141,6 +142,8 @@ public class CremationPricingService : ICremationPricingService
             MinimumWeightKg = dto.MinimumWeightKg,
             MaximumWeightKg = dto.MaximumWeightKg,
             Price = dto.Price,
+            RequiredCollectionPaymentAmount =
+                dto.RequiredCollectionPaymentAmount,
             IsPublic = dto.IsPublic,
             IsActive = dto.IsActive,
             CreatedAt = DateTime.UtcNow,
@@ -172,6 +175,7 @@ public class CremationPricingService : ICremationPricingService
             dto.MinimumWeightKg,
             dto.MaximumWeightKg,
             dto.Price,
+            dto.RequiredCollectionPaymentAmount,
             dto.CremationType);
 
         var configuration =
@@ -222,6 +226,8 @@ public class CremationPricingService : ICremationPricingService
             dto.MaximumWeightKg;
         price.Price =
             dto.Price;
+        price.RequiredCollectionPaymentAmount =
+            dto.RequiredCollectionPaymentAmount;
         price.IsPublic = dto.IsPublic;
         price.IsActive =
             dto.IsActive;
@@ -306,7 +312,9 @@ public class CremationPricingService : ICremationPricingService
             WeightKg = weightKg,
             MinimumWeightKg = price.MinimumWeightKg,
             MaximumWeightKg = price.MaximumWeightKg,
-            Price = price.Price
+            Price = price.Price,
+            RequiredCollectionPaymentAmount =
+                price.RequiredCollectionPaymentAmount
         };
     }
 
@@ -467,6 +475,7 @@ public class CremationPricingService : ICremationPricingService
         decimal minimumWeightKg,
         decimal maximumWeightKg,
         decimal price,
+        decimal requiredCollectionPaymentAmount,
         CremationType cremationType)
     {
         if (!Enum.IsDefined(
@@ -524,6 +533,25 @@ public class CremationPricingService : ICremationPricingService
         {
             throw new ArgumentException(
                 $"El precio no puede exceder {MaximumPrice:0.00}.");
+        }
+
+        if (!HasAtMostTwoDecimalPlaces(
+                requiredCollectionPaymentAmount))
+        {
+            throw new ArgumentException(
+                "El pago requerido para recolección no puede tener más de dos decimales.");
+        }
+
+        if (requiredCollectionPaymentAmount < 0.01m)
+        {
+            throw new ArgumentException(
+                "El pago requerido para recolección debe ser mayor que cero.");
+        }
+
+        if (requiredCollectionPaymentAmount > price)
+        {
+            throw new ArgumentException(
+                "El pago requerido para recolección no puede exceder el precio del servicio.");
         }
     }
 
@@ -620,6 +648,8 @@ public class CremationPricingService : ICremationPricingService
             MaximumWeightKg =
                 price.MaximumWeightKg,
             Price = price.Price,
+            RequiredCollectionPaymentAmount =
+                price.RequiredCollectionPaymentAmount,
             IsPublic = price.IsPublic,
             IsActive = price.IsActive,
             CreatedAt = price.CreatedAt,

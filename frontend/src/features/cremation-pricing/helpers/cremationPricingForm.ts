@@ -25,6 +25,7 @@ export const DEFAULT_CREMATION_PRICE_FORM_VALUES: CremationPriceFormValues = {
   minimumWeightKg: 0,
   maximumWeightKg: 5,
   price: "",
+  requiredCollectionPaymentAmount: "",
   isPublic: true,
   isActive: true,
 };
@@ -48,6 +49,9 @@ export function cremationPriceFormToCreatePayload(
   return {
     ...values,
     price: parsePrice(values.price),
+    requiredCollectionPaymentAmount: parsePrice(
+      values.requiredCollectionPaymentAmount,
+    ),
   };
 }
 
@@ -57,5 +61,8 @@ export function cremationPriceFormToUpdatePayload(
   return {
     ...values,
     price: parsePrice(values.price),
+    requiredCollectionPaymentAmount: parsePrice(
+      values.requiredCollectionPaymentAmount,
+    ),
   };
 }
