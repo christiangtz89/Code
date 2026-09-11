@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using pcms.Application.Auth;
 using pcms.Application.Collections.Photos.DTOs;
 using pcms.Application.Collections.Photos.Interfaces;
 using pcms.Domain.Enums;
@@ -9,7 +10,7 @@ namespace pcms.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Collections.View")]
 public class CollectionPhotosController : ControllerBase
 {
     private readonly ICollectionPhotoService
@@ -66,6 +67,7 @@ public class CollectionPhotosController : ControllerBase
                     .UploadAsync(
                         collectionId,
                         uploadedByUserId.Value,
+                        CanManageCollections(),
                         photoType,
                         file.FileName,
                         file.ContentType,
@@ -94,6 +96,10 @@ public class CollectionPhotosController : ControllerBase
                 message = ex.Message
             });
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     [HttpGet("collection/{collectionId:guid}")]
@@ -102,12 +108,30 @@ public class CollectionPhotosController : ControllerBase
         GetByCollectionId(
             Guid collectionId)
     {
-        var photos =
-            await _collectionPhotoService
-                .GetByCollectionIdAsync(
-                    collectionId);
+        var actorUserId = GetCurrentUserId();
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized();
+        }
 
-        return Ok(photos);
+        try
+        {
+            var photos = await _collectionPhotoService
+                .GetByCollectionIdAsync(
+                    collectionId,
+                    actorUserId.Value,
+                    CanManageCollections());
+
+            return Ok(photos);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
     }
 
     [HttpGet("{id:guid}")]
@@ -115,9 +139,28 @@ public class CollectionPhotosController : ControllerBase
         GetById(
             Guid id)
     {
-        var photo =
-            await _collectionPhotoService
-                .GetByIdAsync(id);
+        var actorUserId = GetCurrentUserId();
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        CollectionPhotoDto? photo;
+        try
+        {
+            photo = await _collectionPhotoService.GetByIdAsync(
+                id,
+                actorUserId.Value,
+                CanManageCollections());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
 
         if (photo == null)
         {
@@ -136,11 +179,20 @@ public class CollectionPhotosController : ControllerBase
     public async Task<IActionResult> GetFile(
         Guid id)
     {
+        var actorUserId = GetCurrentUserId();
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
         try
         {
             var photoFile =
                 await _collectionPhotoService
-                    .GetFileAsync(id);
+                    .GetFileAsync(
+                        id,
+                        actorUserId.Value,
+                        CanManageCollections());
 
             if (photoFile == null)
             {
@@ -165,15 +217,38 @@ public class CollectionPhotosController : ControllerBase
                 message = ex.Message
             });
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Deactivate(
         Guid id)
     {
-        var success =
-            await _collectionPhotoService
-                .DeactivateAsync(id);
+        var actorUserId = GetCurrentUserId();
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        bool success;
+        try
+        {
+            success = await _collectionPhotoService.DeactivateAsync(
+                id,
+                actorUserId.Value,
+                CanManageCollections());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { success = false, message = ex.Message });
+        }
 
         if (!success)
         {
@@ -192,9 +267,28 @@ public class CollectionPhotosController : ControllerBase
     public async Task<IActionResult> Restore(
         Guid id)
     {
-        var success =
-            await _collectionPhotoService
-                .RestoreAsync(id);
+        var actorUserId = GetCurrentUserId();
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized();
+        }
+
+        bool success;
+        try
+        {
+            success = await _collectionPhotoService.RestoreAsync(
+                id,
+                actorUserId.Value,
+                CanManageCollections());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { success = false, message = ex.Message });
+        }
 
         if (!success)
         {
@@ -222,5 +316,13 @@ public class CollectionPhotosController : ControllerBase
             out var userId)
             ? userId
             : null;
+    }
+
+    private bool CanManageCollections()
+    {
+        return User.HasClaim("pcms_owner", "true") ||
+            PermissionImplications.Satisfies(
+                User.FindAll("permission").Select(claim => claim.Value),
+                PermissionCodes.CollectionsManage);
     }
 }

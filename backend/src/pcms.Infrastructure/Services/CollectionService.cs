@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using pcms.Application.Auth;
 using pcms.Application.Collections.DTOs;
 using pcms.Application.Collections.Interfaces;
 using pcms.Application.Receptions.Exceptions;
@@ -23,9 +24,9 @@ public class CollectionService : ICollectionService
 
     public async Task<CollectionDto> CreateAsync(
         CreateCollectionDto dto,
-        Guid collectedByUserId)
+        Guid createdByUserId)
     {
-        if (collectedByUserId == Guid.Empty)
+        if (createdByUserId == Guid.Empty)
         {
             throw new ArgumentException(
                 "No se pudo identificar al usuario que realiza la recolección.");
@@ -38,10 +39,9 @@ public class CollectionService : ICollectionService
             dto.HasPersonalBelongings,
             dto.PersonalBelongingsDescription);
 
-        var collectedByUser =
-            await GetActiveUserAsync(
-                collectedByUserId,
-                "El usuario que realiza la recolección no existe o está inactivo.");
+        _ = await GetActiveUserAsync(
+                createdByUserId,
+                "El usuario que registra la recolección no existe o está inactivo.");
 
         await using var transaction =
             await _context.Database
@@ -190,8 +190,8 @@ public class CollectionService : ICollectionService
                 .AnyAsync(c =>
                     c.PetId == pet.Id &&
                     c.IsActive &&
-                    c.Status ==
-                        CollectionStatus.Collected);
+                    c.Status != CollectionStatus.Received &&
+                    c.Status != CollectionStatus.Cancelled);
 
         if (hasActiveCollection)
         {
@@ -244,8 +244,7 @@ public class CollectionService : ICollectionService
                 PetId =
                     pet.Id,
 
-                CollectedByUserId =
-                    collectedByUser.Id,
+                CollectedByUserId = null,
 
                 LocationType =
                     dto.LocationType,
@@ -257,7 +256,7 @@ public class CollectionService : ICollectionService
                     location.Veterinarian?.Id,
 
                 Status =
-                    CollectionStatus.Collected,
+                    CollectionStatus.Pending,
 
                 QrCode =
                     qrCode,
@@ -287,8 +286,7 @@ public class CollectionService : ICollectionService
                     NormalizeOptional(
                         dto.Notes),
 
-                CollectedAt =
-                    currentTime,
+                CollectedAt = null,
 
                 ReceivedAt = null,
 
@@ -451,11 +449,10 @@ public class CollectionService : ICollectionService
             return null;
         }
 
-        if (collection.Status !=
-            CollectionStatus.Collected)
+        if (!IsPreReceptionState(collection.Status))
         {
             throw new InvalidOperationException(
-                "Solo una recolección en estado Recolectada puede editarse.");
+                "Una recolección recibida o cancelada ya no puede editarse.");
         }
 
         var location =
@@ -508,8 +505,19 @@ public class CollectionService : ICollectionService
     public async Task<CollectionDto?>
         ChangeStatusAsync(
             Guid id,
-            ChangeCollectionStatusDto dto)
+            ChangeCollectionStatusDto dto,
+            Guid actorUserId)
     {
+        if (actorUserId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "No se pudo identificar al usuario que cancela la recolección.");
+        }
+
+        _ = await GetActiveUserAsync(
+            actorUserId,
+            "El usuario que cancela la recolección no existe o está inactivo.");
+
         if (!Enum.IsDefined(
             typeof(CollectionStatus),
             dto.Status))
@@ -536,8 +544,7 @@ public class CollectionService : ICollectionService
                 "Utilice la conversión a recepción para marcar una recolección como recibida.");
         }
 
-        if (collection.Status !=
-            CollectionStatus.Collected)
+        if (!IsPreReceptionState(collection.Status))
         {
             throw new InvalidOperationException(
                 "La recolección ya se encuentra en un estado terminal.");
@@ -547,7 +554,7 @@ public class CollectionService : ICollectionService
             CollectionStatus.Cancelled)
         {
             throw new InvalidOperationException(
-                "La única transición manual permitida es de Recolectada a Cancelada.");
+                "La única transición manual permitida es cancelar la recolección.");
         }
 
         collection.Status =
@@ -556,7 +563,233 @@ public class CollectionService : ICollectionService
         collection.CancelledAt =
             DateTime.UtcNow;
 
+        var currentAssignment =
+            await _context.CollectionAssignmentHistory
+                .FirstOrDefaultAsync(history =>
+                    history.CollectionId == collection.Id &&
+                    history.EndedAt == null);
+
+        if (currentAssignment != null)
+        {
+            currentAssignment.EndedByUserId = actorUserId;
+            currentAssignment.EndedAt = collection.CancelledAt;
+        }
+
         await _context.SaveChangesAsync();
+
+        return await GetByIdAsync(id);
+    }
+
+    public async Task<IEnumerable<CollectionDriverOptionDto>>
+        GetActiveDriverOptionsAsync()
+    {
+        return await EligibleDriversQuery()
+            .OrderBy(user => user.FirstName)
+            .ThenBy(user => user.LastName)
+            .Select(user => new CollectionDriverOptionDto
+            {
+                Id = user.Id,
+                Name = user.FirstName + " " + user.LastName
+            })
+            .ToListAsync();
+    }
+
+    public async Task<CollectionDto?> AssignAsync(
+        Guid id,
+        AssignCollectionDto dto,
+        Guid assignedByUserId)
+    {
+        if (dto.DriverUserId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Debe seleccionar un conductor.");
+        }
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var assignedByUser = await GetActiveUserAsync(
+            assignedByUserId,
+            "El usuario que asigna la recolección no existe o está inactivo.");
+
+        var driver = await EligibleDriversQuery()
+            .FirstOrDefaultAsync(user => user.Id == dto.DriverUserId)
+            ?? throw new InvalidOperationException(
+                "El conductor seleccionado no existe, está inactivo o no tiene acceso a recolecciones.");
+
+        var collection = await _context.Collections
+            .FirstOrDefaultAsync(current =>
+                current.Id == id &&
+                current.IsActive);
+
+        if (collection == null)
+        {
+            return null;
+        }
+
+        if (collection.Status is CollectionStatus.Collected or
+            CollectionStatus.Received or CollectionStatus.Cancelled)
+        {
+            throw new InvalidOperationException(
+                "La asignación no puede cambiar después de confirmar la custodia, recibir o cancelar la recolección.");
+        }
+
+        if (collection.AssignedDriverId == driver.Id &&
+            collection.Status is CollectionStatus.Assigned or
+                CollectionStatus.Accepted)
+        {
+            await transaction.CommitAsync();
+            return await GetByIdAsync(id);
+        }
+
+        var now = DateTime.UtcNow;
+        var currentAssignment =
+            await _context.CollectionAssignmentHistory
+                .FirstOrDefaultAsync(history =>
+                    history.CollectionId == collection.Id &&
+                    history.EndedAt == null);
+
+        if (currentAssignment != null)
+        {
+            currentAssignment.EndedByUserId = assignedByUser.Id;
+            currentAssignment.EndedAt = now;
+        }
+
+        collection.AssignedDriverId = driver.Id;
+        collection.AssignedByUserId = assignedByUser.Id;
+        collection.AssignedAt = now;
+        collection.AcceptedByUserId = null;
+        collection.AcceptedAt = null;
+        collection.Status = CollectionStatus.Assigned;
+
+        _context.CollectionAssignmentHistory.Add(
+            new CollectionAssignmentHistory
+            {
+                Id = Guid.NewGuid(),
+                CollectionId = collection.Id,
+                AssignedDriverId = driver.Id,
+                AssignedByUserId = assignedByUser.Id,
+                AssignedAt = now
+            });
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return await GetByIdAsync(id);
+    }
+
+    public async Task<CollectionDto?> AcceptAsync(
+        Guid id,
+        Guid actorUserId)
+    {
+        var actor = await GetActiveUserAsync(
+            actorUserId,
+            "El usuario que acepta la recolección no existe o está inactivo.");
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var collection = await _context.Collections
+            .FirstOrDefaultAsync(current =>
+                current.Id == id &&
+                current.IsActive);
+
+        if (collection == null)
+        {
+            return null;
+        }
+
+        if (collection.AssignedDriverId != actor.Id)
+        {
+            throw new UnauthorizedAccessException(
+                "Solo el conductor asignado puede aceptar esta recolección.");
+        }
+
+        if (collection.Status == CollectionStatus.Accepted &&
+            collection.AcceptedByUserId == actor.Id)
+        {
+            return await GetByIdAsync(id);
+        }
+
+        if (collection.Status != CollectionStatus.Assigned)
+        {
+            throw new InvalidOperationException(
+                "Solo una recolección asignada puede aceptarse.");
+        }
+
+        var assignment =
+            await _context.CollectionAssignmentHistory
+                .FirstOrDefaultAsync(history =>
+                    history.CollectionId == collection.Id &&
+                    history.AssignedDriverId == actor.Id &&
+                    history.EndedAt == null)
+            ?? throw new InvalidOperationException(
+                "La asignación actual no tiene un registro de historial válido.");
+
+        var now = DateTime.UtcNow;
+        collection.AcceptedByUserId = actor.Id;
+        collection.AcceptedAt = now;
+        collection.Status = CollectionStatus.Accepted;
+        assignment.AcceptedByUserId = actor.Id;
+        assignment.AcceptedAt = now;
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return await GetByIdAsync(id);
+    }
+
+    public async Task<CollectionDto?> ConfirmCustodyAsync(
+        Guid id,
+        Guid actorUserId)
+    {
+        var actor = await GetActiveUserAsync(
+            actorUserId,
+            "El usuario que confirma la custodia no existe o está inactivo.");
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var collection = await _context.Collections
+            .FirstOrDefaultAsync(current =>
+                current.Id == id &&
+                current.IsActive);
+
+        if (collection == null)
+        {
+            return null;
+        }
+
+        if (collection.AssignedDriverId != actor.Id)
+        {
+            throw new UnauthorizedAccessException(
+                "Solo el conductor asignado puede confirmar la custodia.");
+        }
+
+        if (collection.Status != CollectionStatus.Accepted ||
+            collection.AcceptedByUserId != actor.Id ||
+            !collection.AcceptedAt.HasValue)
+        {
+            throw new InvalidOperationException(
+                "La asignación debe estar aceptada antes de confirmar la custodia.");
+        }
+
+        if (!await HasRequiredEvidenceAsync(collection.Id))
+        {
+            throw new InvalidOperationException(
+                "Debe existir al menos una fotografía activa de identificación o evidencia de recolección antes de confirmar la custodia.");
+        }
+
+        var now = DateTime.UtcNow;
+        collection.CollectedByUserId = actor.Id;
+        collection.CollectedAt = now;
+        collection.Status = CollectionStatus.Collected;
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return await GetByIdAsync(id);
     }
@@ -624,6 +857,19 @@ public class CollectionService : ICollectionService
         {
             throw new InvalidOperationException(
                 "Solo una recolección en estado Recolectada puede convertirse en recepción.");
+        }
+
+        if (!collection.CollectedByUserId.HasValue ||
+            !collection.CollectedAt.HasValue)
+        {
+            throw new InvalidOperationException(
+                "La custodia física de la mascota no ha sido confirmada.");
+        }
+
+        if (!await HasRequiredEvidenceAsync(collection.Id))
+        {
+            throw new InvalidOperationException(
+                "La recolección debe conservar al menos una fotografía activa de identificación o evidencia antes de crear la recepción.");
         }
 
         if (collection.Reception != null)
@@ -980,6 +1226,31 @@ public class CollectionService : ICollectionService
                 u.IsActive)
             ?? throw new InvalidOperationException(
                 errorMessage);
+    }
+
+    private IQueryable<User> EligibleDriversQuery()
+    {
+        return _context.Users
+            .AsNoTracking()
+            .Where(user =>
+                user.IsActive &&
+                (user.IsOwner ||
+                 user.UserRoles.Any(userRole =>
+                     userRole.Role.IsActive &&
+                     userRole.Role.RolePermissions.Any(rolePermission =>
+                         rolePermission.Permission.Code ==
+                             PermissionCodes.CollectionsView ||
+                         rolePermission.Permission.Code ==
+                             PermissionCodes.CollectionsManage))));
+    }
+
+    private Task<bool> HasRequiredEvidenceAsync(Guid collectionId)
+    {
+        return _context.CollectionPhotos.AnyAsync(photo =>
+            photo.CollectionId == collectionId &&
+            photo.IsActive &&
+            (photo.PhotoType == CollectionPhotoType.PetIdentification ||
+             photo.PhotoType == CollectionPhotoType.PickupEvidence));
     }
 
     private async Task<
@@ -1350,9 +1621,39 @@ public class CollectionService : ICollectionService
                     c.CollectedByUserId,
 
                 CollectedByUserName =
-                    c.CollectedByUser.FirstName +
-                    " " +
-                    c.CollectedByUser.LastName,
+                    c.CollectedByUser != null
+                        ? c.CollectedByUser.FirstName +
+                          " " +
+                          c.CollectedByUser.LastName
+                        : null,
+
+                AssignedDriverId = c.AssignedDriverId,
+
+                AssignedDriverName =
+                    c.AssignedDriver != null
+                        ? c.AssignedDriver.FirstName +
+                          " " + c.AssignedDriver.LastName
+                        : null,
+
+                AssignedByUserId = c.AssignedByUserId,
+
+                AssignedByUserName =
+                    c.AssignedByUser != null
+                        ? c.AssignedByUser.FirstName +
+                          " " + c.AssignedByUser.LastName
+                        : null,
+
+                AssignedAt = c.AssignedAt,
+
+                AcceptedByUserId = c.AcceptedByUserId,
+
+                AcceptedByUserName =
+                    c.AcceptedByUser != null
+                        ? c.AcceptedByUser.FirstName +
+                          " " + c.AcceptedByUser.LastName
+                        : null,
+
+                AcceptedAt = c.AcceptedAt,
 
                 LocationType =
                     c.LocationType,
@@ -1433,6 +1734,14 @@ public class CollectionService : ICollectionService
                 CreatedAt =
                     c.CreatedAt
             });
+    }
+
+    private static bool IsPreReceptionState(CollectionStatus status)
+    {
+        return status is CollectionStatus.Pending or
+            CollectionStatus.Assigned or
+            CollectionStatus.Accepted or
+            CollectionStatus.Collected;
     }
 
         private sealed record WeightRangeInfo(

@@ -9,6 +9,15 @@ export function getCollectionStatusLabel(
   status: CollectionStatusValue,
 ): string {
   switch (status) {
+    case CollectionStatus.Pending:
+      return "Pendiente de asignación";
+
+    case CollectionStatus.Assigned:
+      return "Asignada";
+
+    case CollectionStatus.Accepted:
+      return "Aceptada por conductor";
+
     case CollectionStatus.Collected:
       return "Recolectada";
 

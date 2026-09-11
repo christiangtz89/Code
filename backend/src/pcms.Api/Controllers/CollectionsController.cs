@@ -26,10 +26,10 @@ public class CollectionsController : ControllerBase
     public async Task<ActionResult<CollectionDto>> Create(
         CreateCollectionDto dto)
     {
-        var collectedByUserId =
+        var createdByUserId =
             GetCurrentUserId();
 
-        if (!collectedByUserId.HasValue)
+        if (!createdByUserId.HasValue)
         {
             return Unauthorized(new
             {
@@ -44,7 +44,7 @@ public class CollectionsController : ControllerBase
             var collection =
                 await _collectionService.CreateAsync(
                     dto,
-                    collectedByUserId.Value);
+                    createdByUserId.Value);
 
             return CreatedAtAction(
                 nameof(GetById),
@@ -204,13 +204,26 @@ public class CollectionsController : ControllerBase
             Guid id,
             ChangeCollectionStatusDto dto)
     {
+        var actorUserId = GetCurrentUserId();
+
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
         try
         {
             var collection =
                 await _collectionService
                     .ChangeStatusAsync(
                         id,
-                        dto);
+                        dto,
+                        actorUserId.Value);
 
             if (collection == null)
             {
@@ -240,6 +253,49 @@ public class CollectionsController : ControllerBase
                 message = ex.Message
             });
         }
+    }
+
+    [HttpGet("driver-options")]
+    [Authorize(Policy = "Collections.Manage")]
+    public async Task<ActionResult<IEnumerable<CollectionDriverOptionDto>>>
+        GetDriverOptions()
+    {
+        return Ok(
+            await _collectionService.GetActiveDriverOptionsAsync());
+    }
+
+    [HttpPost("{id:guid}/assign")]
+    [Authorize(Policy = "Collections.Manage")]
+    public async Task<ActionResult<CollectionDto>> Assign(
+        Guid id,
+        AssignCollectionDto dto)
+    {
+        return await ExecuteActorWorkflowAsync(
+            id,
+            actorUserId => _collectionService.AssignAsync(
+                id,
+                dto,
+                actorUserId));
+    }
+
+    [HttpPost("{id:guid}/accept")]
+    public async Task<ActionResult<CollectionDto>> Accept(Guid id)
+    {
+        return await ExecuteActorWorkflowAsync(
+            id,
+            actorUserId => _collectionService.AcceptAsync(
+                id,
+                actorUserId));
+    }
+
+    [HttpPost("{id:guid}/confirm-custody")]
+    public async Task<ActionResult<CollectionDto>> ConfirmCustody(Guid id)
+    {
+        return await ExecuteActorWorkflowAsync(
+            id,
+            actorUserId => _collectionService.ConfirmCustodyAsync(
+                id,
+                actorUserId));
     }
 
     [HttpPost("{id:guid}/convert-to-reception")]
@@ -390,5 +446,59 @@ public class CollectionsController : ControllerBase
             out var userId)
             ? userId
             : null;
+    }
+
+    private async Task<ActionResult<CollectionDto>>
+        ExecuteActorWorkflowAsync(
+            Guid id,
+            Func<Guid, Task<CollectionDto?>> action)
+    {
+        var actorUserId = GetCurrentUserId();
+
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+        try
+        {
+            var collection = await action(actorUserId.Value);
+
+            if (collection == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "La recolección no fue encontrada."
+                });
+            }
+
+            return Ok(collection);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
     }
 }

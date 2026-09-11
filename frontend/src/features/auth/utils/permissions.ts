@@ -2,9 +2,19 @@ import { jwtDecode } from "jwt-decode";
 import { tokenStorage } from "../../../services/tokenStorage";
 
 interface PermissionClaims {
+  sub?: string;
   permission?: string | string[];
   permissions?: string[];
   pcms_owner?: string;
+}
+export function currentUserId(): string | null {
+  const token = tokenStorage.get();
+  if (!token) return null;
+  try {
+    return jwtDecode<PermissionClaims>(token).sub ?? null;
+  } catch {
+    return null;
+  }
 }
 export function currentPermissions(): string[] {
   const token = tokenStorage.get();

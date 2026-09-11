@@ -22,10 +22,25 @@ public class CollectionDto
     public string CustomerPhone { get; set; }
         = string.Empty;
 
-    public Guid CollectedByUserId { get; set; }
+    public Guid? CollectedByUserId { get; set; }
 
-    public string CollectedByUserName { get; set; }
-        = string.Empty;
+    public string? CollectedByUserName { get; set; }
+
+    public Guid? AssignedDriverId { get; set; }
+
+    public string? AssignedDriverName { get; set; }
+
+    public Guid? AssignedByUserId { get; set; }
+
+    public string? AssignedByUserName { get; set; }
+
+    public DateTime? AssignedAt { get; set; }
+
+    public Guid? AcceptedByUserId { get; set; }
+
+    public string? AcceptedByUserName { get; set; }
+
+    public DateTime? AcceptedAt { get; set; }
 
     public CollectionLocationType LocationType { get; set; }
 
@@ -61,7 +76,7 @@ public class CollectionDto
 
     public string? ReceptionQrCode { get; set; }
 
-    public DateTime CollectedAt { get; set; }
+    public DateTime? CollectedAt { get; set; }
 
     public DateTime? ReceivedAt { get; set; }
 

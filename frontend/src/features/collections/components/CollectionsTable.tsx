@@ -20,10 +20,20 @@ interface CollectionsTableProps {
   collections: Collection[];
 
   pendingCollectionId: string | null;
+  currentUserId: string | null;
+  canManageCollections: boolean;
 
   onShowQr: (collection: Collection) => void;
 
   onEdit: (collection: Collection) => void;
+
+  onAssign: (collection: Collection) => void;
+
+  onAccept: (collection: Collection) => void;
+
+  onEvidence: (collection: Collection) => void;
+
+  onConfirmCustody: (collection: Collection) => void;
 
   onReceive: (collection: Collection) => void;
 
@@ -32,6 +42,15 @@ interface CollectionsTableProps {
 
 function getStatusClasses(status: Collection["status"]): string {
   switch (status) {
+    case CollectionStatus.Pending:
+      return "bg-slate-100 text-slate-700 ring-slate-500/20";
+
+    case CollectionStatus.Assigned:
+      return "bg-blue-50 text-blue-700 ring-blue-600/20";
+
+    case CollectionStatus.Accepted:
+      return "bg-violet-50 text-violet-700 ring-violet-600/20";
+
     case CollectionStatus.Collected:
       return "bg-amber-50 text-amber-700 ring-amber-600/20";
 
@@ -58,8 +77,14 @@ function showOptionalValue(
 export function CollectionsTable({
   collections,
   pendingCollectionId,
+  currentUserId,
+  canManageCollections,
   onShowQr,
   onEdit,
+  onAssign,
+  onAccept,
+  onEvidence,
+  onConfirmCustody,
   onReceive,
   onCancel,
 }: CollectionsTableProps) {
@@ -128,6 +153,27 @@ export function CollectionsTable({
 
               const canCancel = canCancelCollection(collection);
 
+              const isAssignedDriver =
+                currentUserId !== null &&
+                collection.assignedDriverId === currentUserId;
+
+              const canAssign =
+                canManageCollections &&
+                (collection.status === CollectionStatus.Pending ||
+                  collection.status === CollectionStatus.Assigned ||
+                  collection.status === CollectionStatus.Accepted);
+
+              const canAccept =
+                isAssignedDriver &&
+                collection.status === CollectionStatus.Assigned;
+
+              const canManageEvidence =
+                canManageCollections || isAssignedDriver;
+
+              const canConfirmCustody =
+                isAssignedDriver &&
+                collection.status === CollectionStatus.Accepted;
+
               return (
                 <tr
                   key={collection.id}
@@ -163,9 +209,25 @@ export function CollectionsTable({
                       {getCollectionStatusLabel(collection.status)}
                     </span>
 
-                    <p className="mt-3 whitespace-nowrap text-xs text-slate-500">
-                      {formatCollectionDateTime(collection.collectedAt)}
-                    </p>
+                    {collection.assignedDriverName && (
+                      <p className="mt-3 text-xs text-slate-600">
+                        Conductor: {collection.assignedDriverName}
+                      </p>
+                    )}
+
+                    {collection.acceptedAt && (
+                      <p className="mt-2 text-xs text-violet-700">
+                        Aceptada:{" "}
+                        {formatCollectionDateTime(collection.acceptedAt)}
+                      </p>
+                    )}
+
+                    {collection.collectedAt && (
+                      <p className="mt-2 whitespace-nowrap text-xs text-amber-700">
+                        Custodia:{" "}
+                        {formatCollectionDateTime(collection.collectedAt)}
+                      </p>
+                    )}
 
                     {collection.receivedAt && (
                       <p className="mt-2 text-xs text-emerald-700">
@@ -276,7 +338,8 @@ export function CollectionsTable({
                   {/* RECOLECTÓ */}
                   <td className="px-5 py-4">
                     <p className="text-sm font-medium text-slate-800">
-                      {collection.collectedByUserName}
+                      {collection.collectedByUserName ??
+                        "Custodia no confirmada"}
                     </p>
 
                     {collection.notes && (
@@ -297,6 +360,54 @@ export function CollectionsTable({
                       >
                         Ver QR
                       </button>
+
+                      {canAssign && (
+                        <button
+                          type="button"
+                          onClick={() => onAssign(collection)}
+                          disabled={isPending}
+                          className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 disabled:opacity-50"
+                        >
+                          {collection.assignedDriverId
+                            ? "Reasignar conductor"
+                            : "Asignar conductor"}
+                        </button>
+                      )}
+
+                      {canAccept && (
+                        <button
+                          type="button"
+                          onClick={() => onAccept(collection)}
+                          disabled={isPending}
+                          className="w-full rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          Aceptar asignación
+                        </button>
+                      )}
+
+                      {canManageEvidence &&
+                        collection.status !== CollectionStatus.Received &&
+                        collection.status !== CollectionStatus.Cancelled && (
+                          <button
+                            type="button"
+                            onClick={() => onEvidence(collection)}
+                            disabled={isPending}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+                          >
+                            Gestionar evidencia
+                          </button>
+                        )}
+
+                      {canConfirmCustody && (
+                        <button
+                          type="button"
+                          onClick={() => onConfirmCustody(collection)}
+                          disabled={isPending}
+                          className="w-full rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          Confirmar custodia
+                        </button>
+                      )}
 
                       {canReceive && (
                         <button

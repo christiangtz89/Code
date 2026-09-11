@@ -37,6 +37,7 @@ public class CollectionPhotoService
     public async Task<CollectionPhotoDto> UploadAsync(
         Guid collectionId,
         Guid uploadedByUserId,
+        bool canManageCollections,
         CollectionPhotoType photoType,
         string originalFileName,
         string contentType,
@@ -97,17 +98,11 @@ public class CollectionPhotoService
                 "No fue posible leer la fotografía.");
         }
 
-        var collection =
-            await _context.Collections
-                .FirstOrDefaultAsync(c =>
-                    c.Id == collectionId &&
-                    c.IsActive);
-
-        if (collection == null)
-        {
-            throw new InvalidOperationException(
-                "La recolección no existe o está inactiva.");
-        }
+        var collection = await RequireCollectionAccessAsync(
+            collectionId,
+            uploadedByUserId,
+            canManageCollections,
+            requireMutableWorkflow: true);
 
         var uploadedByUser =
             await _context.Users
@@ -253,8 +248,16 @@ public class CollectionPhotoService
     public async Task<
         IEnumerable<CollectionPhotoDto>>
         GetByCollectionIdAsync(
-            Guid collectionId)
+            Guid collectionId,
+            Guid actorUserId,
+            bool canManageCollections)
     {
+        _ = await RequireCollectionAccessAsync(
+            collectionId,
+            actorUserId,
+            canManageCollections,
+            requireMutableWorkflow: false);
+
         return await _context.CollectionPhotos
             .AsNoTracking()
             .Where(photo =>
@@ -311,8 +314,27 @@ public class CollectionPhotoService
 
     public async Task<CollectionPhotoDto?>
         GetByIdAsync(
-            Guid id)
+            Guid id,
+            Guid actorUserId,
+            bool canManageCollections)
     {
+        var collectionId = await _context.CollectionPhotos
+            .AsNoTracking()
+            .Where(photo => photo.Id == id && photo.IsActive)
+            .Select(photo => (Guid?)photo.CollectionId)
+            .FirstOrDefaultAsync();
+
+        if (!collectionId.HasValue)
+        {
+            return null;
+        }
+
+        _ = await RequireCollectionAccessAsync(
+            collectionId.Value,
+            actorUserId,
+            canManageCollections,
+            requireMutableWorkflow: false);
+
         return await _context.CollectionPhotos
             .AsNoTracking()
             .Where(photo =>
@@ -364,7 +386,9 @@ public class CollectionPhotoService
 
     public async Task<CollectionPhotoFileDto?>
     GetFileAsync(
-        Guid id)
+        Guid id,
+        Guid actorUserId,
+        bool canManageCollections)
     {
         var photo =
             await _context.CollectionPhotos
@@ -374,6 +398,7 @@ public class CollectionPhotoService
                     photo.IsActive)
                 .Select(photo => new
                 {
+                    photo.CollectionId,
                     photo.StoragePath,
                     photo.ContentType
                 })
@@ -383,6 +408,12 @@ public class CollectionPhotoService
         {
             return null;
         }
+
+        _ = await RequireCollectionAccessAsync(
+            photo.CollectionId,
+            actorUserId,
+            canManageCollections,
+            requireMutableWorkflow: false);
 
         var privateStorageRoot =
             Path.GetFullPath(
@@ -439,7 +470,9 @@ public class CollectionPhotoService
     }
 
     public async Task<bool> DeactivateAsync(
-        Guid id)
+        Guid id,
+        Guid actorUserId,
+        bool canManageCollections)
     {
         var photo =
             await _context.CollectionPhotos
@@ -452,6 +485,12 @@ public class CollectionPhotoService
             return false;
         }
 
+        _ = await RequireCollectionAccessAsync(
+            photo.CollectionId,
+            actorUserId,
+            canManageCollections,
+            requireMutableWorkflow: true);
+
         photo.IsActive =
             false;
 
@@ -461,7 +500,9 @@ public class CollectionPhotoService
     }
 
     public async Task<bool> RestoreAsync(
-        Guid id)
+        Guid id,
+        Guid actorUserId,
+        bool canManageCollections)
     {
         var photo =
             await _context.CollectionPhotos
@@ -473,6 +514,12 @@ public class CollectionPhotoService
         {
             return false;
         }
+
+        _ = await RequireCollectionAccessAsync(
+            photo.CollectionId,
+            actorUserId,
+            canManageCollections,
+            requireMutableWorkflow: true);
 
         if (photo.PhotoType ==
             CollectionPhotoType.PetIdentification)
@@ -505,6 +552,49 @@ public class CollectionPhotoService
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    private async Task<Collection> RequireCollectionAccessAsync(
+        Guid collectionId,
+        Guid actorUserId,
+        bool canManageCollections,
+        bool requireMutableWorkflow)
+    {
+        if (actorUserId == Guid.Empty)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        var actorIsActive = await _context.Users
+            .AsNoTracking()
+            .AnyAsync(user => user.Id == actorUserId && user.IsActive);
+
+        if (!actorIsActive)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        var collection = await _context.Collections
+            .FirstOrDefaultAsync(current =>
+                current.Id == collectionId && current.IsActive)
+            ?? throw new InvalidOperationException(
+                "La recolección no existe o está inactiva.");
+
+        if (!canManageCollections &&
+            collection.AssignedDriverId != actorUserId)
+        {
+            throw new UnauthorizedAccessException();
+        }
+
+        if (requireMutableWorkflow &&
+            collection.Status is CollectionStatus.Received or
+                CollectionStatus.Cancelled)
+        {
+            throw new InvalidOperationException(
+                "No se pueden modificar fotografías de una recolección recibida o cancelada.");
+        }
+
+        return collection;
     }
 
     private static string GetExtension(

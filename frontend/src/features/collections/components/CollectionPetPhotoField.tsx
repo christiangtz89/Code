@@ -5,6 +5,8 @@ import { LocalCollectionPhotoPreview } from "./LocalCollectionPhotoPreview";
 interface CollectionPetPhotoFieldProps {
   file: File | null;
   disabled?: boolean;
+  title?: string;
+  description?: string;
   onChange: (file: File | null) => void;
 }
 
@@ -19,6 +21,8 @@ const ALLOWED_CONTENT_TYPES = new Set([
 export function CollectionPetPhotoField({
   file,
   disabled = false,
+  title = "Foto de identificación de la mascota",
+  description = "Esta fotografía acompañará a la mascota durante la cadena de custodia para ayudar a verificar su identidad en recepción y cremación.",
   onChange,
 }: CollectionPetPhotoFieldProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -72,14 +76,9 @@ export function CollectionPetPhotoField({
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium text-slate-700">
-          Foto de identificación de la mascota
-        </p>
+        <p className="text-sm font-medium text-slate-700">{title}</p>
 
-        <p className="mt-1 text-xs text-slate-500">
-          Esta fotografía acompañará a la mascota durante la cadena de custodia
-          para ayudar a verificar su identidad en recepción y cremación.
-        </p>
+        <p className="mt-1 text-xs text-slate-500">{description}</p>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">

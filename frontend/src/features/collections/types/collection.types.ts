@@ -10,6 +10,9 @@ export const CollectionStatus = {
   Collected: 1,
   Received: 2,
   Cancelled: 3,
+  Pending: 4,
+  Assigned: 5,
+  Accepted: 6,
 } as const;
 
 export type CollectionStatus =
@@ -26,8 +29,17 @@ export interface Collection {
   customerName: string;
   customerPhone: string;
 
-  collectedByUserId: string;
-  collectedByUserName: string;
+  collectedByUserId: string | null;
+  collectedByUserName: string | null;
+
+  assignedDriverId: string | null;
+  assignedDriverName: string | null;
+  assignedByUserId: string | null;
+  assignedByUserName: string | null;
+  assignedAt: string | null;
+  acceptedByUserId: string | null;
+  acceptedByUserName: string | null;
+  acceptedAt: string | null;
 
   locationType: CollectionLocationType;
 
@@ -55,7 +67,7 @@ export interface Collection {
   receptionId: string | null;
   receptionQrCode: string | null;
 
-  collectedAt: string;
+  collectedAt: string | null;
   receivedAt: string | null;
   cancelledAt: string | null;
 
@@ -117,6 +129,15 @@ export interface UpdateCollectionPayload {
 
 export interface ChangeCollectionStatusPayload {
   status: CollectionStatus;
+}
+
+export interface CollectionDriverOption {
+  id: string;
+  name: string;
+}
+
+export interface AssignCollectionPayload {
+  driverUserId: string;
 }
 
 export interface ConvertCollectionToReceptionPayload {

@@ -8,7 +8,17 @@ public class Collection
 
     public Guid PetId { get; set; }
 
-    public Guid CollectedByUserId { get; set; }
+    public Guid? CollectedByUserId { get; set; }
+
+    public Guid? AssignedDriverId { get; set; }
+
+    public Guid? AssignedByUserId { get; set; }
+
+    public DateTime? AssignedAt { get; set; }
+
+    public Guid? AcceptedByUserId { get; set; }
+
+    public DateTime? AcceptedAt { get; set; }
 
     public CollectionLocationType LocationType { get; set; }
 
@@ -17,7 +27,7 @@ public class Collection
     public Guid? ReferringVeterinarianId { get; set; }
 
     public CollectionStatus Status { get; set; }
-        = CollectionStatus.Collected;
+        = CollectionStatus.Pending;
 
     public string QrCode { get; set; }
         = string.Empty;
@@ -37,7 +47,7 @@ public class Collection
 
     public string? Notes { get; set; }
 
-    public DateTime CollectedAt { get; set; }
+    public DateTime? CollectedAt { get; set; }
 
     public DateTime? ReceivedAt { get; set; }
 
@@ -50,7 +60,13 @@ public class Collection
 
     public Pet Pet { get; set; } = null!;
 
-    public User CollectedByUser { get; set; } = null!;
+    public User? CollectedByUser { get; set; }
+
+    public User? AssignedDriver { get; set; }
+
+    public User? AssignedByUser { get; set; }
+
+    public User? AcceptedByUser { get; set; }
 
     public VeterinaryClinic? VeterinaryClinic { get; set; }
 
@@ -60,4 +76,7 @@ public class Collection
 
     public ICollection<CollectionPhoto> Photos { get; set; }
         = new List<CollectionPhoto>();
+
+    public ICollection<CollectionAssignmentHistory> AssignmentHistory { get; set; }
+        = new List<CollectionAssignmentHistory>();
 }

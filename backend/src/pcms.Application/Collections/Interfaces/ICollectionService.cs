@@ -7,7 +7,7 @@ public interface ICollectionService
 {
     Task<CollectionDto> CreateAsync(
         CreateCollectionDto dto,
-        Guid collectedByUserId);
+        Guid createdByUserId);
 
     Task<PagedCollectionsDto> GetAllAsync(
         int page,
@@ -27,7 +27,24 @@ public interface ICollectionService
 
     Task<CollectionDto?> ChangeStatusAsync(
         Guid id,
-        ChangeCollectionStatusDto dto);
+        ChangeCollectionStatusDto dto,
+        Guid actorUserId);
+
+    Task<IEnumerable<CollectionDriverOptionDto>>
+        GetActiveDriverOptionsAsync();
+
+    Task<CollectionDto?> AssignAsync(
+        Guid id,
+        AssignCollectionDto dto,
+        Guid assignedByUserId);
+
+    Task<CollectionDto?> AcceptAsync(
+        Guid id,
+        Guid actorUserId);
+
+    Task<CollectionDto?> ConfirmCustodyAsync(
+        Guid id,
+        Guid actorUserId);
 
     Task<CollectionDto?> ConvertToReceptionAsync(
         Guid id,

@@ -9,17 +9,26 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import {
+  acceptCollection,
+  assignCollection,
   changeCollectionStatus,
+  confirmCollectionCustody,
   convertCollectionToReception,
   createCollection,
+  getCollectionDriverOptions,
   getCollections,
   searchCollections,
   updateCollection,
 } from "../api/collectionsApi";
 
-import { uploadCollectionPhoto } from "../api/collectionPhotosApi";
+import {
+  currentUserId as getCurrentUserId,
+  hasPermission,
+} from "../../auth/utils/permissions";
 
+import { CollectionAssignmentModal } from "../components/CollectionAssignmentModal";
 import { CollectionEditModal } from "../components/CollectionEditModal";
+import { CollectionEvidenceModal } from "../components/CollectionEvidenceModal";
 import { CollectionFormModal } from "../components/CollectionFormModal";
 import { CollectionQrModal } from "../components/CollectionQrModal";
 import { CollectionsTable } from "../components/CollectionsTable";
@@ -33,14 +42,13 @@ import {
   CollectionLocationType,
   CollectionStatus,
   type Collection,
+  type AssignCollectionPayload,
   type CollectionLocationType as CollectionLocationTypeValue,
   type CollectionStatus as CollectionStatusValue,
   type ConvertCollectionToReceptionPayload,
   type PagedCollections,
   type UpdateCollectionPayload,
 } from "../types/collection.types";
-
-import { CollectionPhotoType } from "../types/collectionPhoto.types";
 
 import {
   collectionReceptionPayload,
@@ -86,7 +94,10 @@ function parseStatusFilter(value: string): CollectionStatusValue | undefined {
   if (
     numberValue === CollectionStatus.Collected ||
     numberValue === CollectionStatus.Received ||
-    numberValue === CollectionStatus.Cancelled
+    numberValue === CollectionStatus.Cancelled ||
+    numberValue === CollectionStatus.Pending ||
+    numberValue === CollectionStatus.Assigned ||
+    numberValue === CollectionStatus.Accepted
   ) {
     return numberValue;
   }
@@ -132,6 +143,12 @@ export function CollectionsPage() {
 
   const [editCollection, setEditCollection] = useState<Collection | null>(null);
 
+  const [assignmentCollection, setAssignmentCollection] =
+    useState<Collection | null>(null);
+
+  const [evidenceCollection, setEvidenceCollection] =
+    useState<Collection | null>(null);
+
   const [receiveCollection, setReceiveCollection] = useState<Collection | null>(
     null,
   );
@@ -143,6 +160,16 @@ export function CollectionsPage() {
   const selectedStatus = parseStatusFilter(statusFilter);
 
   const selectedLocationType = parseLocationFilter(locationFilter);
+
+  const currentUserId = getCurrentUserId();
+
+  const canManageCollections = hasPermission("Collections.Manage");
+
+  const driverOptionsQuery = useQuery({
+    queryKey: ["collections", "driver-options"],
+    queryFn: getCollectionDriverOptions,
+    enabled: assignmentCollection !== null && canManageCollections,
+  });
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -322,6 +349,44 @@ export function CollectionsPage() {
     },
   });
 
+  const assignmentMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: AssignCollectionPayload;
+    }) => assignCollection(id, payload),
+    onSuccess: async () => {
+      await refreshCollections();
+      toast.success("La asignación se guardó correctamente.");
+    },
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: acceptCollection,
+    onSuccess: async () => {
+      await refreshCollections();
+      toast.success("La asignación fue aceptada.");
+    },
+    onError: (error) =>
+      toast.error(
+        getApiErrorMessage(error, "No fue posible aceptar la asignación."),
+      ),
+  });
+
+  const custodyMutation = useMutation({
+    mutationFn: confirmCollectionCustody,
+    onSuccess: async () => {
+      await refreshCollections();
+      toast.success("La custodia física fue confirmada.");
+    },
+    onError: (error) =>
+      toast.error(
+        getApiErrorMessage(error, "No fue posible confirmar la custodia."),
+      ),
+  });
+
   const collections = collectionsQuery.data?.items ?? [];
 
   const totalItems = collectionsQuery.data?.totalItems ?? 0;
@@ -340,7 +405,13 @@ export function CollectionsPage() {
       ? (receiveMutation.variables?.id ?? null)
       : cancelMutation.isPending
         ? (cancelMutation.variables ?? null)
-        : null;
+        : assignmentMutation.isPending
+          ? (assignmentMutation.variables?.id ?? null)
+          : acceptMutation.isPending
+            ? (acceptMutation.variables ?? null)
+            : custodyMutation.isPending
+              ? (custodyMutation.variables ?? null)
+              : null;
 
   const isCreateSubmitting = createMutation.isPending;
 
@@ -348,53 +419,46 @@ export function CollectionsPage() {
 
   const isReceiveSubmitting = receiveMutation.isPending;
 
-  async function handleCreateSubmit(
-    values: CollectionFormValues,
-    petPhotoFile: File | null,
-  ) {
-    let createdCollection: Collection;
-
+  async function handleCreateSubmit(values: CollectionFormValues) {
     try {
-      createdCollection = await createMutation.mutateAsync(
+      const createdCollection = await createMutation.mutateAsync(
         createCollectionPayload(values),
       );
+
+      setIsCreateOpen(false);
+      setQrCollection(createdCollection);
     } catch (error) {
       toast.error(
         getApiErrorMessage(error, "No fue posible registrar la recolección."),
       );
-
-      return;
     }
+  }
 
-    if (petPhotoFile) {
-      try {
-        await uploadCollectionPhoto(
-          createdCollection.id,
-          petPhotoFile,
-          CollectionPhotoType.PetIdentification,
-          "Foto de identificación tomada durante la recolección.",
-        );
-      } catch (error) {
-        toast.error(
-          getApiErrorMessage(
-            error,
-            "La recolección se registró correctamente, pero no fue posible guardar la fotografía. Puedes agregarla nuevamente desde la recolección.",
-          ),
-          {
-            duration: 6000,
-          },
-        );
-      }
+  async function handleAssignment(driverUserId: string) {
+    if (!assignmentCollection) return;
+
+    try {
+      await assignmentMutation.mutateAsync({
+        id: assignmentCollection.id,
+        payload: { driverUserId },
+      });
+      setAssignmentCollection(null);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "No fue posible guardar la asignación."),
+      );
     }
+  }
 
-    setIsCreateOpen(false);
+  function handleAccept(collection: Collection) {
+    acceptMutation.mutate(collection.id);
+  }
 
-    /*
-     * Immediately show the QR
-     * after a successful pickup
-     * registration.
-     */
-    setQrCollection(createdCollection);
+  function handleConfirmCustody(collection: Collection) {
+    const confirmed = window.confirm(
+      `¿Confirmas que recibiste la custodia física de ${collection.petName}?`,
+    );
+    if (confirmed) custodyMutation.mutate(collection.id);
   }
 
   async function handleEditSubmit(values: CollectionUpdateFormValues) {
@@ -524,6 +588,16 @@ export function CollectionsPage() {
           >
             <option value="">Todos los estados</option>
 
+            <option value={CollectionStatus.Pending}>
+              Pendiente de asignación
+            </option>
+
+            <option value={CollectionStatus.Assigned}>Asignada</option>
+
+            <option value={CollectionStatus.Accepted}>
+              Aceptada por conductor
+            </option>
+
             <option value={CollectionStatus.Collected}>Recolectada</option>
 
             <option value={CollectionStatus.Received}>
@@ -607,8 +681,14 @@ export function CollectionsPage() {
           <CollectionsTable
             collections={collections}
             pendingCollectionId={pendingCollectionId}
+            currentUserId={currentUserId}
+            canManageCollections={canManageCollections}
             onShowQr={setQrCollection}
             onEdit={setEditCollection}
+            onAssign={setAssignmentCollection}
+            onAccept={handleAccept}
+            onEvidence={setEvidenceCollection}
+            onConfirmCustody={handleConfirmCustody}
             onReceive={setReceiveCollection}
             onCancel={handleCancel}
           />
@@ -667,6 +747,28 @@ export function CollectionsPage() {
           }
         }}
         onSubmit={handleEditSubmit}
+      />
+
+      <CollectionAssignmentModal
+        collection={assignmentCollection}
+        drivers={driverOptionsQuery.data ?? []}
+        isLoadingDrivers={driverOptionsQuery.isLoading}
+        isSubmitting={assignmentMutation.isPending}
+        onClose={() => {
+          if (!assignmentMutation.isPending) setAssignmentCollection(null);
+        }}
+        onSubmit={handleAssignment}
+      />
+
+      <CollectionEvidenceModal
+        collection={evidenceCollection}
+        canMutate={
+          evidenceCollection !== null &&
+          (canManageCollections ||
+            evidenceCollection.assignedDriverId === currentUserId)
+        }
+        onClose={() => setEvidenceCollection(null)}
+        onEvidenceChanged={refreshCollections}
       />
 
       {/* RECEIVE */}

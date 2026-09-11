@@ -8,6 +8,7 @@ public interface ICollectionPhotoService
     Task<CollectionPhotoDto> UploadAsync(
         Guid collectionId,
         Guid uploadedByUserId,
+        bool canManageCollections,
         CollectionPhotoType photoType,
         string originalFileName,
         string contentType,
@@ -17,17 +18,27 @@ public interface ICollectionPhotoService
 
     Task<IEnumerable<CollectionPhotoDto>>
         GetByCollectionIdAsync(
-            Guid collectionId);
+            Guid collectionId,
+            Guid actorUserId,
+            bool canManageCollections);
 
     Task<CollectionPhotoDto?> GetByIdAsync(
-        Guid id);
+        Guid id,
+        Guid actorUserId,
+        bool canManageCollections);
 
     Task<CollectionPhotoFileDto?> GetFileAsync(
-    Guid id);
+        Guid id,
+        Guid actorUserId,
+        bool canManageCollections);
 
     Task<bool> DeactivateAsync(
-        Guid id);
+        Guid id,
+        Guid actorUserId,
+        bool canManageCollections);
 
     Task<bool> RestoreAsync(
-        Guid id);
+        Guid id,
+        Guid actorUserId,
+        bool canManageCollections);
 }

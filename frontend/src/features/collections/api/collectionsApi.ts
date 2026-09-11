@@ -1,7 +1,9 @@
 import { apiClient } from "../../../services/apiClient";
 import type {
   ChangeCollectionStatusPayload,
+  AssignCollectionPayload,
   Collection,
+  CollectionDriverOption,
   ConvertCollectionToReceptionPayload,
   CreateCollectionPayload,
   GetCollectionsParams,
@@ -65,6 +67,46 @@ export async function changeCollectionStatus(
   const response = await apiClient.patch<Collection>(
     `${COLLECTIONS_URL}/${id}/status`,
     payload,
+  );
+
+  return response.data;
+}
+
+export async function getCollectionDriverOptions(): Promise<
+  CollectionDriverOption[]
+> {
+  const response = await apiClient.get<CollectionDriverOption[]>(
+    `${COLLECTIONS_URL}/driver-options`,
+  );
+
+  return response.data;
+}
+
+export async function assignCollection(
+  id: string,
+  payload: AssignCollectionPayload,
+): Promise<Collection> {
+  const response = await apiClient.post<Collection>(
+    `${COLLECTIONS_URL}/${id}/assign`,
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function acceptCollection(id: string): Promise<Collection> {
+  const response = await apiClient.post<Collection>(
+    `${COLLECTIONS_URL}/${id}/accept`,
+  );
+
+  return response.data;
+}
+
+export async function confirmCollectionCustody(
+  id: string,
+): Promise<Collection> {
+  const response = await apiClient.post<Collection>(
+    `${COLLECTIONS_URL}/${id}/confirm-custody`,
   );
 
   return response.data;

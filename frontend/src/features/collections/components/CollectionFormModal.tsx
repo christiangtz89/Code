@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { CollectionPetPhotoField } from "./CollectionPetPhotoField";
+import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import {
@@ -21,10 +20,7 @@ interface CollectionFormModalProps {
   isOpen: boolean;
   isSubmitting: boolean;
   onClose: () => void;
-  onSubmit: (
-    values: CollectionFormValues,
-    petPhotoFile: File | null,
-  ) => Promise<void>;
+  onSubmit: (values: CollectionFormValues) => Promise<void>;
 }
 
 const defaultValues: CollectionFormValues = {
@@ -117,8 +113,6 @@ export function CollectionFormModal({
     control,
     name: "hasPersonalBelongings",
   });
-
-  const [petPhotoFile, setPetPhotoFile] = useState<File | null>(null);
 
   const customersQuery = useQuery({
     queryKey: ["customers", "collection-options", true],
@@ -243,7 +237,6 @@ export function CollectionFormModal({
     }
 
     reset(defaultValues);
-    setPetPhotoFile(null);
   }, [isOpen, reset]);
 
   useEffect(() => {
@@ -363,7 +356,7 @@ export function CollectionFormModal({
   }
 
   async function submit(values: CollectionFormValues) {
-    await onSubmit(values, petPhotoFile);
+    await onSubmit(values);
   }
 
   return (
@@ -838,19 +831,6 @@ export function CollectionFormModal({
                 · {selectedPet.weightKg} kg
               </div>
             )}
-          </fieldset>
-
-          {/* IDENTIFICACIÓN */}
-          <fieldset className="rounded-xl border border-slate-200 p-5">
-            <legend className="px-2 text-sm font-semibold text-slate-800">
-              Identificación
-            </legend>
-
-            <CollectionPetPhotoField
-              file={petPhotoFile}
-              disabled={isSubmitting}
-              onChange={setPetPhotoFile}
-            />
           </fieldset>
 
           {/* LUGAR */}

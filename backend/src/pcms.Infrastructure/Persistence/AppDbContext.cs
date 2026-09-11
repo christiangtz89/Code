@@ -24,6 +24,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Collection> Collections { get; set; }
 
+    public DbSet<CollectionAssignmentHistory> CollectionAssignmentHistory { get; set; }
+
     public DbSet<CollectionPhoto> CollectionPhotos { get; set; }
 
     public DbSet<Reception> Receptions { get; set; }
@@ -266,7 +268,22 @@ public class AppDbContext : DbContext
 
             entity.Property(c => c.CollectedByUserId)
                 .HasColumnName("RecolectadoPorUsuarioId")
-                .IsRequired();
+                .IsRequired(false);
+
+            entity.Property(c => c.AssignedDriverId)
+                .HasColumnName("ConductorAsignadoId");
+
+            entity.Property(c => c.AssignedByUserId)
+                .HasColumnName("AsignadoPorUsuarioId");
+
+            entity.Property(c => c.AssignedAt)
+                .HasColumnName("FechaAsignacion");
+
+            entity.Property(c => c.AcceptedByUserId)
+                .HasColumnName("AceptadoPorUsuarioId");
+
+            entity.Property(c => c.AcceptedAt)
+                .HasColumnName("FechaAceptacion");
 
             entity.Property(c => c.LocationType)
                 .HasColumnName("TipoUbicacion")
@@ -320,7 +337,7 @@ public class AppDbContext : DbContext
 
             entity.Property(c => c.CollectedAt)
                 .HasColumnName("FechaRecoleccion")
-                .IsRequired();
+                .IsRequired(false);
 
             entity.Property(c => c.ReceivedAt)
                 .HasColumnName("FechaRecepcionInstalaciones");
@@ -343,6 +360,12 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(c => c.CollectedByUserId);
 
+            entity.HasIndex(c => c.AssignedDriverId);
+
+            entity.HasIndex(c => c.AssignedByUserId);
+
+            entity.HasIndex(c => c.AcceptedByUserId);
+
             entity.HasIndex(c => c.VeterinaryClinicId);
 
             entity.HasIndex(c => c.ReferringVeterinarianId);
@@ -361,6 +384,21 @@ public class AppDbContext : DbContext
                 .HasForeignKey(c => c.CollectedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(c => c.AssignedDriver)
+                .WithMany()
+                .HasForeignKey(c => c.AssignedDriverId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.AssignedByUser)
+                .WithMany()
+                .HasForeignKey(c => c.AssignedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.AcceptedByUser)
+                .WithMany()
+                .HasForeignKey(c => c.AcceptedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne(c => c.VeterinaryClinic)
                 .WithMany()
                 .HasForeignKey(c => c.VeterinaryClinicId)
@@ -369,6 +407,60 @@ public class AppDbContext : DbContext
             entity.HasOne(c => c.ReferringVeterinarian)
                 .WithMany()
                 .HasForeignKey(c => c.ReferringVeterinarianId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CollectionAssignmentHistory>(entity =>
+        {
+            entity.ToTable("HistorialAsignacionesRecoleccion");
+            entity.HasKey(history => history.Id);
+
+            entity.Property(history => history.Id)
+                .HasColumnName("Id");
+            entity.Property(history => history.CollectionId)
+                .HasColumnName("RecoleccionId");
+            entity.Property(history => history.AssignedDriverId)
+                .HasColumnName("ConductorAsignadoId");
+            entity.Property(history => history.AssignedByUserId)
+                .HasColumnName("AsignadoPorUsuarioId");
+            entity.Property(history => history.AssignedAt)
+                .HasColumnName("FechaAsignacion");
+            entity.Property(history => history.AcceptedByUserId)
+                .HasColumnName("AceptadoPorUsuarioId");
+            entity.Property(history => history.AcceptedAt)
+                .HasColumnName("FechaAceptacion");
+            entity.Property(history => history.EndedByUserId)
+                .HasColumnName("FinalizadoPorUsuarioId");
+            entity.Property(history => history.EndedAt)
+                .HasColumnName("FechaFinalizacion");
+
+            entity.HasIndex(history => history.CollectionId)
+                .HasFilter("\"FechaFinalizacion\" IS NULL")
+                .IsUnique();
+            entity.HasIndex(history => history.AssignedDriverId);
+            entity.HasIndex(history => history.AssignedByUserId);
+            entity.HasIndex(history => history.AcceptedByUserId);
+            entity.HasIndex(history => history.EndedByUserId);
+
+            entity.HasOne(history => history.Collection)
+                .WithMany(collection => collection.AssignmentHistory)
+                .HasForeignKey(history => history.CollectionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(history => history.AssignedDriver)
+                .WithMany()
+                .HasForeignKey(history => history.AssignedDriverId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(history => history.AssignedByUser)
+                .WithMany()
+                .HasForeignKey(history => history.AssignedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(history => history.AcceptedByUser)
+                .WithMany()
+                .HasForeignKey(history => history.AcceptedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(history => history.EndedByUser)
+                .WithMany()
+                .HasForeignKey(history => history.EndedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
