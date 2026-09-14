@@ -559,13 +559,15 @@ export function CollectionsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            + Registrar recolección
-          </button>
+          {canManageCollections && (
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              + Registrar recolección
+            </button>
+          )}
         </div>
       </header>
 
@@ -725,16 +727,18 @@ export function CollectionsPage() {
       )}
 
       {/* CREATE */}
-      <CollectionFormModal
-        isOpen={isCreateOpen}
-        isSubmitting={isCreateSubmitting}
-        onClose={() => {
-          if (!isCreateSubmitting) {
-            setIsCreateOpen(false);
-          }
-        }}
-        onSubmit={handleCreateSubmit}
-      />
+      {canManageCollections && (
+        <CollectionFormModal
+          isOpen={isCreateOpen}
+          isSubmitting={isCreateSubmitting}
+          onClose={() => {
+            if (!isCreateSubmitting) {
+              setIsCreateOpen(false);
+            }
+          }}
+          onSubmit={handleCreateSubmit}
+        />
+      )}
 
       {/* EDIT */}
       <CollectionEditModal

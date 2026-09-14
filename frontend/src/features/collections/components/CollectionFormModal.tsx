@@ -1,18 +1,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import {
-  getCustomerPets,
-  getCustomers,
-} from "../../customers/api/customersApi";
+  getCollectionCustomerOptions,
+  getCollectionPetOptions,
+} from "../api/collectionsApi";
 import { getVeterinarians } from "../../veterinarians/api/veterinariansApi";
 import { getVeterinarianFullName } from "../../veterinarians/utils/veterinarianName";
 import { getVeterinaryClinics } from "../../veterinary-clinics/api/veterinaryClinicsApi";
 
 import {
   collectionSchema,
+  getMexicoBusinessDate,
   type CollectionFormValues,
 } from "../schemas/collectionSchema";
 
@@ -32,7 +33,6 @@ const defaultValues: CollectionFormValues = {
 
   ownerFirstName: "",
   ownerLastName: "",
-  ownerSecondLastName: "",
   ownerPhone: "",
   ownerEmail: "",
 
@@ -42,7 +42,6 @@ const defaultValues: CollectionFormValues = {
   sex: "",
   color: "",
   approximateWeightKg: "",
-  ageYears: "",
   dateOfDeath: "",
 
   locationType: "1",
@@ -66,6 +65,9 @@ export function CollectionFormModal({
   onClose,
   onSubmit,
 }: CollectionFormModalProps) {
+  const [customerSearchInput, setCustomerSearchInput] = useState("");
+  const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
+
   const {
     register,
     control,
@@ -114,23 +116,39 @@ export function CollectionFormModal({
     name: "hasPersonalBelongings",
   });
 
+  const normalizedCustomerSearch = debouncedCustomerSearch.trim();
+  const customerSearchPending =
+    customerSearchInput.trim() !== normalizedCustomerSearch;
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedCustomerSearch(customerSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [customerSearchInput]);
+
   const customersQuery = useQuery({
-    queryKey: ["customers", "collection-options", true],
+    queryKey: [
+      "collections",
+      "intake-customer-options",
+      normalizedCustomerSearch,
+    ],
 
     queryFn: () =>
-      getCustomers({
+      getCollectionCustomerOptions({
+        search: normalizedCustomerSearch || undefined,
         page: 1,
-        pageSize: 100,
-        isActive: true,
+        pageSize: 20,
       }),
 
-    enabled: isOpen,
+    enabled: isOpen && customerMode === "existing",
   });
 
   const customerPetsQuery = useQuery({
-    queryKey: ["pets", "collection-customer-options", selectedCustomerId],
+    queryKey: ["collections", "intake-pet-options", selectedCustomerId],
 
-    queryFn: () => getCustomerPets(selectedCustomerId),
+    queryFn: () => getCollectionPetOptions(selectedCustomerId),
 
     enabled:
       isOpen && customerMode === "existing" && selectedCustomerId.length > 0,
@@ -164,26 +182,12 @@ export function CollectionFormModal({
 
   const customers = useMemo(
     () =>
-      [...(customersQuery.data?.items ?? [])].sort((first, second) => {
-        const firstName = [
-          first.firstName,
-          first.lastName,
-          first.secondLastName,
-        ]
-          .filter(Boolean)
-          .join(" ");
-
-        const secondName = [
-          second.firstName,
-          second.lastName,
-          second.secondLastName,
-        ]
-          .filter(Boolean)
-          .join(" ");
-
-        return firstName.localeCompare(secondName, "es-MX");
-      }),
-    [customersQuery.data?.items],
+      [
+        ...(customerSearchPending ? [] : (customersQuery.data?.items ?? [])),
+      ].sort((first, second) =>
+        first.displayName.localeCompare(second.displayName, "es-MX"),
+      ),
+    [customerSearchPending, customersQuery.data?.items],
   );
 
   const customerPets = useMemo(
@@ -237,6 +241,8 @@ export function CollectionFormModal({
     }
 
     reset(defaultValues);
+    setCustomerSearchInput("");
+    setDebouncedCustomerSearch("");
   }, [isOpen, reset]);
 
   useEffect(() => {
@@ -456,11 +462,32 @@ export function CollectionFormModal({
             {customerMode === "existing" && (
               <div className="mt-5">
                 <label className="block text-sm font-medium text-slate-700">
+                  Buscar cliente
+                </label>
+
+                <input
+                  type="search"
+                  value={customerSearchInput}
+                  onChange={(event) => {
+                    setCustomerSearchInput(event.target.value);
+                    setValue("existingCustomerId", "");
+                    setValue("existingPetId", "");
+                  }}
+                  disabled={isSubmitting}
+                  placeholder="Nombre o teléfono"
+                  className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5"
+                />
+
+                <label className="mt-5 block text-sm font-medium text-slate-700">
                   Cliente
                 </label>
 
                 <select
-                  disabled={isSubmitting || customersQuery.isLoading}
+                  disabled={
+                    isSubmitting ||
+                    customerSearchPending ||
+                    customersQuery.isLoading
+                  }
                   {...register("existingCustomerId")}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900"
                 >
@@ -472,15 +499,7 @@ export function CollectionFormModal({
 
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
-                      {[
-                        customer.firstName,
-                        customer.lastName,
-                        customer.secondLastName,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      {" — "}
-                      {customer.phone}
+                      {customer.displayName} — {customer.phone}
                     </option>
                   ))}
                 </select>
@@ -494,9 +513,14 @@ export function CollectionFormModal({
                 {selectedCustomer && (
                   <div className="mt-3 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
                     <p>Teléfono: {selectedCustomer.phone}</p>
-
-                    <p className="mt-1">Correo: {selectedCustomer.email}</p>
                   </div>
+                )}
+
+                {(customersQuery.data?.totalPages ?? 0) > 1 && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Refina la búsqueda para encontrar clientes fuera de los
+                    primeros 20 resultados.
+                  </p>
                 )}
               </div>
             )}
@@ -537,21 +561,6 @@ export function CollectionFormModal({
                       {errors.ownerLastName.message}
                     </p>
                   )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Apellido materno
-                    <span className="ml-1 font-normal text-slate-400">
-                      (opcional)
-                    </span>
-                  </label>
-
-                  <input
-                    disabled={isSubmitting}
-                    {...register("ownerSecondLastName")}
-                    className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  />
                 </div>
 
                 <div>
@@ -766,24 +775,6 @@ export function CollectionFormModal({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700">
-                    Edad
-                    <span className="ml-1 font-normal text-slate-400">
-                      (años)
-                    </span>
-                  </label>
-
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    disabled={isSubmitting}
-                    {...register("ageYears")}
-                    className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
                     Peso aproximado
                   </label>
 
@@ -811,6 +802,7 @@ export function CollectionFormModal({
 
                   <input
                     type="date"
+                    max={getMexicoBusinessDate()}
                     disabled={isSubmitting}
                     {...register("dateOfDeath")}
                     className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5"

@@ -1,4 +1,5 @@
 using pcms.Application.Collections.DTOs;
+using pcms.Application.Common;
 using pcms.Domain.Enums;
 
 namespace pcms.Application.Collections.Interfaces;
@@ -29,6 +30,15 @@ public interface ICollectionService
         Guid id,
         ChangeCollectionStatusDto dto,
         Guid actorUserId);
+
+    Task<PaginatedResult<CollectionCustomerOptionDto>>
+        GetCustomerOptionsAsync(
+            string? search,
+            int page,
+            int pageSize);
+
+    Task<IEnumerable<CollectionPetOptionDto>>
+        GetPetOptionsAsync(Guid customerId);
 
     Task<IEnumerable<CollectionDriverOptionDto>>
         GetActiveDriverOptionsAsync();

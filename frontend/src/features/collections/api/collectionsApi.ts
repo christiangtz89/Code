@@ -4,9 +4,12 @@ import type {
   AssignCollectionPayload,
   Collection,
   CollectionDriverOption,
+  CollectionPetOption,
   ConvertCollectionToReceptionPayload,
   CreateCollectionPayload,
+  GetCollectionCustomerOptionsParams,
   GetCollectionsParams,
+  PaginatedCollectionCustomerOptions,
   PagedCollections,
   SearchCollectionsParams,
   UpdateCollectionPayload,
@@ -44,6 +47,27 @@ export async function createCollection(
   payload: CreateCollectionPayload,
 ): Promise<Collection> {
   const response = await apiClient.post<Collection>(COLLECTIONS_URL, payload);
+
+  return response.data;
+}
+
+export async function getCollectionCustomerOptions(
+  params: GetCollectionCustomerOptionsParams,
+): Promise<PaginatedCollectionCustomerOptions> {
+  const response = await apiClient.get<PaginatedCollectionCustomerOptions>(
+    `${COLLECTIONS_URL}/intake/customer-options`,
+    { params },
+  );
+
+  return response.data;
+}
+
+export async function getCollectionPetOptions(
+  customerId: string,
+): Promise<CollectionPetOption[]> {
+  const response = await apiClient.get<CollectionPetOption[]>(
+    `${COLLECTIONS_URL}/intake/customer-options/${customerId}/pets`,
+  );
 
   return response.data;
 }

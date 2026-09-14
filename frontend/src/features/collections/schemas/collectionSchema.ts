@@ -4,15 +4,31 @@ function isUuid(value: string): boolean {
   return z.string().uuid().safeParse(value).success;
 }
 
-function getTodayLocalDate(): string {
-  const now = new Date();
+export function getMexicoBusinessDate(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
 
-  const offset = now.getTimezoneOffset() * 60_000;
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
 
-  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+  return `${year}-${month}-${day}`;
 }
 
-const optionalPhoneSchema = z
+const optionalOwnerPhoneSchema = z
+  .string()
+  .trim()
+  .max(25, "El teléfono no puede exceder 25 caracteres.")
+  .refine(
+    (value) => value === "" || /^[0-9+\-\s()]+$/.test(value),
+    "El teléfono contiene caracteres no válidos.",
+  );
+
+const optionalPickupPhoneSchema = z
   .string()
   .trim()
   .max(30, "El teléfono no puede exceder 30 caracteres.")
@@ -24,7 +40,7 @@ const optionalPhoneSchema = z
 const optionalEmailSchema = z
   .string()
   .trim()
-  .max(150, "El correo no puede exceder 150 caracteres.")
+  .max(200, "El correo no puede exceder 200 caracteres.")
   .refine(
     (value) => value === "" || z.string().email().safeParse(value).success,
     "Ingresa un correo electrónico válido.",
@@ -44,21 +60,6 @@ const optionalWeightSchema = z
       Number.isFinite(numberValue) && numberValue > 0 && numberValue <= 999.99
     );
   }, "El peso debe ser mayor que cero y no exceder 999.99 kg.");
-
-const optionalAgeSchema = z
-  .string()
-  .trim()
-  .refine((value) => {
-    if (value === "") {
-      return true;
-    }
-
-    const numberValue = Number(value);
-
-    return (
-      Number.isInteger(numberValue) && numberValue >= 0 && numberValue <= 100
-    );
-  }, "La edad debe estar entre 0 y 100 años.");
 
 export const collectionSchema = z
   .object({
@@ -80,12 +81,7 @@ export const collectionSchema = z
       .trim()
       .max(100, "El apellido paterno no puede exceder 100 caracteres."),
 
-    ownerSecondLastName: z
-      .string()
-      .trim()
-      .max(100, "El apellido materno no puede exceder 100 caracteres."),
-
-    ownerPhone: optionalPhoneSchema,
+    ownerPhone: optionalOwnerPhoneSchema,
 
     ownerEmail: optionalEmailSchema,
 
@@ -113,8 +109,6 @@ export const collectionSchema = z
 
     approximateWeightKg: optionalWeightSchema,
 
-    ageYears: optionalAgeSchema,
-
     dateOfDeath: z.string(),
 
     locationType: z.union([z.literal("1"), z.literal("2")]),
@@ -134,7 +128,7 @@ export const collectionSchema = z
       .trim()
       .max(150, "El nombre del contacto no puede exceder 150 caracteres."),
 
-    pickupContactPhone: optionalPhoneSchema,
+    pickupContactPhone: optionalPickupPhoneSchema,
 
     hasPersonalBelongings: z.boolean(),
 
@@ -164,6 +158,12 @@ export const collectionSchema = z
           path: ["ownerFirstName"],
           message: "El nombre del propietario es obligatorio.",
         });
+      } else if (values.ownerFirstName.length < 2) {
+        context.addIssue({
+          code: "custom",
+          path: ["ownerFirstName"],
+          message: "El nombre debe tener al menos 2 caracteres.",
+        });
       }
 
       if (!values.ownerLastName) {
@@ -172,6 +172,12 @@ export const collectionSchema = z
           path: ["ownerLastName"],
           message: "El apellido paterno es obligatorio.",
         });
+      } else if (values.ownerLastName.length < 2) {
+        context.addIssue({
+          code: "custom",
+          path: ["ownerLastName"],
+          message: "El apellido paterno debe tener al menos 2 caracteres.",
+        });
       }
 
       if (!values.ownerPhone) {
@@ -179,6 +185,12 @@ export const collectionSchema = z
           code: "custom",
           path: ["ownerPhone"],
           message: "El teléfono del propietario es obligatorio.",
+        });
+      } else if (values.ownerPhone.length < 7) {
+        context.addIssue({
+          code: "custom",
+          path: ["ownerPhone"],
+          message: "El teléfono debe tener al menos 7 caracteres.",
         });
       }
 
@@ -206,6 +218,12 @@ export const collectionSchema = z
           code: "custom",
           path: ["petName"],
           message: "El nombre de la mascota es obligatorio.",
+        });
+      } else if (values.petName.length < 2) {
+        context.addIssue({
+          code: "custom",
+          path: ["petName"],
+          message: "El nombre de la mascota debe tener al menos 2 caracteres.",
         });
       }
 
@@ -255,7 +273,7 @@ export const collectionSchema = z
           path: ["dateOfDeath"],
           message: "La fecha de fallecimiento es obligatoria.",
         });
-      } else if (values.dateOfDeath > getTodayLocalDate()) {
+      } else if (values.dateOfDeath > getMexicoBusinessDate()) {
         context.addIssue({
           code: "custom",
           path: ["dateOfDeath"],

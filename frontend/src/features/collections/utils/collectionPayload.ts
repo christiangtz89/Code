@@ -14,10 +14,6 @@ function normalizeOptional(value: string): string | null {
   return normalized ? normalized : null;
 }
 
-function dateToIso(value: string): string {
-  return `${value}T00:00:00.000Z`;
-}
-
 export function createCollectionPayload(
   values: CollectionFormValues,
 ): CreateCollectionPayload {
@@ -33,10 +29,6 @@ export function createCollectionPayload(
     ownerFirstName: creatingCustomer ? values.ownerFirstName.trim() : null,
 
     ownerLastName: creatingCustomer ? values.ownerLastName.trim() : null,
-
-    ownerSecondLastName: creatingCustomer
-      ? normalizeOptional(values.ownerSecondLastName)
-      : null,
 
     ownerPhone: creatingCustomer ? values.ownerPhone.trim() : null,
 
@@ -56,11 +48,7 @@ export function createCollectionPayload(
       ? Number(values.approximateWeightKg)
       : null,
 
-    ageYears:
-      creatingPet && values.ageYears !== "" ? Number(values.ageYears) : null,
-
-    dateOfDeath:
-      creatingPet && values.dateOfDeath ? dateToIso(values.dateOfDeath) : null,
+    dateOfDeath: creatingPet && values.dateOfDeath ? values.dateOfDeath : null,
 
     locationType: Number(values.locationType) as CollectionLocationType,
 

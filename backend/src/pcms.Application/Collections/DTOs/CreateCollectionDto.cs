@@ -22,24 +22,18 @@ public class CreateCollectionDto
     public string? OwnerLastName { get; set; }
 
     [StringLength(
-        100,
+        25,
         ErrorMessage =
-            "El apellido materno del propietario no puede exceder 100 caracteres.")]
-    public string? OwnerSecondLastName { get; set; }
-
-    [StringLength(
-        30,
-        ErrorMessage =
-            "El teléfono del propietario no puede exceder 30 caracteres.")]
+            "El teléfono del propietario no puede exceder 25 caracteres.")]
     public string? OwnerPhone { get; set; }
 
     [EmailAddress(
         ErrorMessage =
             "El correo electrónico del propietario no es válido.")]
     [StringLength(
-        150,
+        200,
         ErrorMessage =
-            "El correo electrónico del propietario no puede exceder 150 caracteres.")]
+            "El correo electrónico del propietario no puede exceder 200 caracteres.")]
     public string? OwnerEmail { get; set; }
 
     [StringLength(
@@ -80,14 +74,7 @@ public class CreateCollectionDto
             "El peso aproximado debe ser mayor que cero.")]
     public decimal? ApproximateWeightKg { get; set; }
 
-    [Range(
-        0,
-        100,
-        ErrorMessage =
-            "La edad debe estar entre 0 y 100 años.")]
-    public int? AgeYears { get; set; }
-
-    public DateTime? DateOfDeath { get; set; }
+    public DateOnly? DateOfDeath { get; set; }
 
     [EnumDataType(
         typeof(CollectionLocationType),

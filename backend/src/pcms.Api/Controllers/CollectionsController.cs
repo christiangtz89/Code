@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using pcms.Application.Collections.DTOs;
 using pcms.Application.Collections.Interfaces;
+using pcms.Application.Common;
 using pcms.Application.Receptions.Exceptions;
 using pcms.Domain.Enums;
 
@@ -262,6 +263,31 @@ public class CollectionsController : ControllerBase
     {
         return Ok(
             await _collectionService.GetActiveDriverOptionsAsync());
+    }
+
+    [HttpGet("intake/customer-options")]
+    [Authorize(Policy = "Collections.Manage")]
+    public async Task<ActionResult<
+        PaginatedResult<CollectionCustomerOptionDto>>>
+        GetCustomerOptions(
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        return Ok(
+            await _collectionService.GetCustomerOptionsAsync(
+                search,
+                page,
+                pageSize));
+    }
+
+    [HttpGet("intake/customer-options/{customerId:guid}/pets")]
+    [Authorize(Policy = "Collections.Manage")]
+    public async Task<ActionResult<IEnumerable<CollectionPetOptionDto>>>
+        GetPetOptions(Guid customerId)
+    {
+        return Ok(
+            await _collectionService.GetPetOptionsAsync(customerId));
     }
 
     [HttpPost("{id:guid}/assign")]

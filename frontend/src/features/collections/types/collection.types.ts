@@ -88,7 +88,6 @@ export interface CreateCollectionPayload {
 
   ownerFirstName: string | null;
   ownerLastName: string | null;
-  ownerSecondLastName: string | null;
   ownerPhone: string | null;
   ownerEmail: string | null;
 
@@ -98,7 +97,6 @@ export interface CreateCollectionPayload {
   sex: string | null;
   color: string | null;
   approximateWeightKg: number | null;
-  ageYears: number | null;
   dateOfDeath: string | null;
 
   locationType: CollectionLocationType;
@@ -114,6 +112,34 @@ export interface CreateCollectionPayload {
   personalBelongingsDescription: string | null;
 
   notes: string | null;
+}
+
+export interface CollectionCustomerOption {
+  id: string;
+  displayName: string;
+  phone: string;
+}
+
+export interface CollectionPetOption {
+  id: string;
+  name: string;
+  species: string;
+  breed: string;
+  weightKg: number;
+}
+
+export interface PaginatedCollectionCustomerOptions {
+  items: CollectionCustomerOption[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface GetCollectionCustomerOptionsParams {
+  search?: string;
+  page: number;
+  pageSize: number;
 }
 
 export interface UpdateCollectionPayload {

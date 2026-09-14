@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using pcms.Application.Auth;
 using pcms.Application.Collections.DTOs;
 using pcms.Application.Collections.Interfaces;
+using pcms.Application.Common;
 using pcms.Application.Receptions.Exceptions;
 using pcms.Domain.Entities;
 using pcms.Domain.Enums;
@@ -107,27 +108,27 @@ public class CollectionService : ICollectionService
              */
             else
             {
-                ValidateNewCustomerData(dto);
+                var customerInput =
+                    CustomerPetInputRules.NormalizeCustomer(
+                        dto.OwnerFirstName,
+                        dto.OwnerLastName,
+                        null,
+                        dto.OwnerPhone,
+                        dto.OwnerEmail);
 
                 customer = new Customer
                 {
                     Id = Guid.NewGuid(),
 
-                    FirstName =
-                        dto.OwnerFirstName!.Trim(),
+                    FirstName = customerInput.FirstName,
 
-                    LastName =
-                        dto.OwnerLastName!.Trim(),
+                    LastName = customerInput.LastName,
 
-                    SecondLastName =
-                        NormalizeOptional(
-                            dto.OwnerSecondLastName),
+                    SecondLastName = customerInput.SecondLastName,
 
-                    Phone =
-                        dto.OwnerPhone!.Trim(),
+                    Phone = customerInput.Phone,
 
-                    Email =
-                        dto.OwnerEmail!.Trim(),
+                    Email = customerInput.Email,
 
                     IsActive = true,
 
@@ -141,6 +142,14 @@ public class CollectionService : ICollectionService
 
             ValidateNewPetData(dto);
 
+            var petInput =
+                CustomerPetInputRules.NormalizePet(
+                    dto.PetName,
+                    dto.Species,
+                    dto.Breed,
+                    dto.Sex,
+                    dto.Color);
+
             pet = new Pet
             {
                 Id = Guid.NewGuid(),
@@ -148,29 +157,22 @@ public class CollectionService : ICollectionService
                 CustomerId =
                     customer.Id,
 
-                Name =
-                    dto.PetName!.Trim(),
+                Name = petInput.Name,
 
-                Species =
-                    dto.Species!.Trim(),
+                Species = petInput.Species,
 
-                Breed =
-                    dto.Breed!.Trim(),
+                Breed = petInput.Breed,
 
-                Sex =
-                    dto.Sex!.Trim(),
+                Sex = petInput.Sex,
 
-                Color =
-                    dto.Color!.Trim(),
+                Color = petInput.Color,
 
                 WeightKg =
                     dto.ApproximateWeightKg!.Value,
 
-                AgeYears =
-                    dto.AgeYears,
+                AgeYears = null,
 
-                DateOfDeath =
-                    DateOnly.FromDateTime(dto.DateOfDeath!.Value),
+                DateOfDeath = dto.DateOfDeath!.Value,
 
                 IsActive = true,
 
@@ -613,6 +615,94 @@ public class CollectionService : ICollectionService
             {
                 Id = user.Id,
                 Name = user.FirstName + " " + user.LastName
+            })
+            .ToListAsync();
+    }
+
+    public async Task<PaginatedResult<CollectionCustomerOptionDto>>
+        GetCustomerOptionsAsync(
+            string? search,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.Customers
+            .AsNoTracking()
+            .Where(customer => customer.IsActive);
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+
+            query = query.Where(customer =>
+                EF.Functions.ILike(customer.FirstName, pattern) ||
+                EF.Functions.ILike(customer.LastName, pattern) ||
+                (customer.SecondLastName != null &&
+                    EF.Functions.ILike(
+                        customer.SecondLastName,
+                        pattern)) ||
+                EF.Functions.ILike(customer.Phone, pattern));
+        }
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
+            .OrderBy(customer => customer.LastName)
+            .ThenBy(customer => customer.SecondLastName)
+            .ThenBy(customer => customer.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(customer => new CollectionCustomerOptionDto
+            {
+                Id = customer.Id,
+                DisplayName =
+                    customer.FirstName + " " +
+                    customer.LastName +
+                    (customer.SecondLastName == null
+                        ? string.Empty
+                        : " " + customer.SecondLastName),
+                Phone = customer.Phone
+            })
+            .ToListAsync();
+
+        return new PaginatedResult<CollectionCustomerOptionDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
+        };
+    }
+
+    public async Task<IEnumerable<CollectionPetOptionDto>>
+        GetPetOptionsAsync(Guid customerId)
+    {
+        return await _context.Pets
+            .AsNoTracking()
+            .Where(pet =>
+                pet.CustomerId == customerId &&
+                pet.IsActive &&
+                pet.Customer.IsActive &&
+                pet.Reception == null &&
+                !pet.Collections.Any(collection =>
+                    collection.IsActive &&
+                    collection.Status != CollectionStatus.Received &&
+                    collection.Status != CollectionStatus.Cancelled))
+            .OrderBy(pet => pet.Name)
+            .ThenBy(pet => pet.Species)
+            .Select(pet => new CollectionPetOptionDto
+            {
+                Id = pet.Id,
+                Name = pet.Name,
+                Species = pet.Species,
+                Breed = pet.Breed,
+                WeightKg = pet.WeightKg
             })
             .ToListAsync();
     }
@@ -1471,77 +1561,9 @@ public class CollectionService : ICollectionService
     }
 
     private static void
-        ValidateNewCustomerData(
-            CreateCollectionDto dto)
-    {
-        if (string.IsNullOrWhiteSpace(
-            dto.OwnerFirstName))
-        {
-            throw new ArgumentException(
-                "El nombre del propietario es obligatorio para crear un nuevo cliente.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            dto.OwnerLastName))
-        {
-            throw new ArgumentException(
-                "El apellido paterno del propietario es obligatorio para crear un nuevo cliente.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            dto.OwnerPhone))
-        {
-            throw new ArgumentException(
-                "El teléfono del propietario es obligatorio para crear un nuevo cliente.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            dto.OwnerEmail))
-        {
-            throw new ArgumentException(
-                "El correo electrónico del propietario es obligatorio para crear un nuevo cliente.");
-        }
-    }
-
-    private static void
         ValidateNewPetData(
             CreateCollectionDto dto)
     {
-        if (string.IsNullOrWhiteSpace(
-            dto.PetName))
-        {
-            throw new ArgumentException(
-                "El nombre de la mascota es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            dto.Species))
-        {
-            throw new ArgumentException(
-                "La especie de la mascota es obligatoria.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            dto.Breed))
-        {
-            throw new ArgumentException(
-                "La raza de la mascota es obligatoria.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            dto.Sex))
-        {
-            throw new ArgumentException(
-                "El sexo de la mascota es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(
-            dto.Color))
-        {
-            throw new ArgumentException(
-                "El color de la mascota es obligatorio.");
-        }
-
         if (!dto.ApproximateWeightKg.HasValue ||
             dto.ApproximateWeightKg.Value <= 0)
         {
@@ -1555,8 +1577,8 @@ public class CollectionService : ICollectionService
                 "La fecha de fallecimiento de la mascota es obligatoria.");
         }
 
-        if (dto.DateOfDeath.Value.Date >
-            DateTime.UtcNow.Date)
+        if (dto.DateOfDeath.Value >
+            CustomerPetWorkflowRules.CurrentBusinessDate())
         {
             throw new ArgumentException(
                 "La fecha de fallecimiento no puede estar en el futuro.");
