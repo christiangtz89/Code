@@ -5,6 +5,7 @@ using pcms.Domain.Entities;
 using pcms.Domain.Enums;
 using pcms.Infrastructure.Persistence;
 using pcms.Application.CremationPricing.Interfaces;
+using pcms.Application.CremationPricing.DTOs;
 
 namespace pcms.Infrastructure.Services;
 
@@ -84,11 +85,25 @@ public class CremationService : ICremationService
                 "La recepción ya tiene una cremación registrada.");
         }
 
+        PaymentAccount? collectionPaymentAccount = null;
+
+        if (reception.CollectionId.HasValue)
+        {
+            collectionPaymentAccount = await _context.PaymentAccounts
+                .Include(account => account.Payments)
+                .FirstOrDefaultAsync(account =>
+                    account.CollectionId == reception.CollectionId.Value);
+        }
+
+        var allowHistoricalPackage =
+            collectionPaymentAccount?.CremationPackageId ==
+            dto.CremationPackageId;
+
         var package = await _context.CremationPackages
     .AsNoTracking()
     .FirstOrDefaultAsync(p =>
         p.Id == dto.CremationPackageId &&
-        p.IsActive);
+        (p.IsActive || allowHistoricalPackage));
 
         if (package == null)
         {
@@ -96,18 +111,17 @@ public class CremationService : ICremationService
                 "No se encontró un paquete o servicio de cremación activo.");
         }
 
-        var cremationType =
-        package.PackageType switch
-        {
-            CremationPackageType.AshesReturn =>
-                CremationType.Individual,
-
-            CremationPackageType.NoAshes =>
-                CremationType.Communal,
-
-            _ => throw new InvalidOperationException(
-                "El tipo de paquete de cremación no es válido.")
-        };
+        var cremationType = collectionPaymentAccount is not null
+            ? collectionPaymentAccount.CremationTypeSnapshot
+                ?? throw new InvalidOperationException(
+                    "La cuenta de pago no conserva un tipo de cremación histórico válido.")
+            : package.PackageType switch
+            {
+                CremationPackageType.AshesReturn => CremationType.Individual,
+                CremationPackageType.NoAshes => CremationType.Communal,
+                _ => throw new InvalidOperationException(
+                    "El tipo de paquete de cremación no es válido.")
+            };
 
         Urn? urn = null;
 
@@ -149,22 +163,27 @@ public class CremationService : ICremationService
                     : dto.AccessoryDescription.Trim()
                 : null;
 
-        var quote =
-    await _cremationPricingService.GetQuoteAsync(
-        package.Id,
-        reception.VerifiedWeightKg,
-        cremationType);
+        CremationPriceQuoteDto? quote = collectionPaymentAccount is null
+            ? await _cremationPricingService.GetQuoteAsync(
+                package.Id,
+                reception.VerifiedWeightKg,
+                cremationType)
+            : null;
 
-        PaymentAccount? collectionPaymentAccount = null;
-        var quotedPrice = quote.Price;
+        if (collectionPaymentAccount is not null &&
+            (collectionPaymentAccount.WeightKgSnapshot is null or <= 0m ||
+             collectionPaymentAccount.MinimumWeightKgSnapshot is null or < 0m ||
+             collectionPaymentAccount.MaximumWeightKgSnapshot is null or <= 0m))
+        {
+            throw new InvalidOperationException(
+                "La cuenta de pago no conserva un rango de peso histórico válido.");
+        }
+
+        var quotedPrice =
+            collectionPaymentAccount?.ServiceTotal ?? quote!.Price;
 
         if (reception.CollectionId.HasValue)
         {
-            collectionPaymentAccount = await _context.PaymentAccounts
-                .Include(account => account.Payments)
-                .FirstOrDefaultAsync(account =>
-                    account.CollectionId == reception.CollectionId.Value);
-
             if (collectionPaymentAccount != null &&
                 collectionPaymentAccount.CremationPackageId != package.Id)
             {
@@ -177,11 +196,6 @@ public class CremationService : ICremationService
             {
                 throw new InvalidOperationException(
                     "La cuenta de pago no tiene un precio histórico válido.");
-            }
-
-            if (collectionPaymentAccount != null)
-            {
-                quotedPrice = collectionPaymentAccount.ServiceTotal;
             }
 
             if (collectionPaymentAccount != null &&
@@ -229,13 +243,13 @@ public class CremationService : ICremationService
             CremationPackageId = package.Id,
             UrnId = urn?.Id,
 
-            CremationType = cremationType,
+            CremationType = collectionPaymentAccount?.CremationTypeSnapshot ?? cremationType,
 
             Status = dto.ScheduledAt.HasValue
                 ? CremationStatus.Scheduled
                 : CremationStatus.Pending,
 
-            PackageName = package.Name,
+            PackageName = collectionPaymentAccount?.PackageName ?? package.Name,
 
             IncludesUrn = package.IncludesUrn,
 
@@ -247,14 +261,11 @@ public class CremationService : ICremationService
             QuotedPrice =
     quotedPrice,
 
-            QuotedWeightKg =
-    quote.WeightKg,
+            QuotedWeightKg = collectionPaymentAccount?.WeightKgSnapshot ?? quote!.WeightKg,
 
-            QuotedMinimumWeightKg =
-    quote.MinimumWeightKg,
+            QuotedMinimumWeightKg = collectionPaymentAccount?.MinimumWeightKgSnapshot ?? quote!.MinimumWeightKg,
 
-            QuotedMaximumWeightKg =
-    quote.MaximumWeightKg,
+            QuotedMaximumWeightKg = collectionPaymentAccount?.MaximumWeightKgSnapshot ?? quote!.MaximumWeightKg,
             ScheduledAt = dto.ScheduledAt,
 
             SpecialInstructions =

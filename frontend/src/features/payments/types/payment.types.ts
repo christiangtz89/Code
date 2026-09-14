@@ -41,6 +41,10 @@ export interface PaymentAccount {
   customerId: string;
   customerName: string;
   packageName: string;
+  cremationType: number | null;
+  pricingWeightKg: number | null;
+  minimumWeightKg: number | null;
+  maximumWeightKg: number | null;
   isCremationActive: boolean;
   serviceTotal: number;
   requiredCollectionPaymentAmount: number | null;

@@ -8,6 +8,10 @@ public class CollectionDto
 
     public Guid PetId { get; set; }
 
+    public Guid? CreatedByUserId { get; set; }
+
+    public string? CreatedByUserName { get; set; }
+
     public string PetName { get; set; }
         = string.Empty;
 
@@ -19,8 +23,7 @@ public class CollectionDto
     public string CustomerName { get; set; }
         = string.Empty;
 
-    public string CustomerPhone { get; set; }
-        = string.Empty;
+    public string? CustomerPhone { get; set; }
 
     public Guid? CollectedByUserId { get; set; }
 
@@ -80,7 +83,15 @@ public class CollectionDto
 
     public DateTime? ReceivedAt { get; set; }
 
+    public Guid? ReceivedByUserId { get; set; }
+
+    public string? ReceivedByUserName { get; set; }
+
     public DateTime? CancelledAt { get; set; }
+
+    public Guid? CancelledByUserId { get; set; }
+
+    public string? CancelledByUserName { get; set; }
 
     public bool IsActive { get; set; }
 

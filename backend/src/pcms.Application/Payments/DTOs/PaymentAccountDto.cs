@@ -24,6 +24,14 @@ public class PaymentAccountDto
 
     public string PackageName { get; set; } = string.Empty;
 
+    public CremationType? CremationType { get; set; }
+
+    public decimal? PricingWeightKg { get; set; }
+
+    public decimal? MinimumWeightKg { get; set; }
+
+    public decimal? MaximumWeightKg { get; set; }
+
     public bool IsCremationActive { get; set; }
 
     public decimal ServiceTotal { get; set; }

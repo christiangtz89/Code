@@ -199,6 +199,10 @@ public class AppDbContext : DbContext
                 .HasColumnName("SubidoPorUsuarioId")
                 .IsRequired();
 
+            entity.Property(cp => cp.UploadedByUserNameSnapshot)
+                .HasColumnName("NombreUsuarioSubioSnapshot")
+                .IsRequired();
+
             entity.Property(cp => cp.PhotoType)
                 .HasColumnName("TipoFoto")
                 .HasConversion<int>()
@@ -266,21 +270,34 @@ public class AppDbContext : DbContext
                 .HasColumnName("MascotaId")
                 .IsRequired();
 
+            entity.Property(c => c.CreatedByUserId).HasColumnName("CreadoPorUsuarioId");
+            entity.Property(c => c.CustomerNameSnapshot).HasColumnName("NombreClienteSnapshot").IsRequired();
+            entity.Property(c => c.CustomerPhoneSnapshot).HasColumnName("TelefonoClienteSnapshot");
+            entity.Property(c => c.PetNameSnapshot).HasColumnName("NombreMascotaSnapshot").IsRequired();
+            entity.Property(c => c.PetSpeciesSnapshot).HasColumnName("EspecieMascotaSnapshot").IsRequired();
+            entity.Property(c => c.VeterinaryClinicNameSnapshot).HasColumnName("NombreVeterinariaSnapshot").HasMaxLength(200);
+            entity.Property(c => c.ReferringVeterinarianNameSnapshot).HasColumnName("NombreVeterinarioReferenteSnapshot");
+            entity.Property(c => c.CreatedByUserNameSnapshot).HasColumnName("NombreUsuarioCreoSnapshot");
+
             entity.Property(c => c.CollectedByUserId)
                 .HasColumnName("RecolectadoPorUsuarioId")
                 .IsRequired(false);
+            entity.Property(c => c.CollectedByUserNameSnapshot).HasColumnName("NombreUsuarioRecolectoSnapshot");
 
             entity.Property(c => c.AssignedDriverId)
                 .HasColumnName("ConductorAsignadoId");
+            entity.Property(c => c.AssignedDriverNameSnapshot).HasColumnName("NombreConductorAsignadoSnapshot");
 
             entity.Property(c => c.AssignedByUserId)
                 .HasColumnName("AsignadoPorUsuarioId");
+            entity.Property(c => c.AssignedByUserNameSnapshot).HasColumnName("NombreUsuarioAsignoSnapshot");
 
             entity.Property(c => c.AssignedAt)
                 .HasColumnName("FechaAsignacion");
 
             entity.Property(c => c.AcceptedByUserId)
                 .HasColumnName("AceptadoPorUsuarioId");
+            entity.Property(c => c.AcceptedByUserNameSnapshot).HasColumnName("NombreUsuarioAceptoSnapshot");
 
             entity.Property(c => c.AcceptedAt)
                 .HasColumnName("FechaAceptacion");
@@ -341,9 +358,13 @@ public class AppDbContext : DbContext
 
             entity.Property(c => c.ReceivedAt)
                 .HasColumnName("FechaRecepcionInstalaciones");
+            entity.Property(c => c.ReceivedByUserId).HasColumnName("RecibidoPorUsuarioId");
+            entity.Property(c => c.ReceivedByUserNameSnapshot).HasColumnName("NombreUsuarioRecibioSnapshot");
 
             entity.Property(c => c.CancelledAt)
                 .HasColumnName("FechaCancelacion");
+            entity.Property(c => c.CancelledByUserId).HasColumnName("CanceladoPorUsuarioId");
+            entity.Property(c => c.CancelledByUserNameSnapshot).HasColumnName("NombreUsuarioCanceloSnapshot");
 
             entity.Property(c => c.IsActive)
                 .HasColumnName("Activo")
@@ -357,6 +378,7 @@ public class AppDbContext : DbContext
                 .IsUnique();
 
             entity.HasIndex(c => c.PetId);
+            entity.HasIndex(c => c.CreatedByUserId);
 
             entity.HasIndex(c => c.CollectedByUserId);
 
@@ -365,6 +387,8 @@ public class AppDbContext : DbContext
             entity.HasIndex(c => c.AssignedByUserId);
 
             entity.HasIndex(c => c.AcceptedByUserId);
+            entity.HasIndex(c => c.ReceivedByUserId);
+            entity.HasIndex(c => c.CancelledByUserId);
 
             entity.HasIndex(c => c.VeterinaryClinicId);
 
@@ -378,6 +402,8 @@ public class AppDbContext : DbContext
                 .WithMany(p => p.Collections)
                 .HasForeignKey(c => c.PetId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.CreatedByUser).WithMany().HasForeignKey(c => c.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(c => c.CollectedByUser)
                 .WithMany()
@@ -398,6 +424,10 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(c => c.AcceptedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.CancelledByUser).WithMany().HasForeignKey(c => c.CancelledByUserId).OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(c => c.ReceivedByUser).WithMany().HasForeignKey(c => c.ReceivedByUserId).OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(c => c.VeterinaryClinic)
                 .WithMany()
@@ -421,16 +451,20 @@ public class AppDbContext : DbContext
                 .HasColumnName("RecoleccionId");
             entity.Property(history => history.AssignedDriverId)
                 .HasColumnName("ConductorAsignadoId");
+            entity.Property(history => history.AssignedDriverNameSnapshot).HasColumnName("NombreConductorAsignadoSnapshot").IsRequired();
             entity.Property(history => history.AssignedByUserId)
                 .HasColumnName("AsignadoPorUsuarioId");
+            entity.Property(history => history.AssignedByUserNameSnapshot).HasColumnName("NombreUsuarioAsignoSnapshot").IsRequired();
             entity.Property(history => history.AssignedAt)
                 .HasColumnName("FechaAsignacion");
             entity.Property(history => history.AcceptedByUserId)
                 .HasColumnName("AceptadoPorUsuarioId");
+            entity.Property(history => history.AcceptedByUserNameSnapshot).HasColumnName("NombreUsuarioAceptoSnapshot");
             entity.Property(history => history.AcceptedAt)
                 .HasColumnName("FechaAceptacion");
             entity.Property(history => history.EndedByUserId)
                 .HasColumnName("FinalizadoPorUsuarioId");
+            entity.Property(history => history.EndedByUserNameSnapshot).HasColumnName("NombreUsuarioFinalizoSnapshot");
             entity.Property(history => history.EndedAt)
                 .HasColumnName("FechaFinalizacion");
 
@@ -1490,6 +1524,11 @@ public class AppDbContext : DbContext
             entity.Property(pa => pa.PackageName)
                 .HasColumnName("NombrePaqueteSnapshot")
                 .HasMaxLength(150);
+
+            entity.Property(pa => pa.CremationTypeSnapshot).HasColumnName("TipoCremacionSnapshot").HasConversion<int>();
+            entity.Property(pa => pa.MinimumWeightKgSnapshot).HasColumnName("PesoMinimoSnapshotKg").HasPrecision(10, 2);
+            entity.Property(pa => pa.MaximumWeightKgSnapshot).HasColumnName("PesoMaximoSnapshotKg").HasPrecision(10, 2);
+            entity.Property(pa => pa.WeightKgSnapshot).HasColumnName("PesoBaseSnapshotKg").HasPrecision(10, 2);
 
             entity.Property(pa => pa.ServiceTotal)
                 .HasColumnName("TotalServicio")

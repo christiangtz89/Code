@@ -1,3 +1,5 @@
+using pcms.Domain.Enums;
+
 namespace pcms.Domain.Entities;
 
 public class PaymentAccount
@@ -13,6 +15,14 @@ public class PaymentAccount
     public Guid? CremationPackageId { get; set; }
 
     public string? PackageName { get; set; }
+
+    public CremationType? CremationTypeSnapshot { get; set; }
+
+    public decimal? MinimumWeightKgSnapshot { get; set; }
+
+    public decimal? MaximumWeightKgSnapshot { get; set; }
+
+    public decimal? WeightKgSnapshot { get; set; }
 
     public decimal ServiceTotal { get; set; }
 

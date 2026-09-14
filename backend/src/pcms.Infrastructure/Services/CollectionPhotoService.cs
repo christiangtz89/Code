@@ -162,6 +162,9 @@ public class CollectionPhotoService
                 UploadedByUserId =
                     uploadedByUser.Id,
 
+                UploadedByUserNameSnapshot =
+                    uploadedByUser.FirstName + " " + uploadedByUser.LastName,
+
                 PhotoType =
                     photoType,
 
@@ -280,12 +283,7 @@ public class CollectionPhotoService
                     UploadedByUserId =
                         photo.UploadedByUserId,
 
-                    UploadedByUserName =
-                        photo.UploadedByUser
-                            .FirstName +
-                        " " +
-                        photo.UploadedByUser
-                            .LastName,
+                    UploadedByUserName = photo.UploadedByUserNameSnapshot,
 
                     PhotoType =
                         photo.PhotoType,
@@ -352,12 +350,7 @@ public class CollectionPhotoService
                     UploadedByUserId =
                         photo.UploadedByUserId,
 
-                    UploadedByUserName =
-                        photo.UploadedByUser
-                            .FirstName +
-                        " " +
-                        photo.UploadedByUser
-                            .LastName,
+                    UploadedByUserName = photo.UploadedByUserNameSnapshot,
 
                     PhotoType =
                         photo.PhotoType,
@@ -632,10 +625,7 @@ public class CollectionPhotoService
             UploadedByUserId =
                 photo.UploadedByUserId,
 
-            UploadedByUserName =
-                uploadedByUser.FirstName +
-                " " +
-                uploadedByUser.LastName,
+            UploadedByUserName = photo.UploadedByUserNameSnapshot,
 
             PhotoType =
                 photo.PhotoType,

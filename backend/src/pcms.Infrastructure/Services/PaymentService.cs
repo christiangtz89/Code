@@ -190,6 +190,10 @@ public class PaymentService : IPaymentService
             CremationPriceId = selectedPrice.Id,
             CremationPackageId = selectedPrice.CremationPackageId,
             PackageName = selectedPrice.CremationPackage.Name,
+            CremationTypeSnapshot = selectedPrice.CremationType,
+            MinimumWeightKgSnapshot = selectedPrice.MinimumWeightKg,
+            MaximumWeightKgSnapshot = selectedPrice.MaximumWeightKg,
+            WeightKgSnapshot = quote.WeightKg,
             ServiceTotal = quote.Price,
             RequiredCollectionPaymentAmount = required,
             CreatedAt = DateTime.UtcNow
@@ -691,15 +695,23 @@ public class PaymentService : IPaymentService
             ReceptionId = reception?.Id,
             QrCode = reception?.QrCode ?? collection!.QrCode,
             PetId = pet.Id,
-            PetName = reception?.PetNameSnapshot ?? pet.Name,
+            PetName = reception?.PetNameSnapshot ?? collection?.PetNameSnapshot ?? pet.Name,
             CustomerId = pet.CustomerId,
-            CustomerName = reception?.CustomerNameSnapshot ??
+            CustomerName = reception?.CustomerNameSnapshot ?? collection?.CustomerNameSnapshot ??
                 BuildUserName(
                     pet.Customer.FirstName,
                     pet.Customer.LastName),
             PackageName = account.PackageName ??
                 cremation?.PackageName ??
                 string.Empty,
+            CremationType = account.CremationTypeSnapshot ??
+                cremation?.CremationType,
+            PricingWeightKg = account.WeightKgSnapshot ??
+                cremation?.QuotedWeightKg,
+            MinimumWeightKg = account.MinimumWeightKgSnapshot ??
+                cremation?.QuotedMinimumWeightKg,
+            MaximumWeightKg = account.MaximumWeightKgSnapshot ??
+                cremation?.QuotedMaximumWeightKg,
             IsCremationActive = cremation?.IsActive ??
                 collection?.IsActive == true,
             ServiceTotal = account.ServiceTotal,

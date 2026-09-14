@@ -39,7 +39,7 @@ public class CollectionService : ICollectionService
             dto.HasPersonalBelongings,
             dto.PersonalBelongingsDescription);
 
-        _ = await GetActiveUserAsync(
+        var createdByUser = await GetActiveUserAsync(
                 createdByUserId,
                 "El usuario que registra la recolección no existe o está inactivo.");
 
@@ -243,6 +243,17 @@ public class CollectionService : ICollectionService
 
                 PetId =
                     pet.Id,
+
+                CreatedByUserId = createdByUser.Id,
+                CreatedByUserNameSnapshot = GetUserFullName(createdByUser),
+                CustomerNameSnapshot = GetCustomerFullName(customer),
+                CustomerPhoneSnapshot = customer.Phone,
+                PetNameSnapshot = pet.Name,
+                PetSpeciesSnapshot = pet.Species,
+                VeterinaryClinicNameSnapshot = location.Clinic?.Name,
+                ReferringVeterinarianNameSnapshot = location.Veterinarian is null
+                    ? null
+                    : GetVeterinarianFullName(location.Veterinarian),
 
                 CollectedByUserId = null,
 
@@ -449,10 +460,10 @@ public class CollectionService : ICollectionService
             return null;
         }
 
-        if (!IsPreReceptionState(collection.Status))
+        if (collection.Status is CollectionStatus.Collected or CollectionStatus.Received or CollectionStatus.Cancelled)
         {
             throw new InvalidOperationException(
-                "Una recolección recibida o cancelada ya no puede editarse.");
+                "No se puede editar una recolección después de confirmar la custodia.");
         }
 
         var location =
@@ -467,8 +478,16 @@ public class CollectionService : ICollectionService
         collection.VeterinaryClinicId =
             location.Clinic?.Id;
 
+        collection.VeterinaryClinicNameSnapshot =
+            location.Clinic?.Name;
+
         collection.ReferringVeterinarianId =
             location.Veterinarian?.Id;
+
+        collection.ReferringVeterinarianNameSnapshot =
+            location.Veterinarian is null
+                ? null
+                : GetVeterinarianFullName(location.Veterinarian);
 
         collection.PickupAddress =
             dto.PickupAddress.Trim();
@@ -514,7 +533,7 @@ public class CollectionService : ICollectionService
                 "No se pudo identificar al usuario que cancela la recolección.");
         }
 
-        _ = await GetActiveUserAsync(
+        var actor = await GetActiveUserAsync(
             actorUserId,
             "El usuario que cancela la recolección no existe o está inactivo.");
 
@@ -560,6 +579,9 @@ public class CollectionService : ICollectionService
         collection.Status =
             CollectionStatus.Cancelled;
 
+        collection.CancelledByUserId = actorUserId;
+        collection.CancelledByUserNameSnapshot = GetUserFullName(actor);
+
         collection.CancelledAt =
             DateTime.UtcNow;
 
@@ -572,6 +594,7 @@ public class CollectionService : ICollectionService
         if (currentAssignment != null)
         {
             currentAssignment.EndedByUserId = actorUserId;
+            currentAssignment.EndedByUserNameSnapshot = collection.CancelledByUserNameSnapshot;
             currentAssignment.EndedAt = collection.CancelledAt;
         }
 
@@ -653,13 +676,18 @@ public class CollectionService : ICollectionService
         if (currentAssignment != null)
         {
             currentAssignment.EndedByUserId = assignedByUser.Id;
+            currentAssignment.EndedByUserNameSnapshot =
+                GetUserFullName(assignedByUser);
             currentAssignment.EndedAt = now;
         }
 
         collection.AssignedDriverId = driver.Id;
+        collection.AssignedDriverNameSnapshot = GetUserFullName(driver);
         collection.AssignedByUserId = assignedByUser.Id;
+        collection.AssignedByUserNameSnapshot = GetUserFullName(assignedByUser);
         collection.AssignedAt = now;
         collection.AcceptedByUserId = null;
+        collection.AcceptedByUserNameSnapshot = null;
         collection.AcceptedAt = null;
         collection.Status = CollectionStatus.Assigned;
 
@@ -669,7 +697,9 @@ public class CollectionService : ICollectionService
                 Id = Guid.NewGuid(),
                 CollectionId = collection.Id,
                 AssignedDriverId = driver.Id,
+                AssignedDriverNameSnapshot = GetUserFullName(driver),
                 AssignedByUserId = assignedByUser.Id,
+                AssignedByUserNameSnapshot = GetUserFullName(assignedByUser),
                 AssignedAt = now
             });
 
@@ -730,9 +760,11 @@ public class CollectionService : ICollectionService
 
         var now = DateTime.UtcNow;
         collection.AcceptedByUserId = actor.Id;
+        collection.AcceptedByUserNameSnapshot = GetUserFullName(actor);
         collection.AcceptedAt = now;
         collection.Status = CollectionStatus.Accepted;
         assignment.AcceptedByUserId = actor.Id;
+        assignment.AcceptedByUserNameSnapshot = GetUserFullName(actor);
         assignment.AcceptedAt = now;
 
         await _context.SaveChangesAsync();
@@ -785,6 +817,7 @@ public class CollectionService : ICollectionService
 
         var now = DateTime.UtcNow;
         collection.CollectedByUserId = actor.Id;
+        collection.CollectedByUserNameSnapshot = GetUserFullName(actor);
         collection.CollectedAt = now;
         collection.Status = CollectionStatus.Collected;
 
@@ -1023,9 +1056,6 @@ public class CollectionService : ICollectionService
 
         var currentTime =
             DateTime.UtcNow;
-        var identitySnapshot =
-            CustomerPetWorkflowRules.CaptureReceptionIdentity(collection.Pet);
-
         var reception =
             new Reception
             {
@@ -1035,10 +1065,10 @@ public class CollectionService : ICollectionService
                     collection.PetId,
 
                 PetNameSnapshot =
-                    identitySnapshot.PetName,
+                    collection.PetNameSnapshot,
 
                 CustomerNameSnapshot =
-                    identitySnapshot.CustomerName,
+                    collection.CustomerNameSnapshot,
 
                 ReceivedByUserId =
                     receivedByUser.Id,
@@ -1097,6 +1127,12 @@ public class CollectionService : ICollectionService
         collection.ReceivedAt =
             currentTime;
 
+        collection.ReceivedByUserId =
+            receivedByUser.Id;
+
+        collection.ReceivedByUserNameSnapshot =
+            GetUserFullName(receivedByUser);
+
         await _context.SaveChangesAsync();
 
         await transaction.CommitAsync();
@@ -1154,38 +1190,23 @@ public class CollectionService : ICollectionService
                     .Contains(
                         normalizedSearch) ||
 
-                c.Pet.Name
+                c.PetNameSnapshot
                     .ToLower()
                     .Contains(
                         normalizedSearch) ||
 
-                c.Pet.Species
+                c.PetSpeciesSnapshot
                     .ToLower()
                     .Contains(
                         normalizedSearch) ||
 
-                c.Pet.Customer.FirstName
+                c.CustomerNameSnapshot
                     .ToLower()
                     .Contains(
                         normalizedSearch) ||
 
-                c.Pet.Customer.LastName
-                    .ToLower()
-                    .Contains(
-                        normalizedSearch) ||
-
-                (
-                    c.Pet.Customer.SecondLastName != null &&
-                    c.Pet.Customer.SecondLastName
-                        .ToLower()
-                        .Contains(
-                            normalizedSearch)
-                ) ||
-
-                c.Pet.Customer.Phone
-                    .ToLower()
-                    .Contains(
-                        normalizedSearch) ||
+                (c.CustomerPhoneSnapshot != null &&
+                 c.CustomerPhoneSnapshot.ToLower().Contains(normalizedSearch)) ||
 
                 c.PickupAddress
                     .ToLower()
@@ -1209,34 +1230,16 @@ public class CollectionService : ICollectionService
                 ) ||
 
                 (
-                    c.VeterinaryClinic != null &&
-                    c.VeterinaryClinic.Name
+                    c.VeterinaryClinicNameSnapshot != null &&
+                    c.VeterinaryClinicNameSnapshot
                         .ToLower()
                         .Contains(
                             normalizedSearch)
                 ) ||
 
                 (
-                    c.ReferringVeterinarian != null &&
-                    (
-                        c.ReferringVeterinarian.FirstName
-                            .ToLower()
-                            .Contains(
-                                normalizedSearch) ||
-
-                        c.ReferringVeterinarian.LastName
-                            .ToLower()
-                            .Contains(
-                                normalizedSearch) ||
-
-                        (
-                            c.ReferringVeterinarian.SecondLastName != null &&
-                            c.ReferringVeterinarian.SecondLastName
-                                .ToLower()
-                                .Contains(
-                                    normalizedSearch)
-                        )
-                    )
+                    c.ReferringVeterinarianNameSnapshot != null &&
+                    c.ReferringVeterinarianNameSnapshot.ToLower().Contains(normalizedSearch)
                 ));
 
         return await ProjectToDto(query)
@@ -1611,6 +1614,24 @@ public class CollectionService : ICollectionService
                     value)));
     }
 
+    private static string GetUserFullName(User user)
+    {
+        return string.Join(" ", new[] { user.FirstName, user.LastName }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string GetVeterinarianFullName(Veterinarian veterinarian)
+    {
+        return string.Join(
+            " ",
+            new[]
+            {
+                veterinarian.FirstName,
+                veterinarian.LastName,
+                veterinarian.SecondLastName
+            }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
     private static IQueryable<CollectionDto>
         ProjectToDto(
             IQueryable<Collection> query)
@@ -1621,67 +1642,42 @@ public class CollectionService : ICollectionService
                 Id =
                     c.Id,
 
+                CreatedByUserId = c.CreatedByUserId,
+
+                CreatedByUserName = c.CreatedByUserNameSnapshot,
+
                 PetId =
                     c.PetId,
 
-                PetName =
-                    c.Pet.Name,
+                PetName = c.PetNameSnapshot,
 
-                PetSpecies =
-                    c.Pet.Species,
+                PetSpecies = c.PetSpeciesSnapshot,
 
                 CustomerId =
                     c.Pet.CustomerId,
 
-                CustomerName =
-                    c.Pet.Customer.FirstName +
-                    " " +
-                    c.Pet.Customer.LastName +
-                    (
-                        c.Pet.Customer.SecondLastName != null
-                            ? " " +
-                              c.Pet.Customer.SecondLastName
-                            : ""
-                    ),
+                CustomerName = c.CustomerNameSnapshot,
 
-                CustomerPhone =
-                    c.Pet.Customer.Phone,
+                CustomerPhone = c.CustomerPhoneSnapshot,
 
                 CollectedByUserId =
                     c.CollectedByUserId,
 
-                CollectedByUserName =
-                    c.CollectedByUser != null
-                        ? c.CollectedByUser.FirstName +
-                          " " +
-                          c.CollectedByUser.LastName
-                        : null,
+                CollectedByUserName = c.CollectedByUserNameSnapshot,
 
                 AssignedDriverId = c.AssignedDriverId,
 
-                AssignedDriverName =
-                    c.AssignedDriver != null
-                        ? c.AssignedDriver.FirstName +
-                          " " + c.AssignedDriver.LastName
-                        : null,
+                AssignedDriverName = c.AssignedDriverNameSnapshot,
 
                 AssignedByUserId = c.AssignedByUserId,
 
-                AssignedByUserName =
-                    c.AssignedByUser != null
-                        ? c.AssignedByUser.FirstName +
-                          " " + c.AssignedByUser.LastName
-                        : null,
+                AssignedByUserName = c.AssignedByUserNameSnapshot,
 
                 AssignedAt = c.AssignedAt,
 
                 AcceptedByUserId = c.AcceptedByUserId,
 
-                AcceptedByUserName =
-                    c.AcceptedByUser != null
-                        ? c.AcceptedByUser.FirstName +
-                          " " + c.AcceptedByUser.LastName
-                        : null,
+                AcceptedByUserName = c.AcceptedByUserNameSnapshot,
 
                 AcceptedAt = c.AcceptedAt,
 
@@ -1691,26 +1687,12 @@ public class CollectionService : ICollectionService
                 VeterinaryClinicId =
                     c.VeterinaryClinicId,
 
-                VeterinaryClinicName =
-                    c.VeterinaryClinic != null
-                        ? c.VeterinaryClinic.Name
-                        : null,
+                VeterinaryClinicName = c.VeterinaryClinicNameSnapshot,
 
                 ReferringVeterinarianId =
                     c.ReferringVeterinarianId,
 
-                ReferringVeterinarianName =
-                    c.ReferringVeterinarian != null
-                        ? c.ReferringVeterinarian.FirstName +
-                          " " +
-                          c.ReferringVeterinarian.LastName +
-                          (
-                              c.ReferringVeterinarian.SecondLastName != null
-                                  ? " " +
-                                    c.ReferringVeterinarian.SecondLastName
-                                  : ""
-                          )
-                        : null,
+                ReferringVeterinarianName = c.ReferringVeterinarianNameSnapshot,
 
                 Status =
                     c.Status,
@@ -1755,8 +1737,16 @@ public class CollectionService : ICollectionService
                 ReceivedAt =
                     c.ReceivedAt,
 
+                ReceivedByUserId = c.ReceivedByUserId,
+
+                ReceivedByUserName = c.ReceivedByUserNameSnapshot,
+
                 CancelledAt =
                     c.CancelledAt,
+
+                CancelledByUserId = c.CancelledByUserId,
+
+                CancelledByUserName = c.CancelledByUserNameSnapshot,
 
                 IsActive =
                     c.IsActive,

@@ -10,6 +10,8 @@ public class CollectionPhoto
 
     public Guid UploadedByUserId { get; set; }
 
+    public string UploadedByUserNameSnapshot { get; set; } = string.Empty;
+
     public CollectionPhotoType PhotoType { get; set; }
 
     public string OriginalFileName { get; set; }

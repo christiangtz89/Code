@@ -258,8 +258,11 @@ public class ReceptionService : IReceptionService
                 ReceivedByUserId =
                     r.ReceivedByUserId,
                 ReceivedByUserName =
-                    r.ReceivedByUser.FirstName + " " +
-                    r.ReceivedByUser.LastName,
+                    r.Collection != null
+                        ? r.Collection.ReceivedByUserNameSnapshot ??
+                          r.ReceivedByUser.FirstName + " " + r.ReceivedByUser.LastName
+                        : r.ReceivedByUser.FirstName + " " +
+                          r.ReceivedByUser.LastName,
 
                 VeterinaryClinicId = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicId
@@ -267,6 +270,8 @@ public class ReceptionService : IReceptionService
 
                 VeterinaryClinicName = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.Collection != null
+                        ? r.Collection.VeterinaryClinicNameSnapshot
                     : r.VeterinaryClinic != null
                         ? r.VeterinaryClinic.Name
                         : null,
@@ -279,6 +284,8 @@ public class ReceptionService : IReceptionService
                 ReferringVeterinarianName =
                     r.VeterinaryRequest != null
                         ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.Collection != null
+                            ? r.Collection.ReferringVeterinarianNameSnapshot
                         : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
                             r.ReferringVeterinarian.LastName
@@ -343,8 +350,11 @@ public class ReceptionService : IReceptionService
                 ReceivedByUserId =
                     r.ReceivedByUserId,
                 ReceivedByUserName =
-                    r.ReceivedByUser.FirstName + " " +
-                    r.ReceivedByUser.LastName,
+                    r.Collection != null
+                        ? r.Collection.ReceivedByUserNameSnapshot ??
+                          r.ReceivedByUser.FirstName + " " + r.ReceivedByUser.LastName
+                        : r.ReceivedByUser.FirstName + " " +
+                          r.ReceivedByUser.LastName,
 
                 VeterinaryClinicId = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicId
@@ -352,6 +362,8 @@ public class ReceptionService : IReceptionService
 
                 VeterinaryClinicName = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.Collection != null
+                        ? r.Collection.VeterinaryClinicNameSnapshot
                     : r.VeterinaryClinic != null
                         ? r.VeterinaryClinic.Name
                         : null,
@@ -363,6 +375,8 @@ public class ReceptionService : IReceptionService
                 ReferringVeterinarianName =
                     r.VeterinaryRequest != null
                         ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.Collection != null
+                            ? r.Collection.ReferringVeterinarianNameSnapshot
                         : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
                             r.ReferringVeterinarian.LastName
@@ -424,8 +438,11 @@ public class ReceptionService : IReceptionService
                 ReceivedByUserId =
                     r.ReceivedByUserId,
                 ReceivedByUserName =
-                    r.ReceivedByUser.FirstName + " " +
-                    r.ReceivedByUser.LastName,
+                    r.Collection != null
+                        ? r.Collection.ReceivedByUserNameSnapshot ??
+                          r.ReceivedByUser.FirstName + " " + r.ReceivedByUser.LastName
+                        : r.ReceivedByUser.FirstName + " " +
+                          r.ReceivedByUser.LastName,
 
                 VeterinaryClinicId = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicId
@@ -433,6 +450,8 @@ public class ReceptionService : IReceptionService
 
                 VeterinaryClinicName = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.Collection != null
+                        ? r.Collection.VeterinaryClinicNameSnapshot
                     : r.VeterinaryClinic != null
                         ? r.VeterinaryClinic.Name
                         : null,
@@ -445,6 +464,8 @@ public class ReceptionService : IReceptionService
                 ReferringVeterinarianName =
                     r.VeterinaryRequest != null
                         ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.Collection != null
+                            ? r.Collection.ReferringVeterinarianNameSnapshot
                         : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
                             r.ReferringVeterinarian.LastName
@@ -501,6 +522,7 @@ public class ReceptionService : IReceptionService
                 .ThenInclude(p => p.Customer)
             .Include(r => r.ReceivedByUser)
             .Include(r => r.VeterinaryRequest)
+            .Include(r => r.Collection)
             .FirstOrDefaultAsync(r =>
                 r.Id == id &&
                 r.IsActive);
@@ -720,6 +742,18 @@ public class ReceptionService : IReceptionService
             reception.ReferringVeterinarianId =
                 veterinaryRequest.ReferringVeterinarianId;
         }
+        else if (reception.Collection is { } originCollection)
+        {
+            if (dto.VeterinaryClinicId != originCollection.VeterinaryClinicId ||
+                dto.ReferringVeterinarianId != originCollection.ReferringVeterinarianId)
+            {
+                throw new InvalidOperationException(
+                    "La fuente de una recepción originada por recolección no puede modificarse.");
+            }
+
+            reception.VeterinaryClinicId = originCollection.VeterinaryClinicId;
+            reception.ReferringVeterinarianId = originCollection.ReferringVeterinarianId;
+        }
         else
         {
             var referral =
@@ -778,6 +812,7 @@ public class ReceptionService : IReceptionService
                 reception.ReceivedByUserId,
 
             ReceivedByUserName =
+                reception.Collection?.ReceivedByUserNameSnapshot ??
                 reception.ReceivedByUser.FirstName + " " +
                 reception.ReceivedByUser.LastName,
 
@@ -788,7 +823,8 @@ public class ReceptionService : IReceptionService
             VeterinaryClinicName =
                 reception.VeterinaryRequest is { } request
                     ? request.VeterinaryClinicNameSnapshot
-                    : veterinaryClinic?.Name,
+                    : reception.Collection?.VeterinaryClinicNameSnapshot ??
+                      veterinaryClinic?.Name,
 
             ReferringVeterinarianId =
                 reception.VeterinaryRequest?.ReferringVeterinarianId ??
@@ -797,6 +833,8 @@ public class ReceptionService : IReceptionService
             ReferringVeterinarianName =
                 reception.VeterinaryRequest is { } originRequest
                     ? originRequest.ReferringVeterinarianNameSnapshot
+                    : reception.Collection is { } sourceCollection
+                    ? sourceCollection.ReferringVeterinarianNameSnapshot
                     : referringVeterinarian == null
                     ? null
                     : referringVeterinarian.FirstName +
@@ -922,8 +960,11 @@ public class ReceptionService : IReceptionService
                 ReceivedByUserId =
                     r.ReceivedByUserId,
                 ReceivedByUserName =
-                    r.ReceivedByUser.FirstName + " " +
-                    r.ReceivedByUser.LastName,
+                    r.Collection != null
+                        ? r.Collection.ReceivedByUserNameSnapshot ??
+                          r.ReceivedByUser.FirstName + " " + r.ReceivedByUser.LastName
+                        : r.ReceivedByUser.FirstName + " " +
+                          r.ReceivedByUser.LastName,
 
                 VeterinaryClinicId = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicId
@@ -931,6 +972,8 @@ public class ReceptionService : IReceptionService
 
                 VeterinaryClinicName = r.VeterinaryRequest != null
                     ? r.VeterinaryRequest.VeterinaryClinicNameSnapshot
+                    : r.Collection != null
+                        ? r.Collection.VeterinaryClinicNameSnapshot
                     : r.VeterinaryClinic != null
                         ? r.VeterinaryClinic.Name
                         : null,
@@ -943,6 +986,8 @@ public class ReceptionService : IReceptionService
                 ReferringVeterinarianName =
                     r.VeterinaryRequest != null
                         ? r.VeterinaryRequest.ReferringVeterinarianNameSnapshot
+                        : r.Collection != null
+                            ? r.Collection.ReferringVeterinarianNameSnapshot
                         : r.ReferringVeterinarian != null
                         ? r.ReferringVeterinarian.FirstName + " " +
                             r.ReferringVeterinarian.LastName

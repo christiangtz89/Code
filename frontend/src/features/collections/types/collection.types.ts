@@ -21,13 +21,16 @@ export type CollectionStatus =
 export interface Collection {
   id: string;
 
+  createdByUserId: string | null;
+  createdByUserName: string | null;
+
   petId: string;
   petName: string;
   petSpecies: string;
 
   customerId: string;
   customerName: string;
-  customerPhone: string;
+  customerPhone: string | null;
 
   collectedByUserId: string | null;
   collectedByUserName: string | null;
@@ -69,7 +72,11 @@ export interface Collection {
 
   collectedAt: string | null;
   receivedAt: string | null;
+  receivedByUserId: string | null;
+  receivedByUserName: string | null;
   cancelledAt: string | null;
+  cancelledByUserId: string | null;
+  cancelledByUserName: string | null;
 
   isActive: boolean;
   createdAt: string;
