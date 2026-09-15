@@ -5,11 +5,15 @@ import type {
   Collection,
   CollectionDriverOption,
   CollectionPetOption,
+  GetCollectionVeterinarianLookupParams,
+  GetCollectionVeterinaryLookupParams,
   ConvertCollectionToReceptionPayload,
   CreateCollectionPayload,
   GetCollectionCustomerOptionsParams,
   GetCollectionsParams,
   PaginatedCollectionCustomerOptions,
+  PaginatedCollectionVeterinarianOptions,
+  PaginatedCollectionVeterinaryClinicOptions,
   PagedCollections,
   SearchCollectionsParams,
   UpdateCollectionPayload,
@@ -67,6 +71,29 @@ export async function getCollectionPetOptions(
 ): Promise<CollectionPetOption[]> {
   const response = await apiClient.get<CollectionPetOption[]>(
     `${COLLECTIONS_URL}/intake/customer-options/${customerId}/pets`,
+  );
+
+  return response.data;
+}
+
+export async function getCollectionVeterinaryClinicOptions(
+  params: GetCollectionVeterinaryLookupParams,
+): Promise<PaginatedCollectionVeterinaryClinicOptions> {
+  const response =
+    await apiClient.get<PaginatedCollectionVeterinaryClinicOptions>(
+      `${COLLECTIONS_URL}/intake/veterinary-clinic-options`,
+      { params },
+    );
+
+  return response.data;
+}
+
+export async function getCollectionVeterinarianOptions(
+  params: GetCollectionVeterinarianLookupParams,
+): Promise<PaginatedCollectionVeterinarianOptions> {
+  const response = await apiClient.get<PaginatedCollectionVeterinarianOptions>(
+    `${COLLECTIONS_URL}/intake/veterinarian-options`,
+    { params },
   );
 
   return response.data;

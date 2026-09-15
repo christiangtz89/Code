@@ -741,17 +741,19 @@ export function CollectionsPage() {
       )}
 
       {/* EDIT */}
-      <CollectionEditModal
-        isOpen={editCollection !== null}
-        collection={editCollection}
-        isSubmitting={isEditSubmitting}
-        onClose={() => {
-          if (!isEditSubmitting) {
-            setEditCollection(null);
-          }
-        }}
-        onSubmit={handleEditSubmit}
-      />
+      {canManageCollections && (
+        <CollectionEditModal
+          isOpen={editCollection !== null}
+          collection={editCollection}
+          isSubmitting={isEditSubmitting}
+          onClose={() => {
+            if (!isEditSubmitting) {
+              setEditCollection(null);
+            }
+          }}
+          onSubmit={handleEditSubmit}
+        />
+      )}
 
       <CollectionAssignmentModal
         collection={assignmentCollection}
@@ -776,17 +778,19 @@ export function CollectionsPage() {
       />
 
       {/* RECEIVE */}
-      <CollectionToReceptionModal
-        isOpen={receiveCollection !== null}
-        collection={receiveCollection}
-        isSubmitting={isReceiveSubmitting}
-        onClose={() => {
-          if (!isReceiveSubmitting) {
-            setReceiveCollection(null);
-          }
-        }}
-        onSubmit={handleReceiveSubmit}
-      />
+      {canManageCollections && (
+        <CollectionToReceptionModal
+          isOpen={receiveCollection !== null}
+          collection={receiveCollection}
+          isSubmitting={isReceiveSubmitting}
+          onClose={() => {
+            if (!isReceiveSubmitting) {
+              setReceiveCollection(null);
+            }
+          }}
+          onSubmit={handleReceiveSubmit}
+        />
+      )}
 
       {/* QR */}
       <CollectionQrModal

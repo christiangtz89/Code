@@ -290,6 +290,40 @@ public class CollectionsController : ControllerBase
             await _collectionService.GetPetOptionsAsync(customerId));
     }
 
+    [HttpGet("intake/veterinary-clinic-options")]
+    [Authorize(Policy = "Collections.Manage")]
+    public async Task<ActionResult<
+        PaginatedResult<CollectionVeterinaryClinicOptionDto>>>
+        GetVeterinaryClinicOptions(
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        return Ok(
+            await _collectionService.GetVeterinaryClinicOptionsAsync(
+                search,
+                page,
+                pageSize));
+    }
+
+    [HttpGet("intake/veterinarian-options")]
+    [Authorize(Policy = "Collections.Manage")]
+    public async Task<ActionResult<
+        PaginatedResult<CollectionVeterinarianOptionDto>>>
+        GetVeterinarianOptions(
+            [FromQuery] Guid? veterinaryClinicId = null,
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+    {
+        return Ok(
+            await _collectionService.GetVeterinarianOptionsAsync(
+                veterinaryClinicId,
+                search,
+                page,
+                pageSize));
+    }
+
     [HttpPost("{id:guid}/assign")]
     [Authorize(Policy = "Collections.Manage")]
     public async Task<ActionResult<CollectionDto>> Assign(

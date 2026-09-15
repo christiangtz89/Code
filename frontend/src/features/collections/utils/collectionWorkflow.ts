@@ -4,13 +4,15 @@ export function canEditCollection(collection: Collection): boolean {
   return (
     collection.status === CollectionStatus.Pending ||
     collection.status === CollectionStatus.Assigned ||
-    collection.status === CollectionStatus.Accepted ||
-    collection.status === CollectionStatus.Collected
+    collection.status === CollectionStatus.Accepted
   );
 }
 
 export function canCancelCollection(collection: Collection): boolean {
-  return canEditCollection(collection);
+  return (
+    canEditCollection(collection) ||
+    collection.status === CollectionStatus.Collected
+  );
 }
 
 export function canConvertCollectionToReception(

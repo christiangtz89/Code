@@ -6,16 +6,16 @@ import { useForm, useWatch } from "react-hook-form";
 import {
   getCollectionCustomerOptions,
   getCollectionPetOptions,
+  getCollectionVeterinarianOptions,
+  getCollectionVeterinaryClinicOptions,
 } from "../api/collectionsApi";
-import { getVeterinarians } from "../../veterinarians/api/veterinariansApi";
-import { getVeterinarianFullName } from "../../veterinarians/utils/veterinarianName";
-import { getVeterinaryClinics } from "../../veterinary-clinics/api/veterinaryClinicsApi";
 
 import {
   collectionSchema,
   getMexicoBusinessDate,
   type CollectionFormValues,
 } from "../schemas/collectionSchema";
+import { CollectionLookupPagination } from "./CollectionLookupPagination";
 
 interface CollectionFormModalProps {
   isOpen: boolean;
@@ -67,6 +67,13 @@ export function CollectionFormModal({
 }: CollectionFormModalProps) {
   const [customerSearchInput, setCustomerSearchInput] = useState("");
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
+  const [clinicSearchInput, setClinicSearchInput] = useState("");
+  const [debouncedClinicSearch, setDebouncedClinicSearch] = useState("");
+  const [clinicPage, setClinicPage] = useState(1);
+  const [veterinarianSearchInput, setVeterinarianSearchInput] = useState("");
+  const [debouncedVeterinarianSearch, setDebouncedVeterinarianSearch] =
+    useState("");
+  const [veterinarianPage, setVeterinarianPage] = useState(1);
 
   const {
     register,
@@ -119,6 +126,12 @@ export function CollectionFormModal({
   const normalizedCustomerSearch = debouncedCustomerSearch.trim();
   const customerSearchPending =
     customerSearchInput.trim() !== normalizedCustomerSearch;
+  const normalizedClinicSearch = debouncedClinicSearch.trim();
+  const clinicSearchPending =
+    clinicSearchInput.trim() !== normalizedClinicSearch;
+  const normalizedVeterinarianSearch = debouncedVeterinarianSearch.trim();
+  const veterinarianSearchPending =
+    veterinarianSearchInput.trim() !== normalizedVeterinarianSearch;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -127,6 +140,24 @@ export function CollectionFormModal({
 
     return () => window.clearTimeout(timeoutId);
   }, [customerSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setClinicPage(1);
+      setDebouncedClinicSearch(clinicSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [clinicSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setVeterinarianPage(1);
+      setDebouncedVeterinarianSearch(veterinarianSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [veterinarianSearchInput]);
 
   const customersQuery = useQuery({
     queryKey: [
@@ -155,29 +186,42 @@ export function CollectionFormModal({
   });
 
   const clinicsQuery = useQuery({
-    queryKey: ["veterinary-clinics", "collection-options", true],
+    queryKey: [
+      "collections",
+      "intake-veterinary-clinic-options",
+      { search: normalizedClinicSearch, page: clinicPage },
+    ],
 
     queryFn: () =>
-      getVeterinaryClinics({
-        page: 1,
-        pageSize: 100,
-        isActive: true,
+      getCollectionVeterinaryClinicOptions({
+        search: normalizedClinicSearch || undefined,
+        page: clinicPage,
+        pageSize: 20,
       }),
 
-    enabled: isOpen,
+    enabled: isOpen && locationType === "2",
   });
 
   const veterinariansQuery = useQuery({
-    queryKey: ["veterinarians", "collection-options", true],
+    queryKey: [
+      "collections",
+      "intake-veterinarian-options",
+      {
+        veterinaryClinicId: selectedClinicId,
+        search: normalizedVeterinarianSearch,
+        page: veterinarianPage,
+      },
+    ],
 
     queryFn: () =>
-      getVeterinarians({
-        page: 1,
-        pageSize: 100,
-        isActive: true,
+      getCollectionVeterinarianOptions({
+        veterinaryClinicId: selectedClinicId || undefined,
+        search: normalizedVeterinarianSearch || undefined,
+        page: veterinarianPage,
+        pageSize: 20,
       }),
 
-    enabled: isOpen,
+    enabled: isOpen && locationType === "2",
   });
 
   const customers = useMemo(
@@ -199,35 +243,15 @@ export function CollectionFormModal({
   );
 
   const clinics = useMemo(
-    () =>
-      [...(clinicsQuery.data?.items ?? [])].sort((first, second) =>
-        first.name.localeCompare(second.name, "es-MX"),
-      ),
-    [clinicsQuery.data?.items],
+    () => (clinicSearchPending ? [] : (clinicsQuery.data?.items ?? [])),
+    [clinicSearchPending, clinicsQuery.data?.items],
   );
 
   const veterinarians = useMemo(
     () =>
-      [...(veterinariansQuery.data?.items ?? [])].sort((first, second) =>
-        getVeterinarianFullName(first).localeCompare(
-          getVeterinarianFullName(second),
-          "es-MX",
-        ),
-      ),
-    [veterinariansQuery.data?.items],
+      veterinarianSearchPending ? [] : (veterinariansQuery.data?.items ?? []),
+    [veterinarianSearchPending, veterinariansQuery.data?.items],
   );
-
-  const availableVeterinarians = useMemo(() => {
-    if (selectedClinicId) {
-      return veterinarians.filter(
-        (veterinarian) => veterinarian.veterinaryClinicId === selectedClinicId,
-      );
-    }
-
-    return veterinarians.filter(
-      (veterinarian) => veterinarian.veterinaryClinicId === null,
-    );
-  }, [selectedClinicId, veterinarians]);
 
   const selectedCustomer =
     customers.find((customer) => customer.id === selectedCustomerId) ?? null;
@@ -243,6 +267,12 @@ export function CollectionFormModal({
     reset(defaultValues);
     setCustomerSearchInput("");
     setDebouncedCustomerSearch("");
+    setClinicSearchInput("");
+    setDebouncedClinicSearch("");
+    setClinicPage(1);
+    setVeterinarianSearchInput("");
+    setDebouncedVeterinarianSearch("");
+    setVeterinarianPage(1);
   }, [isOpen, reset]);
 
   useEffect(() => {
@@ -278,6 +308,9 @@ export function CollectionFormModal({
 
   useEffect(() => {
     setValue("referringVeterinarianId", "");
+    setVeterinarianSearchInput("");
+    setDebouncedVeterinarianSearch("");
+    setVeterinarianPage(1);
   }, [selectedClinicId, setValue]);
 
   if (!isOpen) {
@@ -346,13 +379,9 @@ export function CollectionFormModal({
       return;
     }
 
-    setValue(
-      "pickupContactName",
-      `Dr. ${getVeterinarianFullName(veterinarian)}`,
-      {
-        shouldDirty: true,
-      },
-    );
+    setValue("pickupContactName", `Dr. ${veterinarian.displayName}`, {
+      shouldDirty: true,
+    });
 
     if (veterinarian.phone) {
       setValue("pickupContactPhone", veterinarian.phone, {
@@ -884,20 +913,43 @@ export function CollectionFormModal({
                     </span>
                   </label>
 
+                  <input
+                    type="search"
+                    value={clinicSearchInput}
+                    onChange={(event) => {
+                      setClinicSearchInput(event.target.value);
+                      setValue("veterinaryClinicId", "");
+                    }}
+                    disabled={isSubmitting}
+                    placeholder="Buscar veterinaria"
+                    className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5"
+                  />
+
                   <select
                     value={selectedClinicId}
                     onChange={(event) => handleClinicChange(event.target.value)}
-                    disabled={isSubmitting || clinicsQuery.isLoading}
+                    disabled={
+                      isSubmitting ||
+                      clinicSearchPending ||
+                      clinicsQuery.isLoading
+                    }
                     className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5"
                   >
                     <option value="">Sin veterinaria</option>
 
                     {clinics.map((clinic) => (
                       <option key={clinic.id} value={clinic.id}>
-                        {clinic.name}
+                        {clinic.displayName}
                       </option>
                     ))}
                   </select>
+
+                  <CollectionLookupPagination
+                    page={clinicPage}
+                    totalPages={clinicsQuery.data?.totalPages ?? 0}
+                    isFetching={clinicSearchPending || clinicsQuery.isFetching}
+                    onPageChange={setClinicPage}
+                  />
 
                   {errors.veterinaryClinicId && (
                     <p className="mt-2 text-sm text-red-600">
@@ -914,12 +966,28 @@ export function CollectionFormModal({
                     </span>
                   </label>
 
+                  <input
+                    type="search"
+                    value={veterinarianSearchInput}
+                    onChange={(event) => {
+                      setVeterinarianSearchInput(event.target.value);
+                      setValue("referringVeterinarianId", "");
+                    }}
+                    disabled={isSubmitting}
+                    placeholder="Buscar veterinario"
+                    className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5"
+                  />
+
                   <select
                     {...register("referringVeterinarianId")}
                     onChange={(event) =>
                       handleVeterinarianChange(event.target.value)
                     }
-                    disabled={isSubmitting || veterinariansQuery.isLoading}
+                    disabled={
+                      isSubmitting ||
+                      veterinarianSearchPending ||
+                      veterinariansQuery.isLoading
+                    }
                     className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5"
                   >
                     <option value="">
@@ -928,12 +996,21 @@ export function CollectionFormModal({
                         : "Selecciona veterinario independiente"}
                     </option>
 
-                    {availableVeterinarians.map((veterinarian) => (
+                    {veterinarians.map((veterinarian) => (
                       <option key={veterinarian.id} value={veterinarian.id}>
-                        Dr. {getVeterinarianFullName(veterinarian)}
+                        Dr. {veterinarian.displayName}
                       </option>
                     ))}
                   </select>
+
+                  <CollectionLookupPagination
+                    page={veterinarianPage}
+                    totalPages={veterinariansQuery.data?.totalPages ?? 0}
+                    isFetching={
+                      veterinarianSearchPending || veterinariansQuery.isFetching
+                    }
+                    onPageChange={setVeterinarianPage}
+                  />
 
                   {errors.referringVeterinarianId && (
                     <p className="mt-2 text-sm text-red-600">

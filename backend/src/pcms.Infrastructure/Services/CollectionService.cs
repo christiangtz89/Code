@@ -707,6 +707,120 @@ public class CollectionService : ICollectionService
             .ToListAsync();
     }
 
+    public async Task<PaginatedResult<CollectionVeterinaryClinicOptionDto>>
+        GetVeterinaryClinicOptionsAsync(
+            string? search,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.VeterinaryClinics
+            .AsNoTracking()
+            .Where(clinic => clinic.IsActive);
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+
+            query = query.Where(clinic =>
+                EF.Functions.ILike(clinic.Name, pattern));
+        }
+
+        var totalItems = await query.CountAsync();
+        var items = await query
+            .OrderBy(clinic => clinic.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(clinic => new CollectionVeterinaryClinicOptionDto
+            {
+                Id = clinic.Id,
+                DisplayName = clinic.Name,
+                Phone = clinic.Phone,
+                Address = clinic.Address,
+                PrimaryContactName = clinic.PrimaryContactName
+            })
+            .ToListAsync();
+
+        return new PaginatedResult<CollectionVeterinaryClinicOptionDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+        };
+    }
+
+    public async Task<PaginatedResult<CollectionVeterinarianOptionDto>>
+        GetVeterinarianOptionsAsync(
+            Guid? veterinaryClinicId,
+            string? search,
+            int page,
+            int pageSize)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.Veterinarians
+            .AsNoTracking()
+            .Where(veterinarian =>
+                veterinarian.IsActive &&
+                (veterinaryClinicId.HasValue
+                    ? veterinarian.VeterinaryClinicId ==
+                        veterinaryClinicId.Value &&
+                      veterinarian.VeterinaryClinic!.IsActive
+                    : veterinarian.VeterinaryClinicId == null));
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+
+            query = query.Where(veterinarian =>
+                EF.Functions.ILike(veterinarian.FirstName, pattern) ||
+                EF.Functions.ILike(veterinarian.LastName, pattern) ||
+                (veterinarian.SecondLastName != null &&
+                    EF.Functions.ILike(
+                        veterinarian.SecondLastName,
+                        pattern)));
+        }
+
+        var totalItems = await query.CountAsync();
+        var items = await query
+            .OrderBy(veterinarian => veterinarian.LastName)
+            .ThenBy(veterinarian => veterinarian.SecondLastName)
+            .ThenBy(veterinarian => veterinarian.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(veterinarian => new CollectionVeterinarianOptionDto
+            {
+                Id = veterinarian.Id,
+                DisplayName =
+                    veterinarian.FirstName + " " +
+                    veterinarian.LastName +
+                    (veterinarian.SecondLastName == null
+                        ? string.Empty
+                        : " " + veterinarian.SecondLastName),
+                VeterinaryClinicId = veterinarian.VeterinaryClinicId,
+                Phone = veterinarian.Phone
+            })
+            .ToListAsync();
+
+        return new PaginatedResult<CollectionVeterinarianOptionDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+        };
+    }
+
     public async Task<CollectionDto?> AssignAsync(
         Guid id,
         AssignCollectionDto dto,

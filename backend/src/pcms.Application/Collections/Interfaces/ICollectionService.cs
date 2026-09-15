@@ -40,6 +40,19 @@ public interface ICollectionService
     Task<IEnumerable<CollectionPetOptionDto>>
         GetPetOptionsAsync(Guid customerId);
 
+    Task<PaginatedResult<CollectionVeterinaryClinicOptionDto>>
+        GetVeterinaryClinicOptionsAsync(
+            string? search,
+            int page,
+            int pageSize);
+
+    Task<PaginatedResult<CollectionVeterinarianOptionDto>>
+        GetVeterinarianOptionsAsync(
+            Guid? veterinaryClinicId,
+            string? search,
+            int page,
+            int pageSize);
+
     Task<IEnumerable<CollectionDriverOptionDto>>
         GetActiveDriverOptionsAsync();
 

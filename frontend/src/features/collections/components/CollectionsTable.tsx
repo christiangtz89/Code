@@ -147,11 +147,15 @@ export function CollectionsTable({
             {collections.map((collection) => {
               const isPending = pendingCollectionId === collection.id;
 
-              const canEdit = canEditCollection(collection);
+              const canEdit =
+                canManageCollections && canEditCollection(collection);
 
-              const canReceive = canConvertCollectionToReception(collection);
+              const canReceive =
+                canManageCollections &&
+                canConvertCollectionToReception(collection);
 
-              const canCancel = canCancelCollection(collection);
+              const canCancel =
+                canManageCollections && canCancelCollection(collection);
 
               const isAssignedDriver =
                 currentUserId !== null &&

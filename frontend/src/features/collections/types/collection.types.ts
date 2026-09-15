@@ -142,6 +142,47 @@ export interface GetCollectionCustomerOptionsParams {
   pageSize: number;
 }
 
+export interface CollectionVeterinaryClinicOption {
+  id: string;
+  displayName: string;
+  phone: string | null;
+  address: string | null;
+  primaryContactName: string | null;
+}
+
+export interface CollectionVeterinarianOption {
+  id: string;
+  displayName: string;
+  veterinaryClinicId: string | null;
+  phone: string | null;
+}
+
+export interface PaginatedCollectionVeterinaryClinicOptions {
+  items: CollectionVeterinaryClinicOption[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface PaginatedCollectionVeterinarianOptions {
+  items: CollectionVeterinarianOption[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface GetCollectionVeterinaryLookupParams {
+  search?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface GetCollectionVeterinarianLookupParams extends GetCollectionVeterinaryLookupParams {
+  veterinaryClinicId?: string;
+}
+
 export interface UpdateCollectionPayload {
   locationType: CollectionLocationType;
 
