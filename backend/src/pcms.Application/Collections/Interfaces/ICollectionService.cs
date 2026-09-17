@@ -37,8 +37,12 @@ public interface ICollectionService
             int page,
             int pageSize);
 
-    Task<IEnumerable<CollectionPetOptionDto>>
-        GetPetOptionsAsync(Guid customerId);
+    Task<PaginatedResult<CollectionPetOptionDto>>
+        GetPetOptionsAsync(
+            Guid customerId,
+            string? search,
+            int page,
+            int pageSize);
 
     Task<PaginatedResult<CollectionVeterinaryClinicOptionDto>>
         GetVeterinaryClinicOptionsAsync(
@@ -74,8 +78,10 @@ public interface ICollectionService
         ConvertCollectionToReceptionDto dto,
         Guid receivedByUserId);
 
-    Task<IEnumerable<CollectionDto>> SearchAsync(
+    Task<PagedCollectionsDto> SearchAsync(
         string search,
+        int page,
+        int pageSize,
         CollectionStatus? status,
         CollectionLocationType? locationType);
 }

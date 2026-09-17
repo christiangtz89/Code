@@ -136,7 +136,21 @@ export interface PaginatedCollectionCustomerOptions {
   totalPages: number;
 }
 
+export interface PaginatedCollectionPetOptions {
+  items: CollectionPetOption[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
 export interface GetCollectionCustomerOptionsParams {
+  search?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface GetCollectionPetOptionsParams {
   search?: string;
   page: number;
   pageSize: number;
@@ -241,6 +255,8 @@ export interface GetCollectionsParams {
 
 export interface SearchCollectionsParams {
   search: string;
+  page: number;
+  pageSize: number;
   status?: CollectionStatus;
   locationType?: CollectionLocationType;
 }

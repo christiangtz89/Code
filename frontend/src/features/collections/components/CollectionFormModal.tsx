@@ -15,6 +15,7 @@ import {
   getMexicoBusinessDate,
   type CollectionFormValues,
 } from "../schemas/collectionSchema";
+import type { CollectionPetOption } from "../types/collection.types";
 import { CollectionLookupPagination } from "./CollectionLookupPagination";
 
 interface CollectionFormModalProps {
@@ -67,6 +68,12 @@ export function CollectionFormModal({
 }: CollectionFormModalProps) {
   const [customerSearchInput, setCustomerSearchInput] = useState("");
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
+  const [customerPage, setCustomerPage] = useState(1);
+  const [petSearchInput, setPetSearchInput] = useState("");
+  const [debouncedPetSearch, setDebouncedPetSearch] = useState("");
+  const [petPage, setPetPage] = useState(1);
+  const [selectedPetOption, setSelectedPetOption] =
+    useState<CollectionPetOption | null>(null);
   const [clinicSearchInput, setClinicSearchInput] = useState("");
   const [debouncedClinicSearch, setDebouncedClinicSearch] = useState("");
   const [clinicPage, setClinicPage] = useState(1);
@@ -126,6 +133,8 @@ export function CollectionFormModal({
   const normalizedCustomerSearch = debouncedCustomerSearch.trim();
   const customerSearchPending =
     customerSearchInput.trim() !== normalizedCustomerSearch;
+  const normalizedPetSearch = debouncedPetSearch.trim();
+  const petSearchPending = petSearchInput.trim() !== normalizedPetSearch;
   const normalizedClinicSearch = debouncedClinicSearch.trim();
   const clinicSearchPending =
     clinicSearchInput.trim() !== normalizedClinicSearch;
@@ -135,11 +144,21 @@ export function CollectionFormModal({
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      setCustomerPage(1);
       setDebouncedCustomerSearch(customerSearchInput);
     }, 400);
 
     return () => window.clearTimeout(timeoutId);
   }, [customerSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setPetPage(1);
+      setDebouncedPetSearch(petSearchInput);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [petSearchInput]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -163,13 +182,13 @@ export function CollectionFormModal({
     queryKey: [
       "collections",
       "intake-customer-options",
-      normalizedCustomerSearch,
+      { search: normalizedCustomerSearch, page: customerPage },
     ],
 
     queryFn: () =>
       getCollectionCustomerOptions({
         search: normalizedCustomerSearch || undefined,
-        page: 1,
+        page: customerPage,
         pageSize: 20,
       }),
 
@@ -177,9 +196,22 @@ export function CollectionFormModal({
   });
 
   const customerPetsQuery = useQuery({
-    queryKey: ["collections", "intake-pet-options", selectedCustomerId],
+    queryKey: [
+      "collections",
+      "intake-pet-options",
+      {
+        customerId: selectedCustomerId,
+        search: normalizedPetSearch,
+        page: petPage,
+      },
+    ],
 
-    queryFn: () => getCollectionPetOptions(selectedCustomerId),
+    queryFn: () =>
+      getCollectionPetOptions(selectedCustomerId, {
+        search: normalizedPetSearch || undefined,
+        page: petPage,
+        pageSize: 20,
+      }),
 
     enabled:
       isOpen && customerMode === "existing" && selectedCustomerId.length > 0,
@@ -234,13 +266,28 @@ export function CollectionFormModal({
     [customerSearchPending, customersQuery.data?.items],
   );
 
-  const customerPets = useMemo(
-    () =>
-      [...(customerPetsQuery.data ?? [])].sort((first, second) =>
-        first.name.localeCompare(second.name, "es-MX"),
-      ),
-    [customerPetsQuery.data],
-  );
+  const customerPets = useMemo(() => {
+    const items = [
+      ...(petSearchPending ? [] : (customerPetsQuery.data?.items ?? [])),
+    ];
+
+    if (
+      selectedPetOption &&
+      selectedPetOption.id === selectedPetId &&
+      !items.some((pet) => pet.id === selectedPetOption.id)
+    ) {
+      items.push(selectedPetOption);
+    }
+
+    return items.sort((first, second) =>
+      first.name.localeCompare(second.name, "es-MX"),
+    );
+  }, [
+    customerPetsQuery.data?.items,
+    petSearchPending,
+    selectedPetId,
+    selectedPetOption,
+  ]);
 
   const clinics = useMemo(
     () => (clinicSearchPending ? [] : (clinicsQuery.data?.items ?? [])),
@@ -267,6 +314,11 @@ export function CollectionFormModal({
     reset(defaultValues);
     setCustomerSearchInput("");
     setDebouncedCustomerSearch("");
+    setCustomerPage(1);
+    setPetSearchInput("");
+    setDebouncedPetSearch("");
+    setPetPage(1);
+    setSelectedPetOption(null);
     setClinicSearchInput("");
     setDebouncedClinicSearch("");
     setClinicPage(1);
@@ -287,6 +339,10 @@ export function CollectionFormModal({
 
   useEffect(() => {
     setValue("existingPetId", "");
+    setPetSearchInput("");
+    setDebouncedPetSearch("");
+    setPetPage(1);
+    setSelectedPetOption(null);
   }, [selectedCustomerId, setValue]);
 
   useEffect(() => {
@@ -318,6 +374,7 @@ export function CollectionFormModal({
   }
 
   const belongingsField = register("hasPersonalBelongings");
+  const existingPetField = register("existingPetId");
 
   function handleBackdropClick() {
     if (!isSubmitting) {
@@ -545,12 +602,18 @@ export function CollectionFormModal({
                   </div>
                 )}
 
-                {(customersQuery.data?.totalPages ?? 0) > 1 && (
-                  <p className="mt-2 text-xs text-slate-500">
-                    Refina la búsqueda para encontrar clientes fuera de los
-                    primeros 20 resultados.
-                  </p>
-                )}
+                <CollectionLookupPagination
+                  page={customerPage}
+                  totalPages={customersQuery.data?.totalPages ?? 0}
+                  isFetching={
+                    customerSearchPending || customersQuery.isFetching
+                  }
+                  onPageChange={(nextPage) => {
+                    setValue("existingCustomerId", "");
+                    setValue("existingPetId", "");
+                    setCustomerPage(nextPage);
+                  }}
+                />
               </div>
             )}
 
@@ -671,6 +734,19 @@ export function CollectionFormModal({
             {petMode === "existing" && customerMode === "existing" && (
               <div className="mt-5">
                 <label className="block text-sm font-medium text-slate-700">
+                  Buscar mascota
+                </label>
+
+                <input
+                  type="search"
+                  value={petSearchInput}
+                  onChange={(event) => setPetSearchInput(event.target.value)}
+                  disabled={isSubmitting || !selectedCustomerId}
+                  placeholder="Nombre, especie o raza"
+                  className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5"
+                />
+
+                <label className="block text-sm font-medium text-slate-700">
                   Mascota
                 </label>
 
@@ -678,9 +754,18 @@ export function CollectionFormModal({
                   disabled={
                     isSubmitting ||
                     !selectedCustomerId ||
+                    petSearchPending ||
                     customerPetsQuery.isLoading
                   }
-                  {...register("existingPetId")}
+                  {...existingPetField}
+                  onChange={(event) => {
+                    existingPetField.onChange(event);
+                    setSelectedPetOption(
+                      customerPets.find(
+                        (pet) => pet.id === event.target.value,
+                      ) ?? null,
+                    );
+                  }}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5"
                 >
                   <option value="">
@@ -703,6 +788,13 @@ export function CollectionFormModal({
                     {errors.existingPetId.message}
                   </p>
                 )}
+
+                <CollectionLookupPagination
+                  page={petPage}
+                  totalPages={customerPetsQuery.data?.totalPages ?? 0}
+                  isFetching={petSearchPending || customerPetsQuery.isFetching}
+                  onPageChange={setPetPage}
+                />
               </div>
             )}
 

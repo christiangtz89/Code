@@ -680,10 +680,17 @@ public class CollectionService : ICollectionService
         };
     }
 
-    public async Task<IEnumerable<CollectionPetOptionDto>>
-        GetPetOptionsAsync(Guid customerId)
+    public async Task<PaginatedResult<CollectionPetOptionDto>>
+        GetPetOptionsAsync(
+            Guid customerId,
+            string? search,
+            int page,
+            int pageSize)
     {
-        return await _context.Pets
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
+        var query = _context.Pets
             .AsNoTracking()
             .Where(pet =>
                 pet.CustomerId == customerId &&
@@ -693,9 +700,27 @@ public class CollectionService : ICollectionService
                 !pet.Collections.Any(collection =>
                     collection.IsActive &&
                     collection.Status != CollectionStatus.Received &&
-                    collection.Status != CollectionStatus.Cancelled))
+                    collection.Status != CollectionStatus.Cancelled));
+
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch))
+        {
+            var pattern = $"%{normalizedSearch}%";
+
+            query = query.Where(pet =>
+                EF.Functions.ILike(pet.Name, pattern) ||
+                EF.Functions.ILike(pet.Species, pattern) ||
+                EF.Functions.ILike(pet.Breed, pattern));
+        }
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
             .OrderBy(pet => pet.Name)
             .ThenBy(pet => pet.Species)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(pet => new CollectionPetOptionDto
             {
                 Id = pet.Id,
@@ -705,6 +730,16 @@ public class CollectionService : ICollectionService
                 WeightKg = pet.WeightKg
             })
             .ToListAsync();
+
+        return new PaginatedResult<CollectionPetOptionDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
+        };
     }
 
     public async Task<PaginatedResult<CollectionVeterinaryClinicOptionDto>>
@@ -1344,16 +1379,35 @@ public class CollectionService : ICollectionService
         return await GetByIdAsync(id);
     }
 
-    public async Task<IEnumerable<CollectionDto>>
+    public async Task<PagedCollectionsDto>
         SearchAsync(
             string search,
+            int page,
+            int pageSize,
             CollectionStatus? status,
             CollectionLocationType? locationType)
     {
         if (string.IsNullOrWhiteSpace(
             search))
         {
-            return Array.Empty<CollectionDto>();
+            throw new ArgumentException(
+                "Debe proporcionar un término de búsqueda.",
+                nameof(search));
+        }
+
+        if (page < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(page),
+                "La página debe ser mayor que cero.");
+        }
+
+        if (pageSize < 1 ||
+            pageSize > 100)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(pageSize),
+                "El tamaño de página debe estar entre 1 y 100.");
         }
 
         ValidateOptionalEnums(
@@ -1446,10 +1500,25 @@ public class CollectionService : ICollectionService
                     c.ReferringVeterinarianNameSnapshot.ToLower().Contains(normalizedSearch)
                 ));
 
-        return await ProjectToDto(query)
+        var totalItems = await query.CountAsync();
+
+        var items = await ProjectToDto(query)
             .OrderByDescending(c =>
                 c.CollectedAt)
+            .ThenByDescending(c => c.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
+
+        return new PagedCollectionsDto
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
+        };
     }
 
     private async Task<User>

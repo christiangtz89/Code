@@ -40,6 +40,11 @@ interface CollectionsTableProps {
   onCancel: (collection: Collection) => void;
 }
 
+type CollectionActionsProps = Omit<CollectionsTableProps, "collections"> & {
+  collection: Collection;
+  align?: "start" | "end";
+};
+
 function getStatusClasses(status: Collection["status"]): string {
   switch (status) {
     case CollectionStatus.Pending:
@@ -72,6 +77,138 @@ function showOptionalValue(
   const normalized = value?.trim();
 
   return normalized || fallback;
+}
+
+function CollectionActions({
+  collection,
+  pendingCollectionId,
+  currentUserId,
+  canManageCollections,
+  onShowQr,
+  onEdit,
+  onAssign,
+  onAccept,
+  onEvidence,
+  onConfirmCustody,
+  onReceive,
+  onCancel,
+  align = "end",
+}: CollectionActionsProps) {
+  const isPending = pendingCollectionId === collection.id;
+  const canEdit = canManageCollections && canEditCollection(collection);
+  const canReceive =
+    canManageCollections && canConvertCollectionToReception(collection);
+  const canCancel = canManageCollections && canCancelCollection(collection);
+  const isAssignedDriver =
+    currentUserId !== null && collection.assignedDriverId === currentUserId;
+  const canAssign =
+    canManageCollections &&
+    (collection.status === CollectionStatus.Pending ||
+      collection.status === CollectionStatus.Assigned ||
+      collection.status === CollectionStatus.Accepted);
+  const canAccept =
+    isAssignedDriver && collection.status === CollectionStatus.Assigned;
+  const canManageEvidence = canManageCollections || isAssignedDriver;
+  const canConfirmCustody =
+    isAssignedDriver && collection.status === CollectionStatus.Accepted;
+
+  return (
+    <div
+      className={`flex flex-col gap-2 ${
+        align === "end" ? "items-end" : "items-stretch"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onShowQr(collection)}
+        disabled={isPending}
+        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Ver QR
+      </button>
+
+      {canAssign && (
+        <button
+          type="button"
+          onClick={() => onAssign(collection)}
+          disabled={isPending}
+          className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 disabled:opacity-50"
+        >
+          {collection.assignedDriverId
+            ? "Reasignar conductor"
+            : "Asignar conductor"}
+        </button>
+      )}
+
+      {canAccept && (
+        <button
+          type="button"
+          onClick={() => onAccept(collection)}
+          disabled={isPending}
+          className="w-full rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          Aceptar asignación
+        </button>
+      )}
+
+      {canManageEvidence &&
+        collection.status !== CollectionStatus.Received &&
+        collection.status !== CollectionStatus.Cancelled && (
+          <button
+            type="button"
+            onClick={() => onEvidence(collection)}
+            disabled={isPending}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+          >
+            Gestionar evidencia
+          </button>
+        )}
+
+      {canConfirmCustody && (
+        <button
+          type="button"
+          onClick={() => onConfirmCustody(collection)}
+          disabled={isPending}
+          className="w-full rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          Confirmar custodia
+        </button>
+      )}
+
+      {canReceive && (
+        <button
+          type="button"
+          onClick={() => onReceive(collection)}
+          disabled={isPending}
+          className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Recibir
+        </button>
+      )}
+
+      {canEdit && (
+        <button
+          type="button"
+          onClick={() => onEdit(collection)}
+          disabled={isPending}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Editar
+        </button>
+      )}
+
+      {canCancel && (
+        <button
+          type="button"
+          onClick={() => onCancel(collection)}
+          disabled={isPending}
+          className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isPending ? "Procesando..." : "Cancelar"}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function CollectionsTable({
@@ -109,7 +246,61 @@ export function CollectionsTable({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-slate-200 md:hidden">
+        {collections.map((collection) => (
+          <article key={collection.id} className="space-y-4 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-900">
+                  {collection.petName}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {collection.petSpecies} · {collection.customerName}
+                </p>
+              </div>
+
+              <span
+                className={[
+                  "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
+                  getStatusClasses(collection.status),
+                ].join(" ")}
+              >
+                {getCollectionStatusLabel(collection.status)}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+              <p className="font-medium text-slate-800">
+                {getCollectionLocationLabel(collection.locationType)}
+              </p>
+              <p className="mt-1 break-words">{collection.pickupAddress}</p>
+              {collection.assignedDriverName && (
+                <p className="mt-2 text-xs">
+                  Conductor: {collection.assignedDriverName}
+                </p>
+              )}
+            </div>
+
+            <CollectionActions
+              collection={collection}
+              pendingCollectionId={pendingCollectionId}
+              currentUserId={currentUserId}
+              canManageCollections={canManageCollections}
+              onShowQr={onShowQr}
+              onEdit={onEdit}
+              onAssign={onAssign}
+              onAccept={onAccept}
+              onEvidence={onEvidence}
+              onConfirmCustody={onConfirmCustody}
+              onReceive={onReceive}
+              onCancel={onCancel}
+              align="start"
+            />
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
@@ -146,37 +337,6 @@ export function CollectionsTable({
           <tbody className="divide-y divide-slate-100">
             {collections.map((collection) => {
               const isPending = pendingCollectionId === collection.id;
-
-              const canEdit =
-                canManageCollections && canEditCollection(collection);
-
-              const canReceive =
-                canManageCollections &&
-                canConvertCollectionToReception(collection);
-
-              const canCancel =
-                canManageCollections && canCancelCollection(collection);
-
-              const isAssignedDriver =
-                currentUserId !== null &&
-                collection.assignedDriverId === currentUserId;
-
-              const canAssign =
-                canManageCollections &&
-                (collection.status === CollectionStatus.Pending ||
-                  collection.status === CollectionStatus.Assigned ||
-                  collection.status === CollectionStatus.Accepted);
-
-              const canAccept =
-                isAssignedDriver &&
-                collection.status === CollectionStatus.Assigned;
-
-              const canManageEvidence =
-                canManageCollections || isAssignedDriver;
-
-              const canConfirmCustody =
-                isAssignedDriver &&
-                collection.status === CollectionStatus.Accepted;
 
               return (
                 <tr
@@ -355,97 +515,20 @@ export function CollectionsTable({
 
                   {/* ACCIONES */}
                   <td className="whitespace-nowrap px-5 py-4 text-right">
-                    <div className="flex flex-col items-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onShowQr(collection)}
-                        disabled={isPending}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Ver QR
-                      </button>
-
-                      {canAssign && (
-                        <button
-                          type="button"
-                          onClick={() => onAssign(collection)}
-                          disabled={isPending}
-                          className="w-full rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 disabled:opacity-50"
-                        >
-                          {collection.assignedDriverId
-                            ? "Reasignar conductor"
-                            : "Asignar conductor"}
-                        </button>
-                      )}
-
-                      {canAccept && (
-                        <button
-                          type="button"
-                          onClick={() => onAccept(collection)}
-                          disabled={isPending}
-                          className="w-full rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                        >
-                          Aceptar asignación
-                        </button>
-                      )}
-
-                      {canManageEvidence &&
-                        collection.status !== CollectionStatus.Received &&
-                        collection.status !== CollectionStatus.Cancelled && (
-                          <button
-                            type="button"
-                            onClick={() => onEvidence(collection)}
-                            disabled={isPending}
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
-                          >
-                            Gestionar evidencia
-                          </button>
-                        )}
-
-                      {canConfirmCustody && (
-                        <button
-                          type="button"
-                          onClick={() => onConfirmCustody(collection)}
-                          disabled={isPending}
-                          className="w-full rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                        >
-                          Confirmar custodia
-                        </button>
-                      )}
-
-                      {canReceive && (
-                        <button
-                          type="button"
-                          onClick={() => onReceive(collection)}
-                          disabled={isPending}
-                          className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Recibir
-                        </button>
-                      )}
-
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => onEdit(collection)}
-                          disabled={isPending}
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Editar
-                        </button>
-                      )}
-
-                      {canCancel && (
-                        <button
-                          type="button"
-                          onClick={() => onCancel(collection)}
-                          disabled={isPending}
-                          className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isPending ? "Procesando..." : "Cancelar"}
-                        </button>
-                      )}
-                    </div>
+                    <CollectionActions
+                      collection={collection}
+                      pendingCollectionId={pendingCollectionId}
+                      currentUserId={currentUserId}
+                      canManageCollections={canManageCollections}
+                      onShowQr={onShowQr}
+                      onEdit={onEdit}
+                      onAssign={onAssign}
+                      onAccept={onAccept}
+                      onEvidence={onEvidence}
+                      onConfirmCustody={onConfirmCustody}
+                      onReceive={onReceive}
+                      onCancel={onCancel}
+                    />
                   </td>
                 </tr>
               );

@@ -283,11 +283,20 @@ public class CollectionsController : ControllerBase
 
     [HttpGet("intake/customer-options/{customerId:guid}/pets")]
     [Authorize(Policy = "Collections.Manage")]
-    public async Task<ActionResult<IEnumerable<CollectionPetOptionDto>>>
-        GetPetOptions(Guid customerId)
+    public async Task<ActionResult<
+        PaginatedResult<CollectionPetOptionDto>>>
+        GetPetOptions(
+            Guid customerId,
+            [FromQuery] string? search = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
     {
         return Ok(
-            await _collectionService.GetPetOptionsAsync(customerId));
+            await _collectionService.GetPetOptionsAsync(
+                customerId,
+                search,
+                page,
+                pageSize));
     }
 
     [HttpGet("intake/veterinary-clinic-options")]
@@ -457,9 +466,11 @@ public class CollectionsController : ControllerBase
     }
 
     [HttpGet("search")]
-    public async Task<ActionResult<IEnumerable<CollectionDto>>>
+    public async Task<ActionResult<PagedCollectionsDto>>
         Search(
             [FromQuery] string search,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
             [FromQuery] CollectionStatus? status = null,
             [FromQuery] CollectionLocationType? locationType = null)
     {
@@ -478,10 +489,20 @@ public class CollectionsController : ControllerBase
             var collections =
                 await _collectionService.SearchAsync(
                     search,
+                    page,
+                    pageSize,
                     status,
                     locationType);
 
             return Ok(collections);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
         }
         catch (ArgumentException ex)
         {

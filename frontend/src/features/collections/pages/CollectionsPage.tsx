@@ -173,6 +173,7 @@ export function CollectionsPage() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      setPage(1);
       setDebouncedSearch(searchInput);
     }, 400);
 
@@ -180,10 +181,6 @@ export function CollectionsPage() {
       window.clearTimeout(timeoutId);
     };
   }, [searchInput]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [normalizedSearch, pageSize, statusFilter, locationFilter]);
 
   const collectionsQuery = useQuery({
     queryKey: [
@@ -198,39 +195,18 @@ export function CollectionsPage() {
     ],
 
     queryFn: async (): Promise<PagedCollections> => {
-      /*
-       * Search endpoint returns
-       * an array, so pagination
-       * is done client-side only
-       * for search results.
-       */
       if (normalizedSearch) {
-        const found = await searchCollections({
+        return searchCollections({
           search: normalizedSearch,
-
-          status: selectedStatus,
-
-          locationType: selectedLocationType,
-        });
-
-        const totalItems = found.length;
-
-        const totalPages =
-          totalItems > 0 ? Math.ceil(totalItems / pageSize) : 0;
-
-        const startIndex = (page - 1) * pageSize;
-
-        return {
-          items: found.slice(startIndex, startIndex + pageSize),
 
           page,
 
           pageSize,
 
-          totalItems,
+          status: selectedStatus,
 
-          totalPages,
-        };
+          locationType: selectedLocationType,
+        });
       }
 
       return getCollections({
@@ -584,7 +560,10 @@ export function CollectionsPage() {
 
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setPage(1);
+            }}
             aria-label="Filtrar por estado"
             className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
           >
@@ -611,7 +590,10 @@ export function CollectionsPage() {
 
           <select
             value={locationFilter}
-            onChange={(event) => setLocationFilter(event.target.value)}
+            onChange={(event) => {
+              setLocationFilter(event.target.value);
+              setPage(1);
+            }}
             aria-label="Filtrar por lugar de recolección"
             className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
           >
@@ -640,7 +622,10 @@ export function CollectionsPage() {
         <div className="mt-3 flex justify-end">
           <select
             value={pageSize}
-            onChange={(event) => setPageSize(Number(event.target.value))}
+            onChange={(event) => {
+              setPageSize(Number(event.target.value));
+              setPage(1);
+            }}
             aria-label="Recolecciones por página"
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
           >

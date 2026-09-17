@@ -4,14 +4,15 @@ import type {
   AssignCollectionPayload,
   Collection,
   CollectionDriverOption,
-  CollectionPetOption,
   GetCollectionVeterinarianLookupParams,
   GetCollectionVeterinaryLookupParams,
   ConvertCollectionToReceptionPayload,
   CreateCollectionPayload,
   GetCollectionCustomerOptionsParams,
+  GetCollectionPetOptionsParams,
   GetCollectionsParams,
   PaginatedCollectionCustomerOptions,
+  PaginatedCollectionPetOptions,
   PaginatedCollectionVeterinarianOptions,
   PaginatedCollectionVeterinaryClinicOptions,
   PagedCollections,
@@ -68,9 +69,11 @@ export async function getCollectionCustomerOptions(
 
 export async function getCollectionPetOptions(
   customerId: string,
-): Promise<CollectionPetOption[]> {
-  const response = await apiClient.get<CollectionPetOption[]>(
+  params: GetCollectionPetOptionsParams,
+): Promise<PaginatedCollectionPetOptions> {
+  const response = await apiClient.get<PaginatedCollectionPetOptions>(
     `${COLLECTIONS_URL}/intake/customer-options/${customerId}/pets`,
+    { params },
   );
 
   return response.data;
@@ -177,8 +180,8 @@ export async function convertCollectionToReception(
 
 export async function searchCollections(
   params: SearchCollectionsParams,
-): Promise<Collection[]> {
-  const response = await apiClient.get<Collection[]>(
+): Promise<PagedCollections> {
+  const response = await apiClient.get<PagedCollections>(
     `${COLLECTIONS_URL}/search`,
     {
       params,
