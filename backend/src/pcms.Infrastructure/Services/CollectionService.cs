@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using pcms.Application.Auth;
 using pcms.Application.Collections.DTOs;
 using pcms.Application.Collections.Interfaces;
@@ -1076,6 +1077,58 @@ public class CollectionService : ICollectionService
             ConvertCollectionToReceptionDto dto,
             Guid receivedByUserId)
     {
+        try
+        {
+            return await ConvertToReceptionCoreAsync(
+                id,
+                dto,
+                receivedByUserId);
+        }
+        catch (Exception ex) when (
+            IsConversionConcurrencyFailure(ex))
+        {
+            var alreadyConverted =
+                await _context.Receptions
+                    .AsNoTracking()
+                    .AnyAsync(reception =>
+                        reception.CollectionId == id);
+
+            if (alreadyConverted)
+            {
+                throw new InvalidOperationException(
+                    "La recolección ya fue convertida a recepción.",
+                    ex);
+            }
+
+            throw;
+        }
+    }
+
+    private static bool IsConversionConcurrencyFailure(
+        Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is PostgresException postgres &&
+                postgres.SqlState is
+                    PostgresErrorCodes.SerializationFailure or
+                    PostgresErrorCodes.UniqueViolation)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<CollectionDto?>
+        ConvertToReceptionCoreAsync(
+            Guid id,
+            ConvertCollectionToReceptionDto dto,
+            Guid receivedByUserId)
+    {
         if (receivedByUserId ==
             Guid.Empty)
         {
@@ -1134,6 +1187,13 @@ public class CollectionService : ICollectionService
         }
 
         CustomerPetWorkflowRules.RequireEligiblePet(collection.Pet);
+
+        if (collection.Status == CollectionStatus.Received &&
+            collection.Reception is not null)
+        {
+            throw new InvalidOperationException(
+                "La recolección ya fue convertida a recepción.");
+        }
 
         if (collection.Status !=
             CollectionStatus.Collected)
