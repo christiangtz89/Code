@@ -33,6 +33,11 @@ public interface IPaymentService
         CreatePaymentDto dto,
         Guid recordedByUserId);
 
+    Task<PaymentAccountDto> ResolveFinancialReviewAsync(
+        Guid paymentAccountId,
+        ResolveFinancialReviewDto dto,
+        Guid resolvedByUserId);
+
     Task<IEnumerable<PaymentDto>> GetPaymentHistoryAsync(
         Guid paymentAccountId);
 

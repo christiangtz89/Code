@@ -17,6 +17,7 @@ export interface Reception {
 
   isVeterinaryRequestOrigin: boolean;
   veterinaryRequestId: string | null;
+  isCollectionOrigin: boolean;
 
   receivedAt: string;
   qrCode: string;
@@ -74,6 +75,11 @@ export interface WeightRangeChangeDetails {
 
   previousPrice: number | null;
   newPrice: number | null;
+  priceDifference: number | null;
+  amountPaid: number | null;
+  remainingBalance: number | null;
+  overpaymentAmount: number | null;
+  requiresFinancialReview: boolean;
 }
 
 export interface WeightRangeChangeConfirmationResponse {

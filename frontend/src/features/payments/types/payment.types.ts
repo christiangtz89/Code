@@ -47,10 +47,18 @@ export interface PaymentAccount {
   maximumWeightKg: number | null;
   isCremationActive: boolean;
   serviceTotal: number;
+  isPricingProvisional: boolean;
   requiredCollectionPaymentAmount: number | null;
   isCollectionPaymentSatisfied: boolean;
   amountPaid: number;
   balance: number;
+  overpaymentAmount: number;
+  requiresFinancialReview: boolean;
+  isFinancialReviewResolved: boolean;
+  financialReviewResolvedByUserId: string | null;
+  financialReviewResolvedByUserName: string | null;
+  financialReviewResolvedAt: string | null;
+  financialReviewResolutionReason: string | null;
   status: PaymentStatus;
   createdAt: string;
   updatedAt: string | null;
@@ -72,6 +80,10 @@ export interface CreatePaymentPayload {
   paidAt: string;
   reference: string | null;
   notes: string | null;
+}
+
+export interface ResolveFinancialReviewPayload {
+  reason: string;
 }
 
 export interface PaginatedPaymentAccounts {

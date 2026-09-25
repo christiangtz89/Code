@@ -114,6 +114,24 @@ export function PaymentsTable({
                             : "pendiente"}
                         </p>
                       )}
+                      {account.isPricingProvisional && (
+                        <p className="mt-2 text-xs font-semibold text-sky-700">
+                          Pendiente de confirmación de peso.
+                        </p>
+                      )}
+                      {account.requiresFinancialReview &&
+                        !account.isFinancialReviewResolved && (
+                          <p className="mt-2 text-xs font-semibold text-red-700">
+                            Revisión financiera pendiente:{" "}
+                            {formatPaymentCurrency(account.overpaymentAmount)}
+                          </p>
+                        )}
+                      {account.requiresFinancialReview &&
+                        account.isFinancialReviewResolved && (
+                          <p className="mt-2 text-xs font-semibold text-emerald-700">
+                            Revisión financiera resuelta.
+                          </p>
+                        )}
                     </div>
                   </td>
 

@@ -145,6 +145,21 @@ export function PaymentFormModal({
                 </p>
               </div>
             </div>
+            {account.isPricingProvisional && (
+              <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">
+                Pendiente de confirmación de peso.
+              </div>
+            )}
+            {account.requiresFinancialReview && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                Revisión financiera requerida. Los pagos exceden el total final
+                por{" "}
+                <strong>
+                  {formatPaymentCurrency(account.overpaymentAmount)}
+                </strong>
+                .
+              </div>
+            )}
           </div>
 
           {accountIsPaid ? (

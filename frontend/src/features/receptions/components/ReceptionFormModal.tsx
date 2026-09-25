@@ -146,6 +146,9 @@ export function ReceptionFormModal({
       (veterinarian) => veterinarian.id === reception.referringVeterinarianId,
     );
 
+  const isCollectionOrigin =
+    mode === "edit" && reception?.isCollectionOrigin === true;
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -295,7 +298,7 @@ export function ReceptionFormModal({
                 max="999.99"
                 step="0.01"
                 inputMode="decimal"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCollectionOrigin}
                 {...register("verifiedWeightKg")}
                 className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-12 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               />
@@ -308,6 +311,13 @@ export function ReceptionFormModal({
             {errors.verifiedWeightKg && (
               <p className="mt-2 text-sm text-red-600">
                 {errors.verifiedWeightKg.message}
+              </p>
+            )}
+
+            {isCollectionOrigin && (
+              <p className="mt-2 text-xs text-slate-500">
+                El peso verificado fue finalizado desde la recolección y no
+                puede modificarse desde la edición normal.
               </p>
             )}
           </div>

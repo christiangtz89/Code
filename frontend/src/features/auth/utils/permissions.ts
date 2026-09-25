@@ -6,6 +6,9 @@ interface PermissionClaims {
   permission?: string | string[];
   permissions?: string[];
   pcms_owner?: string;
+  role?: string | string[];
+  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"?:
+    string | string[];
 }
 export function currentUserId(): string | null {
   const token = tokenStorage.get();
@@ -46,6 +49,22 @@ export function isOwner(): boolean {
   if (!token) return false;
   try {
     return jwtDecode<PermissionClaims>(token).pcms_owner === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function isOwnerOrAdmin(): boolean {
+  const token = tokenStorage.get();
+  if (!token) return false;
+  try {
+    const claims = jwtDecode<PermissionClaims>(token);
+    if (claims.pcms_owner === "true") return true;
+    const roles = [
+      claims.role,
+      claims["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
+    ].flatMap((value) => (Array.isArray(value) ? value : value ? [value] : []));
+    return roles.includes("Admin");
   } catch {
     return false;
   }

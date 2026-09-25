@@ -104,9 +104,12 @@ export function updateCollectionPayload(
 
 export function collectionReceptionPayload(
   values: CollectionReceptionFormValues,
+  confirmWeightRangeChange = false,
 ): ConvertCollectionToReceptionPayload {
   return {
     verifiedWeightKg: Number(values.verifiedWeightKg),
+
+    confirmWeightRangeChange,
 
     hasPersonalBelongings: values.hasPersonalBelongings,
 

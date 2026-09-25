@@ -305,6 +305,7 @@ public class CremationPricingService : ICremationPricingService
 
         return new CremationPriceQuoteDto
         {
+            CremationPriceId = price.Id,
             CremationPackageId = package.Id,
             CremationPackageName = package.Name,
             PackageType = package.PackageType,

@@ -199,6 +199,22 @@ public class CremationService : ICremationService
             }
 
             if (collectionPaymentAccount != null &&
+                collectionPaymentAccount.RequiresFinancialReview &&
+                (!collectionPaymentAccount
+                    .FinancialReviewResolvedByUserId.HasValue ||
+                 string.IsNullOrWhiteSpace(collectionPaymentAccount
+                    .FinancialReviewResolvedByUserNameSnapshot) ||
+                 !collectionPaymentAccount
+                    .FinancialReviewResolvedAt.HasValue ||
+                 string.IsNullOrWhiteSpace(collectionPaymentAccount
+                    .FinancialReviewResolutionReason)))
+            {
+                throw new InvalidOperationException(
+                    "Este caso requiere revisión financiera por un propietario o administrador antes de continuar.");
+            }
+
+            if (collectionPaymentAccount != null &&
+                !collectionPaymentAccount.RequiresFinancialReview &&
                 collectionPaymentAccount.Payments.Sum(payment =>
                     payment.Amount) > quotedPrice)
             {

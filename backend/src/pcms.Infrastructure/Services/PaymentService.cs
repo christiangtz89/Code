@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using pcms.Application.Payments.DTOs;
 using pcms.Application.Payments.Interfaces;
 using pcms.Application.CremationPricing.Interfaces;
@@ -11,6 +12,12 @@ namespace pcms.Infrastructure.Services;
 
 public class PaymentService : IPaymentService
 {
+    private const string FinancialReviewAlreadyResolvedMessage =
+        "La revisión financiera ya fue resuelta y su auditoría no puede modificarse.";
+
+    private static readonly Guid ProtectedAdminRoleId =
+        Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     private readonly AppDbContext _context;
     private readonly ICremationPricingService _cremationPricingService;
 
@@ -489,6 +496,139 @@ public class PaymentService : IPaymentService
                 "No fue posible recuperar el pago registrado.");
     }
 
+    public async Task<PaymentAccountDto>
+        ResolveFinancialReviewAsync(
+            Guid paymentAccountId,
+            ResolveFinancialReviewDto dto,
+            Guid resolvedByUserId)
+    {
+        if (paymentAccountId == Guid.Empty)
+        {
+            throw new KeyNotFoundException(
+                "No se encontró la cuenta de pago.");
+        }
+
+        if (resolvedByUserId == Guid.Empty)
+        {
+            throw new UnauthorizedAccessException(
+                "No fue posible identificar al usuario que resuelve la revisión financiera.");
+        }
+
+        var reason = dto.Reason?.Trim();
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new InvalidOperationException(
+                "El motivo de resolución es obligatorio.");
+        }
+
+        if (reason.Length > 1000)
+        {
+            throw new InvalidOperationException(
+                "El motivo de resolución no puede exceder 1000 caracteres.");
+        }
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var resolver = await _context.Users
+            .AsNoTracking()
+            .Include(user => user.UserRoles)
+                .ThenInclude(userRole => userRole.Role)
+            .FirstOrDefaultAsync(user =>
+                user.Id == resolvedByUserId &&
+                user.IsActive);
+
+        var resolverIsAuthorized =
+            resolver is not null &&
+            (resolver.IsOwner ||
+             resolver.UserRoles.Any(userRole =>
+                 userRole.RoleId == ProtectedAdminRoleId &&
+                 userRole.Role.IsActive));
+
+        if (!resolverIsAuthorized)
+        {
+            throw new UnauthorizedAccessException(
+                "Solo un propietario o administrador puede resolver la revisión financiera.");
+        }
+
+        var account = await _context.PaymentAccounts
+            .FirstOrDefaultAsync(current =>
+                current.Id == paymentAccountId);
+
+        if (account is null)
+        {
+            throw new KeyNotFoundException(
+                "No se encontró la cuenta de pago.");
+        }
+
+        if (!account.RequiresFinancialReview)
+        {
+            throw new InvalidOperationException(
+                "La cuenta de pago no requiere revisión financiera.");
+        }
+
+        var hasAnyResolutionAudit =
+            account.FinancialReviewResolvedByUserId.HasValue ||
+            account.FinancialReviewResolvedAt.HasValue ||
+            account.FinancialReviewResolvedByUserNameSnapshot is not null ||
+            account.FinancialReviewResolutionReason is not null;
+
+        if (hasAnyResolutionAudit)
+        {
+            throw new InvalidOperationException(
+                FinancialReviewAlreadyResolvedMessage);
+        }
+
+        var resolvedAt = DateTime.UtcNow;
+
+        account.FinancialReviewResolvedByUserId = resolver!.Id;
+        account.FinancialReviewResolvedByUserNameSnapshot =
+            BuildUserName(
+                resolver.FirstName,
+                resolver.LastName);
+        account.FinancialReviewResolvedAt = resolvedAt;
+        account.FinancialReviewResolutionReason = reason;
+        account.UpdatedAt = resolvedAt;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception exception)
+            when (IsSerializationFailure(exception))
+        {
+            throw new InvalidOperationException(
+                FinancialReviewAlreadyResolvedMessage,
+                exception);
+        }
+
+        return await GetByIdAsync(account.Id)
+            ?? throw new InvalidOperationException(
+                "No fue posible recuperar la cuenta de pago actualizada.");
+    }
+
+    private static bool IsSerializationFailure(
+        Exception exception)
+    {
+        for (var current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is PostgresException
+                {
+                    SqlState: PostgresErrorCodes.SerializationFailure
+                })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public async Task<IEnumerable<PaymentDto>>
         GetPaymentHistoryAsync(
             Guid paymentAccountId)
@@ -687,6 +827,18 @@ public class PaymentService : IPaymentService
             0m,
             account.ServiceTotal - amountPaid);
 
+        var overpaymentAmount = Math.Max(
+            0m,
+            amountPaid - account.ServiceTotal);
+
+        var isFinancialReviewResolved =
+            account.FinancialReviewResolvedByUserId.HasValue &&
+            !string.IsNullOrWhiteSpace(
+                account.FinancialReviewResolvedByUserNameSnapshot) &&
+            account.FinancialReviewResolvedAt.HasValue &&
+            !string.IsNullOrWhiteSpace(
+                account.FinancialReviewResolutionReason);
+
         return new PaymentAccountDto
         {
             Id = account.Id,
@@ -715,6 +867,9 @@ public class PaymentService : IPaymentService
             IsCremationActive = cremation?.IsActive ??
                 collection?.IsActive == true,
             ServiceTotal = account.ServiceTotal,
+            IsPricingProvisional =
+                account.CollectionId.HasValue &&
+                reception is null,
             RequiredCollectionPaymentAmount =
                 account.RequiredCollectionPaymentAmount,
             IsCollectionPaymentSatisfied =
@@ -723,6 +878,19 @@ public class PaymentService : IPaymentService
                     account.RequiredCollectionPaymentAmount.Value,
             AmountPaid = amountPaid,
             Balance = balance,
+            OverpaymentAmount = overpaymentAmount,
+            RequiresFinancialReview =
+                account.RequiresFinancialReview,
+            IsFinancialReviewResolved =
+                isFinancialReviewResolved,
+            FinancialReviewResolvedByUserId =
+                account.FinancialReviewResolvedByUserId,
+            FinancialReviewResolvedByUserName =
+                account.FinancialReviewResolvedByUserNameSnapshot,
+            FinancialReviewResolvedAt =
+                account.FinancialReviewResolvedAt,
+            FinancialReviewResolutionReason =
+                account.FinancialReviewResolutionReason,
             Status = GetPaymentStatus(
                 account.ServiceTotal,
                 amountPaid),

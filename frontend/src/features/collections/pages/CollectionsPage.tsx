@@ -33,10 +33,12 @@ import { CollectionFormModal } from "../components/CollectionFormModal";
 import { CollectionQrModal } from "../components/CollectionQrModal";
 import { CollectionsTable } from "../components/CollectionsTable";
 import { CollectionToReceptionModal } from "../components/CollectionToReceptionModal";
+import { WeightRangeChangeConfirmationModal } from "../../receptions/components/WeightRangeChangeConfirmationModal";
 
 import type { CollectionReceptionFormValues } from "../schemas/collectionReceptionSchema";
 import type { CollectionFormValues } from "../schemas/collectionSchema";
 import type { CollectionUpdateFormValues } from "../schemas/collectionUpdateSchema";
+import type { WeightRangeChangeDetails } from "../../receptions/types/reception.types";
 
 import {
   CollectionLocationType,
@@ -55,11 +57,18 @@ import {
   createCollectionPayload,
   updateCollectionPayload,
 } from "../utils/collectionPayload";
+import { getWeightRangeChangeConfirmation } from "../../receptions/utils/weightRangeChangeConfirmation";
 
 interface ApiErrorResponse {
   title?: string;
   detail?: string;
   message?: string;
+}
+
+interface CollectionWeightRangeConfirmationState {
+  collection: Collection;
+  values: CollectionReceptionFormValues;
+  details: WeightRangeChangeDetails;
 }
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -152,6 +161,8 @@ export function CollectionsPage() {
   const [receiveCollection, setReceiveCollection] = useState<Collection | null>(
     null,
   );
+  const [weightRangeChangeConfirmation, setWeightRangeChangeConfirmation] =
+    useState<CollectionWeightRangeConfirmationState | null>(null);
 
   const [qrCollection, setQrCollection] = useState<Collection | null>(null);
 
@@ -479,8 +490,53 @@ export function CollectionsPage() {
        */
       setQrCollection(updatedCollection);
     } catch (error) {
+      const confirmation = getWeightRangeChangeConfirmation(error);
+      if (confirmation) {
+        setWeightRangeChangeConfirmation({
+          collection: receiveCollection,
+          values,
+          details: confirmation.weightChange,
+        });
+        return;
+      }
       toast.error(
         getApiErrorMessage(error, "No fue posible registrar la recepción."),
+      );
+    }
+  }
+  async function handleConfirmWeightRangeChange() {
+    if (!weightRangeChangeConfirmation) {
+      return;
+    }
+    try {
+      const updatedCollection = await receiveMutation.mutateAsync({
+        id: weightRangeChangeConfirmation.collection.id,
+        payload: collectionReceptionPayload(
+          weightRangeChangeConfirmation.values,
+          true,
+        ),
+      });
+      setWeightRangeChangeConfirmation(null);
+      setReceiveCollection(null);
+      setQrCollection(updatedCollection);
+    } catch (error) {
+      const confirmation = getWeightRangeChangeConfirmation(error);
+      if (confirmation) {
+        setWeightRangeChangeConfirmation((current) =>
+          current
+            ? {
+                ...current,
+                details: confirmation.weightChange,
+              }
+            : null,
+        );
+        return;
+      }
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "No fue posible confirmar el peso y precio final.",
+        ),
       );
     }
   }
@@ -770,10 +826,25 @@ export function CollectionsPage() {
           isSubmitting={isReceiveSubmitting}
           onClose={() => {
             if (!isReceiveSubmitting) {
+              setWeightRangeChangeConfirmation(null);
               setReceiveCollection(null);
             }
           }}
           onSubmit={handleReceiveSubmit}
+        />
+      )}
+      {weightRangeChangeConfirmation && (
+        <WeightRangeChangeConfirmationModal
+          petName={weightRangeChangeConfirmation.collection.petName}
+          customerName={weightRangeChangeConfirmation.collection.customerName}
+          qrCode={weightRangeChangeConfirmation.collection.qrCode}
+          details={weightRangeChangeConfirmation.details}
+          context="collectionConversion"
+          isSubmitting={receiveMutation.isPending}
+          onCancel={() => setWeightRangeChangeConfirmation(null)}
+          onConfirm={() => {
+            void handleConfirmWeightRangeChange();
+          }}
         />
       )}
 

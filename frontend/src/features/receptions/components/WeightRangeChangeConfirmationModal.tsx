@@ -6,6 +6,7 @@ interface WeightRangeChangeConfirmationModalProps {
   qrCode: string;
 
   details: WeightRangeChangeDetails;
+  context?: "receptionCorrection" | "collectionConversion";
 
   isSubmitting: boolean;
 
@@ -33,6 +34,7 @@ export function WeightRangeChangeConfirmationModal({
   customerName,
   qrCode,
   details,
+  context = "receptionCorrection",
   isSubmitting,
   onCancel,
   onConfirm,
@@ -98,6 +100,14 @@ export function WeightRangeChangeConfirmationModal({
             </div>
           </div>
 
+          {context === "collectionConversion" && (
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              A la izquierda se muestra el peso aproximado, rango provisional y
+              precio provisional. A la derecha se muestra el peso verificado,
+              rango final y precio final calculados por PCMS.
+            </p>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-slate-200 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -158,6 +168,47 @@ export function WeightRangeChangeConfirmationModal({
             </div>
           </div>
 
+          {context === "collectionConversion" &&
+            details.priceDifference !== null && (
+              <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-slate-500">Diferencia de precio</p>
+                  <p className="font-semibold text-slate-900">
+                    {formatCurrency(details.priceDifference)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Pagado</p>
+                  <p className="font-semibold text-slate-900">
+                    {details.amountPaid === null
+                      ? "No disponible"
+                      : formatCurrency(details.amountPaid)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Saldo restante</p>
+                  <p className="font-semibold text-slate-900">
+                    {details.remainingBalance === null
+                      ? "No disponible"
+                      : formatCurrency(details.remainingBalance)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+          {context === "collectionConversion" &&
+            details.requiresFinancialReview && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                Los pagos registrados exceden el precio final
+                {details.overpaymentAmount === null
+                  ? "."
+                  : ` por ${formatCurrency(details.overpaymentAmount)}.`}{" "}
+                El caso quedará marcado para revisión financiera de propietario
+                o administración. No se realizará un reembolso ni se generará
+                crédito automáticamente.
+              </div>
+            )}
+
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <p className="text-sm font-medium text-amber-950">
               Confirma únicamente si verificaste físicamente el peso y
@@ -188,7 +239,11 @@ export function WeightRangeChangeConfirmationModal({
             onClick={onConfirm}
             className="rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting ? "Actualizando..." : "Confirmar corrección"}
+            {isSubmitting
+              ? "Actualizando..."
+              : context === "collectionConversion"
+                ? "Confirmar peso y precio final"
+                : "Confirmar corrección"}
           </button>
         </footer>
       </section>

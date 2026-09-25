@@ -221,6 +221,57 @@ public class PaymentsController : ControllerBase
         }
     }
 
+    [HttpPost(
+        "accounts/{id:guid}/financial-review/resolve")]
+    [Authorize(Policy = "FinancialReview.Resolve")]
+    public async Task<ActionResult<PaymentAccountDto>>
+        ResolveFinancialReview(
+            Guid id,
+            ResolveFinancialReviewDto dto)
+    {
+        var resolvedByUserId = GetCurrentUserId();
+
+        if (!resolvedByUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+        try
+        {
+            return Ok(
+                await _paymentService
+                    .ResolveFinancialReviewAsync(
+                        id,
+                        dto,
+                        resolvedByUserId.Value));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
     [HttpGet(
         "accounts/{id:guid}/payments")]
     public async Task<

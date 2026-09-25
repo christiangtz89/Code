@@ -28,6 +28,8 @@ public class ReceptionDto
 
     public Guid? VeterinaryRequestId { get; set; }
 
+    public bool IsCollectionOrigin { get; set; }
+
     public DateTime ReceivedAt { get; set; }
 
     public string QrCode { get; set; } = string.Empty;

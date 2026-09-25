@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using pcms.Application.Receptions.DTOs;
 using pcms.Application.Receptions.Interfaces;
@@ -53,6 +54,10 @@ public class ReceptionService : IReceptionService
                 "Debe describir los objetos personales recibidos.");
         }
 
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
         var pet = CustomerPetWorkflowRules.RequireEligiblePet(
             await _context.Pets
             .Include(p => p.Customer)
@@ -63,6 +68,21 @@ public class ReceptionService : IReceptionService
         {
             throw new InvalidOperationException(
                 "La mascota ya tiene una recepción registrada.");
+        }
+
+        var hasActiveCollection =
+            await _context.Collections
+                .AsNoTracking()
+                .AnyAsync(collection =>
+                    collection.PetId == pet.Id &&
+                    collection.IsActive &&
+                    collection.Status != CollectionStatus.Received &&
+                    collection.Status != CollectionStatus.Cancelled);
+
+        if (hasActiveCollection)
+        {
+            throw new InvalidOperationException(
+                "Esta mascota tiene una recolección activa. Complete la recepción desde la recolección existente.");
         }
 
         var receivedByUser = await _context.Users
@@ -172,6 +192,8 @@ public class ReceptionService : IReceptionService
 
         await _context.SaveChangesAsync();
 
+        await transaction.CommitAsync();
+
         return new ReceptionDto
         {
             Id = reception.Id,
@@ -199,6 +221,7 @@ public class ReceptionService : IReceptionService
 
             IsVeterinaryRequestOrigin = false,
             VeterinaryRequestId = null,
+            IsCollectionOrigin = false,
 
             ReceivedAt = reception.ReceivedAt,
             QrCode = reception.QrCode,
@@ -299,6 +322,9 @@ public class ReceptionService : IReceptionService
                         ? r.VeterinaryRequest.Id
                         : null,
 
+                IsCollectionOrigin =
+                    r.CollectionId.HasValue,
+
                 ReceivedAt = r.ReceivedAt,
                 QrCode = r.QrCode,
                 VerifiedWeightKg =
@@ -390,6 +416,9 @@ public class ReceptionService : IReceptionService
                         ? r.VeterinaryRequest.Id
                         : null,
 
+                IsCollectionOrigin =
+                    r.CollectionId.HasValue,
+
                 ReceivedAt = r.ReceivedAt,
                 QrCode = r.QrCode,
                 VerifiedWeightKg =
@@ -479,6 +508,9 @@ public class ReceptionService : IReceptionService
                         ? r.VeterinaryRequest.Id
                         : null,
 
+                IsCollectionOrigin =
+                    r.CollectionId.HasValue,
+
 
                 ReceivedAt = r.ReceivedAt,
                 QrCode = r.QrCode,
@@ -507,6 +539,13 @@ public class ReceptionService : IReceptionService
         {
             throw new ArgumentException(
                 "El peso verificado debe ser mayor que cero.");
+        }
+
+        if (decimal.Round(dto.VerifiedWeightKg, 2) !=
+            dto.VerifiedWeightKg)
+        {
+            throw new ArgumentException(
+                "El peso verificado no puede tener más de dos decimales.");
         }
 
         if (dto.HasPersonalBelongings &&
@@ -542,6 +581,14 @@ public class ReceptionService : IReceptionService
 
         if (weightChanged)
         {
+            if (reception.CollectionId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "El peso verificado de esta recepción ya fue " +
+                    "finalizado desde la recolección y no puede " +
+                    "modificarse desde la edición normal.");
+            }
+
             var minimumAllowedWeightKg =
                 originalWeightKg *
                 (1m - WeightCorrectionTolerance);
@@ -847,6 +894,9 @@ public class ReceptionService : IReceptionService
             VeterinaryRequestId =
                 reception.VeterinaryRequest?.Id,
 
+            IsCollectionOrigin =
+                reception.CollectionId.HasValue,
+
             ReceivedAt =
                 reception.ReceivedAt,
 
@@ -1000,6 +1050,9 @@ public class ReceptionService : IReceptionService
                     r.VeterinaryRequest != null
                         ? r.VeterinaryRequest.Id
                         : null,
+
+                IsCollectionOrigin =
+                    r.CollectionId.HasValue,
 
                 ReceivedAt = r.ReceivedAt,
                 QrCode = r.QrCode,

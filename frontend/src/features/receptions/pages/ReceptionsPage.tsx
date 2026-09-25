@@ -22,13 +22,13 @@ import type {
   PagedReceptions,
   Reception,
   UpdateReceptionPayload,
-  WeightRangeChangeConfirmationResponse,
   WeightRangeChangeDetails,
 } from "../types/reception.types";
 import {
   createReceptionPayload,
   updateReceptionPayload,
 } from "../utils/receptionPayload";
+import { getWeightRangeChangeConfirmation } from "../utils/weightRangeChangeConfirmation";
 
 type ReceptionFormMode = "create" | "edit";
 
@@ -69,31 +69,6 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
-}
-
-function getWeightRangeChangeConfirmation(
-  error: unknown,
-): WeightRangeChangeConfirmationResponse | null {
-  if (!axios.isAxiosError(error) || error.response?.status !== 409) {
-    return null;
-  }
-
-  const data = error.response.data;
-
-  if (!data || typeof data !== "object") {
-    return null;
-  }
-
-  const response = data as Partial<WeightRangeChangeConfirmationResponse>;
-
-  if (
-    response.code !== "WEIGHT_RANGE_CHANGE_CONFIRMATION_REQUIRED" ||
-    !response.weightChange
-  ) {
-    return null;
-  }
-
-  return response as WeightRangeChangeConfirmationResponse;
 }
 
 export function ReceptionsPage() {

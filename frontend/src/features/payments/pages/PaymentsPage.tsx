@@ -8,6 +8,8 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
+import { isOwnerOrAdmin } from "../../auth/utils/permissions";
+
 import {
   addPayment,
   createCollectionPaymentAccount,
@@ -16,6 +18,7 @@ import {
   getAvailablePaymentCremations,
   getPaymentAccountById,
   getPaymentAccounts,
+  resolveFinancialReview,
   searchPaymentAccounts,
 } from "../api/paymentsApi";
 import { PaymentAccountFormModal } from "../components/PaymentAccountFormModal";
@@ -68,6 +71,7 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
 
 export function PaymentsPage() {
   const queryClient = useQueryClient();
+  const canResolveFinancialReview = isOwnerOrAdmin();
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -220,6 +224,20 @@ export function PaymentsPage() {
     onSuccess: refreshPayments,
   });
 
+  const resolveFinancialReviewMutation = useMutation({
+    mutationFn: ({
+      accountId,
+      reason,
+    }: {
+      accountId: string;
+      reason: string;
+    }) => resolveFinancialReview(accountId, { reason }),
+    onSuccess: async (account) => {
+      setDetailsAccount(account);
+      await refreshPayments();
+    },
+  });
+
   const isAccountSubmitting = createAccountMutation.isPending;
 
   async function handleCreateAccount(values: CreatePaymentAccountFormValues) {
@@ -256,6 +274,27 @@ export function PaymentsPage() {
     } catch (error) {
       toast.error(
         getApiErrorMessage(error, "No fue posible registrar el pago."),
+      );
+    }
+  }
+
+  async function handleResolveFinancialReview(reason: string) {
+    if (!detailsAccount) {
+      return;
+    }
+
+    try {
+      await resolveFinancialReviewMutation.mutateAsync({
+        accountId: detailsAccount.id,
+        reason,
+      });
+      toast.success("Revisión financiera resuelta correctamente.");
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "No fue posible resolver la revisión financiera.",
+        ),
       );
     }
   }
@@ -451,7 +490,10 @@ export function PaymentsPage() {
       <PaymentDetailsModal
         isOpen={detailsAccount !== null}
         account={displayedDetailsAccount}
+        canResolveFinancialReview={canResolveFinancialReview}
+        isResolvingFinancialReview={resolveFinancialReviewMutation.isPending}
         onClose={() => setDetailsAccount(null)}
+        onResolveFinancialReview={handleResolveFinancialReview}
       />
     </section>
   );

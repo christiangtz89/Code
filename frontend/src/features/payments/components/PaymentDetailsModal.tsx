@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { PaymentAccount } from "../types/payment.types";
 import { PaymentHistory } from "./PaymentHistory";
 import { PaymentSummaryCard } from "./PaymentSummaryCard";
@@ -5,14 +6,26 @@ import { PaymentSummaryCard } from "./PaymentSummaryCard";
 interface PaymentDetailsModalProps {
   isOpen: boolean;
   account: PaymentAccount | null;
+  canResolveFinancialReview: boolean;
+  isResolvingFinancialReview: boolean;
   onClose: () => void;
+  onResolveFinancialReview: (reason: string) => Promise<void>;
 }
 
 export function PaymentDetailsModal({
   isOpen,
   account,
+  canResolveFinancialReview,
+  isResolvingFinancialReview,
   onClose,
+  onResolveFinancialReview,
 }: PaymentDetailsModalProps) {
+  const [resolutionReason, setResolutionReason] = useState("");
+
+  useEffect(() => {
+    setResolutionReason("");
+  }, [account?.id, isOpen]);
+
   if (!isOpen || !account) {
     return null;
   }
@@ -84,6 +97,55 @@ export function PaymentDetailsModal({
           </div>
 
           <PaymentSummaryCard account={account} />
+
+          {account.requiresFinancialReview &&
+            !account.isFinancialReviewResolved &&
+            canResolveFinancialReview && (
+              <form
+                className="rounded-2xl border border-amber-200 bg-amber-50 p-5"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  await onResolveFinancialReview(resolutionReason);
+                }}
+              >
+                <h3 className="font-semibold text-amber-950">
+                  Resolver revisión financiera
+                </h3>
+                <p className="mt-1 text-sm text-amber-800">
+                  Esta acción autoriza continuar el flujo; no genera reembolso
+                  ni crédito y no modifica los pagos.
+                </p>
+                <label
+                  htmlFor="financial-review-resolution-reason"
+                  className="mt-4 block text-sm font-medium text-amber-950"
+                >
+                  Motivo de resolución
+                </label>
+                <textarea
+                  id="financial-review-resolution-reason"
+                  value={resolutionReason}
+                  maxLength={1000}
+                  required
+                  disabled={isResolvingFinancialReview}
+                  onChange={(event) => setResolutionReason(event.target.value)}
+                  className="mt-2 min-h-28 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 disabled:opacity-60"
+                />
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={
+                      isResolvingFinancialReview ||
+                      resolutionReason.trim().length === 0
+                    }
+                    className="rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isResolvingFinancialReview
+                      ? "Resolviendo..."
+                      : "Resolver revisión financiera"}
+                  </button>
+                </div>
+              </form>
+            )}
 
           <PaymentHistory payments={account.payments} />
         </div>

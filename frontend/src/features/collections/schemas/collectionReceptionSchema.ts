@@ -14,7 +14,28 @@ export const collectionReceptionSchema = z
           numberValue > 0 &&
           numberValue <= 999.99
         );
-      }, "El peso verificado debe ser mayor que cero."),
+      }, "El peso verificado debe ser mayor que cero.")
+      .refine((value) => {
+        const numberValue = Number(value);
+
+        if (
+          !Number.isFinite(numberValue) ||
+          numberValue <= 0 ||
+          numberValue > 999.99
+        ) {
+          return true;
+        }
+
+        const decimalMatch = value.match(/^(?:\d+(?:\.(\d+))?|\.(\d+))$/);
+
+        if (!decimalMatch) {
+          return false;
+        }
+
+        const decimalPart = decimalMatch[1] ?? decimalMatch[2] ?? "";
+
+        return /^0*$/.test(decimalPart.slice(2));
+      }, "El peso verificado no puede tener más de dos decimales."),
 
     hasPersonalBelongings: z.boolean(),
 

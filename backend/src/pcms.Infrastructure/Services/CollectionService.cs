@@ -4,6 +4,7 @@ using pcms.Application.Auth;
 using pcms.Application.Collections.DTOs;
 using pcms.Application.Collections.Interfaces;
 using pcms.Application.Common;
+using pcms.Application.CremationPricing.Interfaces;
 using pcms.Application.Receptions.Exceptions;
 using pcms.Domain.Entities;
 using pcms.Domain.Enums;
@@ -16,11 +17,14 @@ public class CollectionService : ICollectionService
 
         private const decimal WeightCorrectionTolerance = 0.10m;
     private readonly AppDbContext _context;
+    private readonly ICremationPricingService _cremationPricingService;
 
     public CollectionService(
-        AppDbContext context)
+        AppDbContext context,
+        ICremationPricingService cremationPricingService)
     {
         _context = context;
+        _cremationPricingService = cremationPricingService;
     }
 
     public async Task<CollectionDto> CreateAsync(
@@ -1085,6 +1089,13 @@ public class CollectionService : ICollectionService
                 "El peso verificado debe ser mayor que cero.");
         }
 
+        if (decimal.Round(dto.VerifiedWeightKg, 2) !=
+            dto.VerifiedWeightKg)
+        {
+            throw new ArgumentException(
+                "El peso verificado no puede tener más de dos decimales.");
+        }
+
         if (dto.HasPersonalBelongings &&
             string.IsNullOrWhiteSpace(
                 dto.PersonalBelongingsDescription))
@@ -1186,94 +1197,156 @@ public class CollectionService : ICollectionService
                 "La mascota ya tiene una recepción registrada.");
         }
 
-                if (collection.ApproximateWeightKg.HasValue)
+        if (paymentAccount.CremationPriceId is null ||
+            paymentAccount.CremationPackageId is null ||
+            paymentAccount.CremationTypeSnapshot is null ||
+            paymentAccount.WeightKgSnapshot is null or <= 0m ||
+            paymentAccount.MinimumWeightKgSnapshot is null or < 0m ||
+            paymentAccount.MaximumWeightKgSnapshot is null or <= 0m ||
+            paymentAccount.ServiceTotal <= 0m)
         {
-            var originalWeightKg =
-                collection.ApproximateWeightKg.Value;
+            throw new InvalidOperationException(
+                "La cuenta de pago no conserva una base provisional de precio válida.");
+        }
 
-            var weightChanged =
-                Math.Abs(
-                    dto.VerifiedWeightKg -
-                    originalWeightKg) >= 0.01m;
+        if (paymentAccount.ProvisionalCremationPriceId.HasValue ||
+            paymentAccount.ProvisionalWeightKgSnapshot.HasValue ||
+            paymentAccount.ProvisionalMinimumWeightKgSnapshot.HasValue ||
+            paymentAccount.ProvisionalMaximumWeightKgSnapshot.HasValue ||
+            paymentAccount.ProvisionalServiceTotal.HasValue ||
+            paymentAccount.WeightRangeChangeConfirmedByUserId.HasValue ||
+            paymentAccount.WeightRangeChangeConfirmedAt.HasValue)
+        {
+            throw new InvalidOperationException(
+                "La cuenta de pago ya contiene una finalización de peso previa y requiere revisión.");
+        }
 
-            if (weightChanged)
+        var provisionalWeightKg =
+            paymentAccount.WeightKgSnapshot.Value;
+
+        var weightChanged =
+            Math.Abs(
+                dto.VerifiedWeightKg -
+                provisionalWeightKg) >= 0.01m;
+
+        if (weightChanged)
+        {
+            var minimumAllowedWeightKg =
+                provisionalWeightKg *
+                (1m - WeightCorrectionTolerance);
+
+            var maximumAllowedWeightKg =
+                provisionalWeightKg *
+                (1m + WeightCorrectionTolerance);
+
+            if (dto.VerifiedWeightKg <
+                    minimumAllowedWeightKg ||
+                dto.VerifiedWeightKg >
+                    maximumAllowedWeightKg)
             {
-                var minimumAllowedWeightKg =
-                    originalWeightKg *
-                    (1m - WeightCorrectionTolerance);
+                throw new InvalidOperationException(
+                    $"Verifica que sea la mascota correcta. " +
+                    $"El peso ingresado " +
+                    $"({dto.VerifiedWeightKg:F2} kg) " +
+                    $"está fuera de la tolerancia permitida " +
+                    $"de ±10% respecto al peso aproximado " +
+                    $"({provisionalWeightKg:F2} kg). " +
+                    $"El rango permitido es de " +
+                    $"{minimumAllowedWeightKg:F2} a " +
+                    $"{maximumAllowedWeightKg:F2} kg.");
+            }
+        }
 
-                var maximumAllowedWeightKg =
-                    originalWeightKg *
-                    (1m + WeightCorrectionTolerance);
+        var pricingConfiguration =
+            await _context
+                .CremationPricingConfigurations
+                .AsNoTracking()
+                .OrderBy(configuration =>
+                    configuration.CreatedAt)
+                .FirstOrDefaultAsync();
 
-                if (dto.VerifiedWeightKg <
-                        minimumAllowedWeightKg ||
-                    dto.VerifiedWeightKg >
-                        maximumAllowedWeightKg)
-                {
-                    throw new InvalidOperationException(
-                        $"Verifica que sea la mascota correcta. " +
-                        $"El peso ingresado " +
-                        $"({dto.VerifiedWeightKg:F2} kg) " +
-                        $"está fuera de la tolerancia permitida " +
-                        $"de ±10% respecto al peso registrado " +
-                        $"({originalWeightKg:F2} kg). " +
-                        $"El rango permitido es de " +
-                        $"{minimumAllowedWeightKg:F2} a " +
-                        $"{maximumAllowedWeightKg:F2} kg.");
-                }
+        if (pricingConfiguration is null)
+        {
+            throw new InvalidOperationException(
+                "No existe una configuración activa de rangos de peso.");
+        }
 
-                var pricingConfiguration =
-                    await _context
-                        .CremationPricingConfigurations
-                        .AsNoTracking()
-                        .OrderBy(configuration =>
-                            configuration.CreatedAt)
-                        .FirstOrDefaultAsync();
+        var historicalMinimumWeightKg =
+            paymentAccount.MinimumWeightKgSnapshot.Value;
 
-                if (pricingConfiguration is null)
-                {
-                    throw new InvalidOperationException(
-                        "No existe una configuración activa de rangos de peso.");
-                }
+        var historicalMaximumWeightKg =
+            paymentAccount.MaximumWeightKgSnapshot.Value;
 
-                var currentRange =
-                    GetWeightRange(
-                        originalWeightKg,
-                        pricingConfiguration.WeightInterval);
+        if (!TryGetWeightRangeIdentity(
+                historicalMinimumWeightKg,
+                historicalMaximumWeightKg,
+                out var historicalInterval,
+                out var historicalRangeIndex) ||
+            historicalInterval !=
+                pricingConfiguration.WeightInterval)
+        {
+            throw new InvalidOperationException(
+                "El rango histórico de peso ya no puede " +
+                "relacionarse de forma segura con la " +
+                "configuración de precios actual. Se requiere " +
+                "una verificación manual antes de continuar. " +
+                "No se realizó ningún cambio.");
+        }
 
-                var newRange =
-                    GetWeightRange(
+        var verifiedWeightIsInHistoricalRange =
+            dto.VerifiedWeightKg >=
+                historicalMinimumWeightKg &&
+            dto.VerifiedWeightKg <=
+                historicalMaximumWeightKg;
+
+        var rangeDifference = 0;
+
+        if (!verifiedWeightIsInHistoricalRange)
+        {
+            var verifiedRange =
+                GetWeightRange(
+                    dto.VerifiedWeightKg,
+                    pricingConfiguration.WeightInterval);
+
+            rangeDifference =
+                Math.Abs(
+                    verifiedRange.Index -
+                    historicalRangeIndex);
+        }
+
+        if (rangeDifference > 1)
+        {
+            throw new InvalidOperationException(
+                "Verifica que sea la mascota correcta. " +
+                "El peso verificado provocaría un cambio de dos o más " +
+                "rangos de precio. Se requiere repetir la medición y " +
+                "realizar una revisión manual. No se realizó ningún cambio.");
+        }
+
+        pcms.Application.CremationPricing.DTOs.CremationPriceQuoteDto?
+            verifiedQuote = null;
+
+        if (rangeDifference == 1)
+        {
+            verifiedQuote =
+                await _cremationPricingService.GetQuoteAsync(
+                    paymentAccount.CremationPackageId.Value,
+                    dto.VerifiedWeightKg,
+                    paymentAccount.CremationTypeSnapshot.Value);
+
+            if (!dto.ConfirmWeightRangeChange)
+            {
+                throw new
+                    WeightRangeChangeConfirmationRequiredException(
+                        provisionalWeightKg,
                         dto.VerifiedWeightKg,
-                        pricingConfiguration.WeightInterval);
-
-                var rangeDifference =
-                    Math.Abs(
-                        newRange.Index -
-                        currentRange.Index);
-
-                if (rangeDifference > 1)
-                {
-                    throw new InvalidOperationException(
-                        "Verifica que sea la mascota correcta. " +
-                        "El nuevo peso provocaría un cambio de dos o más " +
-                        "rangos de precio. No se realizó ningún cambio.");
-                }
-
-                if (rangeDifference == 1 &&
-                    !dto.ConfirmWeightRangeChange)
-                {
-                    throw new
-                        WeightRangeChangeConfirmationRequiredException(
-                            originalWeightKg,
-                            dto.VerifiedWeightKg,
-                            currentRange.MinimumWeightKg,
-                            currentRange.MaximumWeightKg,
-                            newRange.MinimumWeightKg,
-                            newRange.MaximumWeightKg,
-                            null,
-                            null);
-                }
+                        paymentAccount.MinimumWeightKgSnapshot.Value,
+                        paymentAccount.MaximumWeightKgSnapshot.Value,
+                        verifiedQuote.MinimumWeightKg,
+                        verifiedQuote.MaximumWeightKg,
+                        paymentAccount.ServiceTotal,
+                        verifiedQuote.Price,
+                        amountPaid);
             }
         }
 
@@ -1295,6 +1368,55 @@ public class CollectionService : ICollectionService
 
         var currentTime =
             DateTime.UtcNow;
+
+        /*
+         * Preserve the provisional commercial facts before the
+         * account transitions to the verified final pricing basis.
+         */
+        paymentAccount.ProvisionalCremationPriceId =
+            paymentAccount.CremationPriceId;
+
+        paymentAccount.ProvisionalWeightKgSnapshot =
+            paymentAccount.WeightKgSnapshot;
+
+        paymentAccount.ProvisionalMinimumWeightKgSnapshot =
+            paymentAccount.MinimumWeightKgSnapshot;
+
+        paymentAccount.ProvisionalMaximumWeightKgSnapshot =
+            paymentAccount.MaximumWeightKgSnapshot;
+
+        paymentAccount.ProvisionalServiceTotal =
+            paymentAccount.ServiceTotal;
+
+        if (rangeDifference == 1)
+        {
+            paymentAccount.CremationPriceId =
+                verifiedQuote!.CremationPriceId;
+            paymentAccount.WeightKgSnapshot =
+                verifiedQuote.WeightKg;
+            paymentAccount.MinimumWeightKgSnapshot =
+                verifiedQuote.MinimumWeightKg;
+            paymentAccount.MaximumWeightKgSnapshot =
+                verifiedQuote.MaximumWeightKg;
+            paymentAccount.ServiceTotal =
+                verifiedQuote.Price;
+            paymentAccount.WeightRangeChangeConfirmedByUserId =
+                receivedByUser.Id;
+            paymentAccount.WeightRangeChangeConfirmedByUserNameSnapshot =
+                GetUserFullName(receivedByUser);
+            paymentAccount.WeightRangeChangeConfirmedAt =
+                currentTime;
+        }
+        else
+        {
+            paymentAccount.WeightKgSnapshot =
+                dto.VerifiedWeightKg;
+        }
+
+        paymentAccount.RequiresFinancialReview =
+            amountPaid > paymentAccount.ServiceTotal;
+        paymentAccount.UpdatedAt = currentTime;
+
         var reception =
             new Reception
             {
@@ -2003,5 +2125,40 @@ public class CollectionService : ICollectionService
             index,
             minimumWeightKg,
             maximumWeightKg);
+    }
+
+    private static bool TryGetWeightRangeIdentity(
+        decimal minimumWeightKg,
+        decimal maximumWeightKg,
+        out WeightPricingInterval interval,
+        out int index)
+    {
+        foreach (var candidateInterval in
+            Enum.GetValues<WeightPricingInterval>())
+        {
+            var candidateRange =
+                GetWeightRange(
+                    maximumWeightKg,
+                    candidateInterval);
+
+            var minimumMatches =
+                minimumWeightKg ==
+                    candidateRange.MinimumWeightKg ||
+                candidateRange.Index == 1 &&
+                minimumWeightKg == 0m;
+
+            if (minimumMatches &&
+                maximumWeightKg ==
+                    candidateRange.MaximumWeightKg)
+            {
+                interval = candidateInterval;
+                index = candidateRange.Index;
+                return true;
+            }
+        }
+
+        interval = default;
+        index = 0;
+        return false;
     }
 }

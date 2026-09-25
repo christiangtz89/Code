@@ -19,6 +19,16 @@ public sealed class WeightRangeChangeConfirmationRequiredException
 
     public decimal? NewPrice { get; }
 
+    public decimal? PriceDifference { get; }
+
+    public decimal? AmountPaid { get; }
+
+    public decimal? RemainingBalance { get; }
+
+    public decimal? OverpaymentAmount { get; }
+
+    public bool RequiresFinancialReview { get; }
+
     public WeightRangeChangeConfirmationRequiredException(
         decimal previousWeightKg,
         decimal newWeightKg,
@@ -27,7 +37,8 @@ public sealed class WeightRangeChangeConfirmationRequiredException
         decimal newMinimumWeightKg,
         decimal newMaximumWeightKg,
         decimal? previousPrice,
-        decimal? newPrice)
+        decimal? newPrice,
+        decimal? amountPaid = null)
         : base(
             "El cambio de peso modifica el rango de precio y requiere confirmación.")
     {
@@ -45,6 +56,22 @@ public sealed class WeightRangeChangeConfirmationRequiredException
 
         NewMaximumWeightKg =
             newMaximumWeightKg;
+
+        PriceDifference = previousPrice.HasValue && newPrice.HasValue
+            ? newPrice.Value - previousPrice.Value
+            : null;
+
+        AmountPaid = amountPaid;
+
+        RemainingBalance = amountPaid.HasValue && newPrice.HasValue
+            ? Math.Max(0m, newPrice.Value - amountPaid.Value)
+            : null;
+
+        OverpaymentAmount = amountPaid.HasValue && newPrice.HasValue
+            ? Math.Max(0m, amountPaid.Value - newPrice.Value)
+            : null;
+
+        RequiresFinancialReview = OverpaymentAmount > 0m;
 
         PreviousPrice = previousPrice;
         NewPrice = newPrice;

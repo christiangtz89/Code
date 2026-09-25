@@ -36,6 +36,8 @@ public class PaymentAccountDto
 
     public decimal ServiceTotal { get; set; }
 
+    public bool IsPricingProvisional { get; set; }
+
     public decimal? RequiredCollectionPaymentAmount { get; set; }
 
     public bool IsCollectionPaymentSatisfied { get; set; }
@@ -43,6 +45,20 @@ public class PaymentAccountDto
     public decimal AmountPaid { get; set; }
 
     public decimal Balance { get; set; }
+
+    public decimal OverpaymentAmount { get; set; }
+
+    public bool RequiresFinancialReview { get; set; }
+
+    public bool IsFinancialReviewResolved { get; set; }
+
+    public Guid? FinancialReviewResolvedByUserId { get; set; }
+
+    public string? FinancialReviewResolvedByUserName { get; set; }
+
+    public DateTime? FinancialReviewResolvedAt { get; set; }
+
+    public string? FinancialReviewResolutionReason { get; set; }
 
     public PaymentStatus Status { get; set; }
 

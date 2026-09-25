@@ -9,6 +9,7 @@ import type {
   PaymentAccount,
   PaymentCremationOption,
   PaymentCollectionOption,
+  ResolveFinancialReviewPayload,
   SearchPaymentAccountsParams,
 } from "../types/payment.types";
 
@@ -88,6 +89,18 @@ export async function addPayment(
 ): Promise<Payment> {
   const response = await apiClient.post<Payment>(
     `${PAYMENTS_URL}/accounts/${paymentAccountId}/payments`,
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function resolveFinancialReview(
+  paymentAccountId: string,
+  payload: ResolveFinancialReviewPayload,
+): Promise<PaymentAccount> {
+  const response = await apiClient.post<PaymentAccount>(
+    `${PAYMENTS_URL}/accounts/${paymentAccountId}/financial-review/resolve`,
     payload,
   );
 

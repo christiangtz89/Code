@@ -4,6 +4,8 @@ namespace pcms.Application.CremationPricing.DTOs;
 
 public class CremationPriceQuoteDto
 {
+    public Guid CremationPriceId { get; set; }
+
     public Guid CremationPackageId { get; set; }
 
     public string CremationPackageName { get; set; } = string.Empty;

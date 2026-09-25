@@ -1500,9 +1500,24 @@ public class AppDbContext : DbContext
         {
             entity.ToTable(
                 "CuentasPago",
-                table => table.HasCheckConstraint(
-                    "CK_CuentasPago_Contexto",
-                    "\"CremacionId\" IS NOT NULL OR \"RecoleccionId\" IS NOT NULL"));
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_CuentasPago_Contexto",
+                        "\"CremacionId\" IS NOT NULL OR \"RecoleccionId\" IS NOT NULL");
+
+                    table.HasCheckConstraint(
+                        "CK_CuentasPago_ResolucionRevisionFinanciera",
+                        "(\"RevisionFinancieraResueltaPorUsuarioId\" IS NULL " +
+                        "AND \"NombreUsuarioResolvioRevisionFinancieraSnapshot\" IS NULL " +
+                        "AND \"FechaResolucionRevisionFinanciera\" IS NULL " +
+                        "AND \"MotivoResolucionRevisionFinanciera\" IS NULL) " +
+                        "OR (\"RequiereRevisionFinanciera\" = TRUE " +
+                        "AND \"RevisionFinancieraResueltaPorUsuarioId\" IS NOT NULL " +
+                        "AND NULLIF(BTRIM(\"NombreUsuarioResolvioRevisionFinancieraSnapshot\"), '') IS NOT NULL " +
+                        "AND \"FechaResolucionRevisionFinanciera\" IS NOT NULL " +
+                        "AND NULLIF(BTRIM(\"MotivoResolucionRevisionFinanciera\"), '') IS NOT NULL)");
+                });
 
             entity.HasKey(pa => pa.Id);
 
@@ -1518,6 +1533,9 @@ public class AppDbContext : DbContext
             entity.Property(pa => pa.CremationPriceId)
                 .HasColumnName("PrecioCremacionId");
 
+            entity.Property(pa => pa.ProvisionalCremationPriceId)
+                .HasColumnName("PrecioCremacionProvisionalId");
+
             entity.Property(pa => pa.CremationPackageId)
                 .HasColumnName("PaqueteCremacionId");
 
@@ -1530,6 +1548,19 @@ public class AppDbContext : DbContext
             entity.Property(pa => pa.MaximumWeightKgSnapshot).HasColumnName("PesoMaximoSnapshotKg").HasPrecision(10, 2);
             entity.Property(pa => pa.WeightKgSnapshot).HasColumnName("PesoBaseSnapshotKg").HasPrecision(10, 2);
 
+            entity.Property(pa => pa.ProvisionalMinimumWeightKgSnapshot)
+                .HasColumnName("PesoMinimoProvisionalSnapshotKg")
+                .HasPrecision(10, 2);
+            entity.Property(pa => pa.ProvisionalMaximumWeightKgSnapshot)
+                .HasColumnName("PesoMaximoProvisionalSnapshotKg")
+                .HasPrecision(10, 2);
+            entity.Property(pa => pa.ProvisionalWeightKgSnapshot)
+                .HasColumnName("PesoProvisionalSnapshotKg")
+                .HasPrecision(10, 2);
+            entity.Property(pa => pa.ProvisionalServiceTotal)
+                .HasColumnName("TotalServicioProvisional")
+                .HasPrecision(12, 2);
+
             entity.Property(pa => pa.ServiceTotal)
                 .HasColumnName("TotalServicio")
                 .HasPrecision(12, 2)
@@ -1538,6 +1569,37 @@ public class AppDbContext : DbContext
             entity.Property(pa => pa.RequiredCollectionPaymentAmount)
                 .HasColumnName("MontoPagoRequeridoRecoleccion")
                 .HasPrecision(12, 2);
+
+            entity.Property(pa => pa.WeightRangeChangeConfirmedByUserId)
+                .HasColumnName("CambioRangoConfirmadoPorUsuarioId");
+
+            entity.Property(pa =>
+                    pa.WeightRangeChangeConfirmedByUserNameSnapshot)
+                .HasColumnName("NombreUsuarioConfirmoCambioRangoSnapshot")
+                .HasMaxLength(200);
+
+            entity.Property(pa => pa.WeightRangeChangeConfirmedAt)
+                .HasColumnName("FechaConfirmacionCambioRango");
+
+            entity.Property(pa => pa.RequiresFinancialReview)
+                .HasColumnName("RequiereRevisionFinanciera")
+                .IsRequired();
+
+            entity.Property(pa => pa.FinancialReviewResolvedByUserId)
+                .HasColumnName("RevisionFinancieraResueltaPorUsuarioId");
+
+            entity.Property(pa =>
+                    pa.FinancialReviewResolvedByUserNameSnapshot)
+                .HasColumnName(
+                    "NombreUsuarioResolvioRevisionFinancieraSnapshot")
+                .HasMaxLength(200);
+
+            entity.Property(pa => pa.FinancialReviewResolvedAt)
+                .HasColumnName("FechaResolucionRevisionFinanciera");
+
+            entity.Property(pa => pa.FinancialReviewResolutionReason)
+                .HasColumnName("MotivoResolucionRevisionFinanciera")
+                .HasMaxLength(1000);
 
             entity.Property(pa => pa.CreatedAt)
                 .HasColumnName("FechaCreacion")
@@ -1555,6 +1617,12 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(pa => pa.CremationPriceId);
 
+            entity.HasIndex(pa => pa.ProvisionalCremationPriceId);
+
+            entity.HasIndex(pa => pa.WeightRangeChangeConfirmedByUserId);
+
+            entity.HasIndex(pa => pa.FinancialReviewResolvedByUserId);
+
             entity.HasIndex(pa => pa.CremationPackageId);
 
             entity.HasOne(pa => pa.Cremation)
@@ -1571,6 +1639,25 @@ public class AppDbContext : DbContext
             entity.HasOne(pa => pa.CremationPrice)
                 .WithMany()
                 .HasForeignKey(pa => pa.CremationPriceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(pa => pa.ProvisionalCremationPrice)
+                .WithMany()
+                .HasForeignKey(pa => pa.ProvisionalCremationPriceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(pa =>
+                    pa.WeightRangeChangeConfirmedByUser)
+                .WithMany()
+                .HasForeignKey(pa =>
+                    pa.WeightRangeChangeConfirmedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(pa =>
+                    pa.FinancialReviewResolvedByUser)
+                .WithMany()
+                .HasForeignKey(pa =>
+                    pa.FinancialReviewResolvedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(pa => pa.CremationPackage)

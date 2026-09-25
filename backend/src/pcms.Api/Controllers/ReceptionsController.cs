@@ -197,6 +197,21 @@ public class ReceptionsController : ControllerBase
                     previousPrice =
                         ex.PreviousPrice,
 
+                    priceDifference =
+                        ex.PriceDifference,
+
+                    amountPaid =
+                        ex.AmountPaid,
+
+                    remainingBalance =
+                        ex.RemainingBalance,
+
+                    overpaymentAmount =
+                        ex.OverpaymentAmount,
+
+                    requiresFinancialReview =
+                        ex.RequiresFinancialReview,
+
                     newPrice =
                         ex.NewPrice
                 }

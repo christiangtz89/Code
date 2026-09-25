@@ -1,5 +1,8 @@
 import { PaymentStatus, type PaymentAccount } from "../types/payment.types";
-import { formatPaymentCurrency } from "../utils/paymentDisplay";
+import {
+  formatPaymentCurrency,
+  formatPaymentDateTime,
+} from "../utils/paymentDisplay";
 import { getPaymentStatusLabel } from "../utils/paymentLabels";
 
 interface PaymentSummaryCardProps {
@@ -61,6 +64,36 @@ export function PaymentSummaryCard({ account }: PaymentSummaryCardProps) {
           {account.isCollectionPaymentSatisfied
             ? " — cubierto"
             : " — pendiente"}
+        </div>
+      )}
+      {account.isPricingProvisional && (
+        <div className="mt-5 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+          Pendiente de confirmación de peso.
+        </div>
+      )}
+      {account.requiresFinancialReview &&
+        !account.isFinancialReviewResolved && (
+          <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            Revisión financiera pendiente. Los pagos exceden el total final por{" "}
+            <strong>{formatPaymentCurrency(account.overpaymentAmount)}</strong>.
+            Se requiere resolución de propietario o administración antes de
+            continuar. No se realizará un reembolso ni se generará crédito
+            automáticamente.
+          </div>
+        )}
+      {account.requiresFinancialReview && account.isFinancialReviewResolved && (
+        <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <p className="font-semibold">Revisión financiera resuelta.</p>
+          <p className="mt-1">
+            Resuelta por {account.financialReviewResolvedByUserName} el{" "}
+            {account.financialReviewResolvedAt
+              ? formatPaymentDateTime(account.financialReviewResolvedAt)
+              : "—"}
+            .
+          </p>
+          <p className="mt-1 whitespace-pre-wrap">
+            Motivo: {account.financialReviewResolutionReason}
+          </p>
         </div>
       )}
 

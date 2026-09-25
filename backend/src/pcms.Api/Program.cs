@@ -110,6 +110,11 @@ builder.Services.AddAuthorization(options =>
         PermissionImplications.Satisfies(
             context.User.FindAll("permission").Select(x => x.Value),
             PermissionCodes.InventoryScanOutgoing)));
+
+    options.AddPolicy("FinancialReview.Resolve", policy =>
+        policy.RequireAssertion(context =>
+            context.User.HasClaim("pcms_owner", "true") ||
+            context.User.IsInRole("Admin")));
 });
 
 builder.Services.AddCors(options =>

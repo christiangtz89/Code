@@ -231,6 +231,8 @@ export interface AssignCollectionPayload {
 export interface ConvertCollectionToReceptionPayload {
   verifiedWeightKg: number;
 
+  confirmWeightRangeChange: boolean;
+
   hasPersonalBelongings: boolean;
   personalBelongingsDescription: string | null;
 
