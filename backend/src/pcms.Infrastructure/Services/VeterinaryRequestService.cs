@@ -497,6 +497,21 @@ public class VeterinaryRequestService
                     "La mascota seleccionada ya tiene una recepción registrada.");
             }
 
+            var hasActiveCollection =
+                await _context.Collections
+                    .AsNoTracking()
+                    .AnyAsync(collection =>
+                        collection.PetId == pet.Id &&
+                        collection.IsActive &&
+                        collection.Status != CollectionStatus.Received &&
+                        collection.Status != CollectionStatus.Cancelled);
+
+            if (hasActiveCollection)
+            {
+                throw new InvalidOperationException(
+                    "Esta mascota tiene una recolección activa. Complete la recepción desde la recolección existente.");
+            }
+
             customer = pet.Customer;
 
             if (dto.ExistingCustomerId.HasValue &&
