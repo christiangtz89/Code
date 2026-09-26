@@ -433,6 +433,13 @@ public class VeterinaryRequestService
                 "El peso verificado debe ser mayor que cero.");
         }
 
+        if (decimal.Round(dto.VerifiedWeightKg, 2) !=
+            dto.VerifiedWeightKg)
+        {
+            throw new ArgumentException(
+                "El peso verificado no puede tener más de dos decimales.");
+        }
+
         if (dto.HasPersonalBelongings &&
             string.IsNullOrWhiteSpace(
                 dto.PersonalBelongingsDescription))
