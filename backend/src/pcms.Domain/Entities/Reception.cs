@@ -52,4 +52,7 @@ public class Reception
 
     public ICollection<ReceptionPhoto> Photos { get; set; }
         = new List<ReceptionPhoto>();
+
+    public ICollection<ReceptionHistoryEvent> HistoryEvents { get; set; }
+        = new List<ReceptionHistoryEvent>();
 }

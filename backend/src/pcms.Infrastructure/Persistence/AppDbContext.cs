@@ -32,6 +32,10 @@ public class AppDbContext : DbContext
 
     public DbSet<ReceptionPhoto> ReceptionPhotos { get; set; }
 
+    public DbSet<ReceptionHistoryEvent> ReceptionHistoryEvents { get; set; }
+
+    public DbSet<ReceptionHistoryChange> ReceptionHistoryChanges { get; set; }
+
     public DbSet<Cremation> Cremations { get; set; }
 
     public DbSet<CremationPackage> CremationPackages { get; set; }
@@ -609,6 +613,165 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
     });
 
+        modelBuilder.Entity<ReceptionHistoryEvent>(entity =>
+        {
+            entity.ToTable(
+                "EventosHistorialRecepcion",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_EventosHistorialRecepcion_NumeroSecuencia",
+                        "\"NumeroSecuencia\" > 0");
+                    table.HasCheckConstraint(
+                        "CK_EventosHistorialRecepcion_TipoEvento",
+                        "\"TipoEvento\" IN (1, 2, 3)");
+                    table.HasCheckConstraint(
+                        "CK_EventosHistorialRecepcion_EtapaRecepcion",
+                        "\"EtapaRecepcion\" IN (1, 2, 3, 4)");
+                    table.HasCheckConstraint(
+                        "CK_EventosHistorialRecepcion_EstadoCremacion",
+                        "\"EstadoCremacionSnapshot\" IS NULL OR \"EstadoCremacionSnapshot\" IN (1, 2, 3, 4, 5, 6, 7, 8, 9)");
+                    table.HasCheckConstraint(
+                        "CK_EventosHistorialRecepcion_EtapaCremacion",
+                        "(\"EtapaRecepcion\" = 1 AND \"CremacionId\" IS NULL AND \"EstadoCremacionSnapshot\" IS NULL) " +
+                        "OR (\"EtapaRecepcion\" IN (2, 3, 4) AND \"CremacionId\" IS NOT NULL AND \"EstadoCremacionSnapshot\" IS NOT NULL)");
+                    table.HasCheckConstraint(
+                        "CK_EventosHistorialRecepcion_ContenidoTipoEvento",
+                        "(\"TipoEvento\" = 1 AND \"EtapaRecepcion\" = 1 AND \"SolicitudId\" IS NULL AND \"Motivo\" IS NULL AND \"TextoAclaracion\" IS NULL) " +
+                        "OR (\"TipoEvento\" = 2 AND \"EtapaRecepcion\" IN (2, 3, 4) AND \"SolicitudId\" IS NOT NULL AND NULLIF(BTRIM(\"Motivo\"), '') IS NOT NULL AND \"TextoAclaracion\" IS NULL) " +
+                        "OR (\"TipoEvento\" = 3 AND \"EtapaRecepcion\" IN (2, 3, 4) AND \"SolicitudId\" IS NOT NULL AND \"Motivo\" IS NULL AND NULLIF(BTRIM(\"TextoAclaracion\"), '') IS NOT NULL)");
+                });
+
+            entity.HasKey(historyEvent => historyEvent.Id);
+
+            entity.Property(historyEvent => historyEvent.Id)
+                .HasColumnName("Id");
+            entity.Property(historyEvent => historyEvent.ReceptionId)
+                .HasColumnName("RecepcionId")
+                .IsRequired();
+            entity.Property(historyEvent => historyEvent.CremationId)
+                .HasColumnName("CremacionId");
+            entity.Property(historyEvent => historyEvent.RequestId)
+                .HasColumnName("SolicitudId");
+            entity.Property(historyEvent => historyEvent.SequenceNumber)
+                .HasColumnName("NumeroSecuencia")
+                .IsRequired();
+            entity.Property(historyEvent => historyEvent.EventKind)
+                .HasColumnName("TipoEvento")
+                .HasConversion<int>()
+                .IsRequired();
+            entity.Property(historyEvent => historyEvent.ReceptionStage)
+                .HasColumnName("EtapaRecepcion")
+                .HasConversion<int>()
+                .IsRequired();
+            entity.Property(historyEvent => historyEvent.CremationStatusSnapshot)
+                .HasColumnName("EstadoCremacionSnapshot")
+                .HasConversion<int>();
+            entity.Property(historyEvent => historyEvent.Reason)
+                .HasColumnName("Motivo")
+                .HasMaxLength(1000);
+            entity.Property(historyEvent => historyEvent.ClarificationText)
+                .HasColumnName("TextoAclaracion");
+            entity.Property(historyEvent => historyEvent.CreatedByUserId)
+                .HasColumnName("CreadoPorUsuarioId")
+                .IsRequired();
+            entity.Property(historyEvent => historyEvent.CreatedByUserNameSnapshot)
+                .HasColumnName("NombreUsuarioCreoSnapshot")
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(historyEvent => historyEvent.CreatedByRoleSnapshot)
+                .HasColumnName("RolUsuarioCreoSnapshot")
+                .HasMaxLength(100)
+                .IsRequired();
+            entity.Property(historyEvent => historyEvent.CreatedAt)
+                .HasColumnName("FechaCreacion")
+                .IsRequired();
+
+            entity.HasIndex(historyEvent => new
+                {
+                    historyEvent.ReceptionId,
+                    historyEvent.SequenceNumber
+                })
+                .IsUnique();
+            entity.HasIndex(historyEvent => new
+                {
+                    historyEvent.ReceptionId,
+                    historyEvent.RequestId
+                })
+                .IsUnique()
+                .HasFilter("\"SolicitudId\" IS NOT NULL");
+            entity.HasIndex(historyEvent => new
+                {
+                    historyEvent.ReceptionId,
+                    historyEvent.CreatedAt,
+                    historyEvent.Id
+                });
+            entity.HasIndex(historyEvent => historyEvent.CremationId)
+                .HasFilter("\"CremacionId\" IS NOT NULL");
+            entity.HasIndex(historyEvent => historyEvent.CreatedByUserId);
+
+            entity.HasOne(historyEvent => historyEvent.Reception)
+                .WithMany(reception => reception.HistoryEvents)
+                .HasForeignKey(historyEvent => historyEvent.ReceptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(historyEvent => historyEvent.Cremation)
+                .WithMany()
+                .HasForeignKey(historyEvent => historyEvent.CremationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(historyEvent => historyEvent.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(historyEvent => historyEvent.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReceptionHistoryChange>(entity =>
+        {
+            entity.ToTable(
+                "CambiosHistorialRecepcion",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_CambiosHistorialRecepcion_Campo",
+                        "\"Campo\" IN (1, 2, 3, 4, 5, 6)");
+                    table.HasCheckConstraint(
+                        "CK_CambiosHistorialRecepcion_CambioReal",
+                        "\"ValorOriginal\" IS DISTINCT FROM \"ValorNuevo\" " +
+                        "OR \"ValorOriginalMostrado\" IS DISTINCT FROM \"ValorNuevoMostrado\"");
+                });
+
+            entity.HasKey(change => change.Id);
+
+            entity.Property(change => change.Id)
+                .HasColumnName("Id");
+            entity.Property(change => change.ReceptionHistoryEventId)
+                .HasColumnName("EventoHistorialRecepcionId")
+                .IsRequired();
+            entity.Property(change => change.Field)
+                .HasColumnName("Campo")
+                .HasConversion<int>()
+                .IsRequired();
+            entity.Property(change => change.OriginalValue)
+                .HasColumnName("ValorOriginal");
+            entity.Property(change => change.NewValue)
+                .HasColumnName("ValorNuevo");
+            entity.Property(change => change.OriginalDisplayValue)
+                .HasColumnName("ValorOriginalMostrado");
+            entity.Property(change => change.NewDisplayValue)
+                .HasColumnName("ValorNuevoMostrado");
+
+            entity.HasIndex(change => new
+                {
+                    change.ReceptionHistoryEventId,
+                    change.Field
+                })
+                .IsUnique();
+
+            entity.HasOne(change => change.ReceptionHistoryEvent)
+                .WithMany(historyEvent => historyEvent.Changes)
+                .HasForeignKey(change => change.ReceptionHistoryEventId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
 
         // User table localization
         modelBuilder.Entity<User>(entity =>
@@ -837,7 +1000,8 @@ public class AppDbContext : DbContext
             ("CremationPackages.View", "Consultar paquetes de cremación"), ("CremationPackages.Manage", "Administrar paquetes de cremación"),
             ("Urns.View", "Consultar urnas"), ("Urns.Manage", "Administrar urnas"),
             ("CremationPricing.View", "Consultar precios de cremación"), ("CremationPricing.Manage", "Administrar precios de cremación"),
-            ("Inventory.ScanOutgoing", "Registrar salidas por escaneo")
+            ("Inventory.ScanOutgoing", "Registrar salidas por escaneo"),
+            ("Receptions.Amend", "Enmendar recepciones")
         };
         var permissionSeed = permissionDefinitions.Select((x, i) => new Permission { Id = Guid.Parse($"{i + 1:00000000}-0000-0000-0000-000000000001"), Code = x.Item1, Name = x.Item2 }).ToArray();
         modelBuilder.Entity<Permission>().HasData(permissionSeed);

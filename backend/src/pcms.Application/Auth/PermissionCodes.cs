@@ -25,6 +25,7 @@ public static class PermissionCodes
     public const string CollectionsManage = "Collections.Manage";
     public const string ReceptionsView = "Receptions.View";
     public const string ReceptionsManage = "Receptions.Manage";
+    public const string ReceptionsAmend = "Receptions.Amend";
     public const string CremationsView = "Cremations.View";
     public const string CremationsManage = "Cremations.Manage";
     public const string PaymentsView = "Payments.View";
@@ -43,7 +44,7 @@ public static class PermissionCodes
         CustomersView, CustomersManage, PetsView, PetsManage,
         VeterinaryClinicsView, VeterinaryClinicsManage, VeterinariansView, VeterinariansManage,
         VeterinaryRequestsView, VeterinaryRequestsManage, CollectionsView, CollectionsManage,
-        ReceptionsView, ReceptionsManage, CremationsView, CremationsManage,
+        ReceptionsView, ReceptionsManage, ReceptionsAmend, CremationsView, CremationsManage,
         PaymentsView, PaymentsManage, CremationPackagesView, CremationPackagesManage,
         UrnsView, UrnsManage, CremationPricingView, CremationPricingManage,
     ];
