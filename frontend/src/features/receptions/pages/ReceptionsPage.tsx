@@ -8,19 +8,31 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  hasPermission,
+  hasRole,
+  isOwnerOrAdmin,
+} from "../../auth/utils/permissions";
+import {
+  createReceptionClarification,
+  createReceptionCorrection,
   createReception,
   deactivateReception,
+  getReceptionHistory,
   getReceptions,
   searchReceptions,
   updateReception,
 } from "../api/receptionsApi";
+import { ReceptionClarificationModal } from "../components/ReceptionClarificationModal";
+import { ReceptionCorrectionModal } from "../components/ReceptionCorrectionModal";
 import { ReceptionFormModal } from "../components/ReceptionFormModal";
+import { ReceptionHistoryModal } from "../components/ReceptionHistoryModal";
 import { WeightRangeChangeConfirmationModal } from "../components/WeightRangeChangeConfirmationModal";
 import { ReceptionsTable } from "../components/ReceptionsTable";
 import type { ReceptionFormValues } from "../schemas/receptionSchema";
 import type {
   PagedReceptions,
   Reception,
+  ReceptionCorrectionDraft,
   UpdateReceptionPayload,
   WeightRangeChangeDetails,
 } from "../types/reception.types";
@@ -29,6 +41,7 @@ import {
   updateReceptionPayload,
 } from "../utils/receptionPayload";
 import { getWeightRangeChangeConfirmation } from "../utils/weightRangeChangeConfirmation";
+import { getReceptionCorrectionFingerprint } from "../utils/receptionCorrection";
 
 type ReceptionFormMode = "create" | "edit";
 
@@ -37,16 +50,43 @@ interface ReceptionModalState {
   reception: Reception | null;
 }
 
-interface WeightRangeChangeConfirmationState {
+interface NormalWeightRangeChangeConfirmationState {
+  kind: "normalUpdate";
   reception: Reception;
   values: ReceptionFormValues;
   details: WeightRangeChangeDetails;
+}
+
+interface CorrectionWeightRangeChangeConfirmationState {
+  kind: "correction";
+  reception: Reception;
+  draft: ReceptionCorrectionDraft;
+  requestId: string;
+  fingerprint: string;
+  details: WeightRangeChangeDetails;
+}
+
+type WeightRangeChangeConfirmationState =
+  | NormalWeightRangeChangeConfirmationState
+  | CorrectionWeightRangeChangeConfirmationState;
+
+interface CorrectionAttempt {
+  receptionId: string;
+  requestId: string;
+  fingerprint: string;
+}
+
+interface ClarificationAttempt {
+  receptionId: string;
+  requestId: string;
+  text: string;
 }
 
 interface ApiErrorResponse {
   title?: string;
   detail?: string;
   message?: string;
+  errors?: Record<string, string[]>;
 }
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
@@ -65,6 +105,14 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   }
 
   if (data && typeof data === "object") {
+    const validationMessage = Object.values(data.errors ?? {})
+      .flat()
+      .find((message) => message.trim().length > 0);
+
+    if (validationMessage) {
+      return validationMessage;
+    }
+
     return data.detail ?? data.message ?? data.title ?? fallback;
   }
 
@@ -86,6 +134,22 @@ export function ReceptionsPage() {
 
   const [weightRangeChangeConfirmation, setWeightRangeChangeConfirmation] =
     useState<WeightRangeChangeConfirmationState | null>(null);
+  const [correctionReception, setCorrectionReception] =
+    useState<Reception | null>(null);
+  const [clarificationReception, setClarificationReception] =
+    useState<Reception | null>(null);
+  const [historyReception, setHistoryReception] = useState<Reception | null>(
+    null,
+  );
+  const [correctionAttempt, setCorrectionAttempt] =
+    useState<CorrectionAttempt | null>(null);
+  const [clarificationAttempt, setClarificationAttempt] =
+    useState<ClarificationAttempt | null>(null);
+
+  const canManage = hasPermission("Receptions.Manage");
+  const canAmend =
+    hasPermission("Receptions.Amend") &&
+    (isOwnerOrAdmin() || hasRole("MANAGER"));
 
   const normalizedSearch = debouncedSearch.trim();
 
@@ -148,6 +212,15 @@ export function ReceptionsPage() {
     });
   }
 
+  async function refreshReceptionAndHistory(receptionId: string) {
+    await Promise.all([
+      refreshReceptions(),
+      queryClient.invalidateQueries({
+        queryKey: ["reception-history", receptionId],
+      }),
+    ]);
+  }
+
   const createMutation = useMutation({
     mutationFn: createReception,
 
@@ -190,6 +263,32 @@ export function ReceptionsPage() {
         getApiErrorMessage(error, "No fue posible desactivar la recepción."),
       );
     },
+  });
+
+  const correctionMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Parameters<typeof createReceptionCorrection>[1];
+    }) => createReceptionCorrection(id, payload),
+  });
+
+  const clarificationMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Parameters<typeof createReceptionClarification>[1];
+    }) => createReceptionClarification(id, payload),
+  });
+
+  const historyQuery = useQuery({
+    queryKey: ["reception-history", historyReception?.id],
+    queryFn: () => getReceptionHistory(historyReception!.id),
+    enabled: historyReception !== null,
   });
 
   const receptions = receptionsQuery.data?.items ?? [];
@@ -235,6 +334,7 @@ export function ReceptionsPage() {
         modalState.reception !== null
       ) {
         setWeightRangeChangeConfirmation({
+          kind: "normalUpdate",
           reception: modalState.reception,
           values,
           details: confirmation.weightChange,
@@ -260,23 +360,123 @@ export function ReceptionsPage() {
     }
 
     try {
-      await updateMutation.mutateAsync({
-        id: weightRangeChangeConfirmation.reception.id,
-
-        payload: updateReceptionPayload(
-          weightRangeChangeConfirmation.values,
-          true,
-        ),
-      });
+      if (weightRangeChangeConfirmation.kind === "normalUpdate") {
+        await updateMutation.mutateAsync({
+          id: weightRangeChangeConfirmation.reception.id,
+          payload: updateReceptionPayload(
+            weightRangeChangeConfirmation.values,
+            true,
+          ),
+        });
+        setModalState(null);
+      } else {
+        await correctionMutation.mutateAsync({
+          id: weightRangeChangeConfirmation.reception.id,
+          payload: {
+            ...weightRangeChangeConfirmation.draft,
+            requestId: weightRangeChangeConfirmation.requestId,
+            confirmWeightRangeChange: true,
+          },
+        });
+        await refreshReceptionAndHistory(
+          weightRangeChangeConfirmation.reception.id,
+        );
+        setCorrectionReception(null);
+        setCorrectionAttempt(null);
+        toast.success("Enmienda registrada correctamente.");
+      }
 
       setWeightRangeChangeConfirmation(null);
-      setModalState(null);
     } catch (error) {
       toast.error(
         getApiErrorMessage(
           error,
           "No fue posible confirmar la corrección de peso.",
         ),
+      );
+    }
+  }
+
+  async function handleCorrectionSubmit(draft: ReceptionCorrectionDraft) {
+    if (correctionReception === null) {
+      return;
+    }
+
+    const fingerprint = getReceptionCorrectionFingerprint(draft);
+    const requestId =
+      correctionAttempt?.receptionId === correctionReception.id &&
+      correctionAttempt.fingerprint === fingerprint
+        ? correctionAttempt.requestId
+        : crypto.randomUUID();
+
+    setCorrectionAttempt({
+      receptionId: correctionReception.id,
+      requestId,
+      fingerprint,
+    });
+
+    try {
+      await correctionMutation.mutateAsync({
+        id: correctionReception.id,
+        payload: {
+          ...draft,
+          requestId,
+          confirmWeightRangeChange: false,
+        },
+      });
+      await refreshReceptionAndHistory(correctionReception.id);
+      setCorrectionReception(null);
+      setCorrectionAttempt(null);
+      toast.success("Enmienda registrada correctamente.");
+    } catch (error) {
+      const confirmation = getWeightRangeChangeConfirmation(error);
+      if (confirmation) {
+        setWeightRangeChangeConfirmation({
+          kind: "correction",
+          reception: correctionReception,
+          draft,
+          requestId,
+          fingerprint,
+          details: confirmation.weightChange,
+        });
+        return;
+      }
+
+      toast.error(
+        getApiErrorMessage(error, "No fue posible registrar la enmienda."),
+      );
+    }
+  }
+
+  async function handleClarificationSubmit(text: string) {
+    if (clarificationReception === null) {
+      return;
+    }
+
+    const requestId =
+      clarificationAttempt?.receptionId === clarificationReception.id &&
+      clarificationAttempt.text === text
+        ? clarificationAttempt.requestId
+        : crypto.randomUUID();
+
+    setClarificationAttempt({
+      receptionId: clarificationReception.id,
+      requestId,
+      text,
+    });
+
+    try {
+      await clarificationMutation.mutateAsync({
+        id: clarificationReception.id,
+        payload: { requestId, text },
+      });
+      await refreshReceptionAndHistory(clarificationReception.id);
+      setClarificationReception(null);
+      setClarificationAttempt(null);
+      toast.success("Aclaración agregada correctamente.");
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error, "No fue posible agregar la aclaración."),
       );
     }
   }
@@ -318,18 +518,20 @@ export function ReceptionsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              setModalState({
-                mode: "create",
-                reception: null,
-              })
-            }
-            className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            + Registrar recepción
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() =>
+                setModalState({
+                  mode: "create",
+                  reception: null,
+                })
+              }
+              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              + Registrar recepción
+            </button>
+          )}
         </div>
       </header>
 
@@ -397,6 +599,8 @@ export function ReceptionsPage() {
           <ReceptionsTable
             receptions={receptions}
             pendingReceptionId={deactivateMutation.variables ?? null}
+            canManage={canManage}
+            canAmend={canAmend}
             onCopyQrCode={handleCopyQrCode}
             onEdit={(reception) =>
               setModalState({
@@ -404,6 +608,15 @@ export function ReceptionsPage() {
                 reception,
               })
             }
+            onCorrection={(reception) => {
+              setCorrectionAttempt(null);
+              setCorrectionReception(reception);
+            }}
+            onClarification={(reception) => {
+              setClarificationAttempt(null);
+              setClarificationReception(reception);
+            }}
+            onHistory={setHistoryReception}
             onDeactivate={handleDeactivate}
           />
         )}
@@ -449,13 +662,57 @@ export function ReceptionsPage() {
         }}
         onSubmit={handleFormSubmit}
       />
+      <ReceptionCorrectionModal
+        isOpen={correctionReception !== null}
+        reception={correctionReception}
+        isSubmitting={correctionMutation.isPending}
+        onClose={() => {
+          if (!correctionMutation.isPending) {
+            setCorrectionReception(null);
+            setCorrectionAttempt(null);
+          }
+        }}
+        onSubmit={handleCorrectionSubmit}
+      />
+      <ReceptionClarificationModal
+        isOpen={clarificationReception !== null}
+        reception={clarificationReception}
+        isSubmitting={clarificationMutation.isPending}
+        onClose={() => {
+          if (!clarificationMutation.isPending) {
+            setClarificationReception(null);
+            setClarificationAttempt(null);
+          }
+        }}
+        onSubmit={handleClarificationSubmit}
+      />
+      <ReceptionHistoryModal
+        isOpen={historyReception !== null}
+        reception={historyReception}
+        history={historyQuery.data ?? []}
+        isLoading={historyQuery.isLoading}
+        isError={historyQuery.isError}
+        onRetry={() => {
+          void historyQuery.refetch();
+        }}
+        onClose={() => setHistoryReception(null)}
+      />
       {weightRangeChangeConfirmation && (
         <WeightRangeChangeConfirmationModal
           petName={weightRangeChangeConfirmation.reception.petName}
           customerName={weightRangeChangeConfirmation.reception.customerName}
           qrCode={weightRangeChangeConfirmation.reception.qrCode}
           details={weightRangeChangeConfirmation.details}
-          isSubmitting={updateMutation.isPending}
+          context={
+            weightRangeChangeConfirmation.kind === "correction"
+              ? "receptionCorrection"
+              : undefined
+          }
+          isSubmitting={
+            weightRangeChangeConfirmation.kind === "correction"
+              ? correctionMutation.isPending
+              : updateMutation.isPending
+          }
           onCancel={() => setWeightRangeChangeConfirmation(null)}
           onConfirm={() => {
             void handleConfirmWeightRangeChange();

@@ -148,6 +148,8 @@ export function ReceptionFormModal({
 
   const isCollectionOrigin =
     mode === "edit" && reception?.isCollectionOrigin === true;
+  const isNormalEditLocked =
+    mode === "edit" && reception?.isNormalEditLocked === true;
 
   useEffect(() => {
     if (!isOpen) {
@@ -204,7 +206,11 @@ export function ReceptionFormModal({
               id="reception-form-title"
               className="mt-1 text-xl font-semibold text-slate-900"
             >
-              {mode === "create" ? "Registrar recepción" : "Editar recepción"}
+              {mode === "create"
+                ? "Registrar recepción"
+                : isNormalEditLocked
+                  ? "Consultar recepción"
+                  : "Editar recepción"}
             </h2>
 
             {mode === "edit" && reception && (
@@ -230,6 +236,17 @@ export function ReceptionFormModal({
           className="space-y-6 px-6 py-6"
           noValidate
         >
+          {isNormalEditLocked && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="font-medium text-amber-950">
+                Esta recepción ya forma parte del proceso de cremación.
+              </p>
+              <p className="mt-1 text-sm text-amber-800">
+                Los cambios operativos deben registrarse mediante una enmienda.
+              </p>
+            </div>
+          )}
+
           <div>
             <label
               htmlFor="reception-pet"
@@ -287,7 +304,9 @@ export function ReceptionFormModal({
               htmlFor="reception-weight"
               className="block text-sm font-medium text-slate-700"
             >
-              Peso verificado
+              {mode === "edit" && reception?.hasCremation
+                ? "Peso operativo"
+                : "Peso verificado"}
             </label>
 
             <div className="relative mt-2">
@@ -298,7 +317,9 @@ export function ReceptionFormModal({
                 max="999.99"
                 step="0.01"
                 inputMode="decimal"
-                disabled={isSubmitting || isCollectionOrigin}
+                disabled={
+                  isSubmitting || isCollectionOrigin || isNormalEditLocked
+                }
                 {...register("verifiedWeightKg")}
                 className="block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-12 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               />
@@ -320,6 +341,24 @@ export function ReceptionFormModal({
                 puede modificarse desde la edición normal.
               </p>
             )}
+
+            {mode === "edit" &&
+              reception?.latestReportedCorrectedWeightKg !== null &&
+              reception?.latestReportedCorrectedWeightKg !== undefined &&
+              reception.latestReportedCorrectedWeightKg !==
+                reception.verifiedWeightKg && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="text-xs font-medium text-amber-800">
+                    Peso corregido reportado
+                  </p>
+                  <p className="mt-1 font-semibold text-amber-950">
+                    {reception.latestReportedCorrectedWeightKg.toFixed(2)} kg
+                  </p>
+                  <p className="mt-1 text-xs text-amber-700">
+                    El peso operativo permanece en el campo superior.
+                  </p>
+                </div>
+              )}
           </div>
 
           <fieldset className="rounded-xl border border-slate-200 p-4">
@@ -345,7 +384,9 @@ export function ReceptionFormModal({
 
                 <select
                   id="reception-clinic"
-                  disabled={isSubmitting || clinicsQuery.isLoading}
+                  disabled={
+                    isSubmitting || clinicsQuery.isLoading || isNormalEditLocked
+                  }
                   {...clinicField}
                   onChange={(event) => {
                     clinicField.onChange(event);
@@ -404,6 +445,7 @@ export function ReceptionFormModal({
                   id="reception-veterinarian"
                   disabled={
                     isSubmitting ||
+                    isNormalEditLocked ||
                     selectedClinicId.length === 0 ||
                     veterinariansQuery.isLoading
                   }
@@ -457,7 +499,11 @@ export function ReceptionFormModal({
                 id="reception-referral-notes"
                 rows={3}
                 maxLength={1000}
-                disabled={isSubmitting || selectedClinicId.length === 0}
+                disabled={
+                  isSubmitting ||
+                  isNormalEditLocked ||
+                  selectedClinicId.length === 0
+                }
                 {...register("referralNotes")}
                 className="mt-2 block w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
               />
@@ -478,7 +524,7 @@ export function ReceptionFormModal({
             <label className="flex items-start gap-3">
               <input
                 type="checkbox"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isNormalEditLocked}
                 {...belongingsField}
                 onChange={(event) => {
                   belongingsField.onChange(event);
@@ -516,7 +562,7 @@ export function ReceptionFormModal({
                   id="reception-belongings"
                   rows={3}
                   maxLength={500}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isNormalEditLocked}
                   {...register("personalBelongingsDescription")}
                   className="mt-2 block w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 />
@@ -541,14 +587,30 @@ export function ReceptionFormModal({
               </span>
             </label>
 
-            <textarea
-              id="reception-notes"
-              rows={4}
-              maxLength={1000}
-              disabled={isSubmitting}
-              {...register("notes")}
-              className="mt-2 block w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
-            />
+            {isNormalEditLocked ? (
+              <div
+                id="reception-notes"
+                className="mt-2 min-h-24 whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700"
+              >
+                {reception?.notes?.trim() || "Sin notas originales."}
+              </div>
+            ) : (
+              <textarea
+                id="reception-notes"
+                rows={4}
+                maxLength={1000}
+                disabled={isSubmitting}
+                {...register("notes")}
+                className="mt-2 block w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+              />
+            )}
+
+            {isNormalEditLocked && (
+              <p className="mt-2 text-xs text-slate-500">
+                Las notas originales se conservan. Usa “Agregar aclaración” para
+                registrar información adicional.
+              </p>
+            )}
 
             {errors.notes && (
               <p className="mt-2 text-sm text-red-600">
@@ -564,22 +626,24 @@ export function ReceptionFormModal({
               disabled={isSubmitting}
               className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Cancelar
+              {isNormalEditLocked ? "Cerrar" : "Cancelar"}
             </button>
 
-            <button
-              type="submit"
-              disabled={
-                isSubmitting || petsQuery.isLoading || clinicsQuery.isLoading
-              }
-              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting
-                ? "Guardando..."
-                : mode === "create"
-                  ? "Registrar recepción"
-                  : "Guardar cambios"}
-            </button>
+            {!isNormalEditLocked && (
+              <button
+                type="submit"
+                disabled={
+                  isSubmitting || petsQuery.isLoading || clinicsQuery.isLoading
+                }
+                className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting
+                  ? "Guardando..."
+                  : mode === "create"
+                    ? "Registrar recepción"
+                    : "Guardar cambios"}
+              </button>
+            )}
           </footer>
         </form>
       </section>

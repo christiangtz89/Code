@@ -1,3 +1,5 @@
+import type { CremationStatus } from "../../cremations/types/cremation.types";
+
 export interface Reception {
   id: string;
   petId: string;
@@ -22,6 +24,12 @@ export interface Reception {
   receivedAt: string;
   qrCode: string;
   verifiedWeightKg: number;
+  latestReportedCorrectedWeightKg: number | null;
+
+  hasCremation: boolean;
+  cremationStatus: CremationStatus | null;
+  currentHistoryStage: ReceptionHistoryStage;
+  isNormalEditLocked: boolean;
 
   hasPersonalBelongings: boolean;
   personalBelongingsDescription: string | null;
@@ -87,6 +95,89 @@ export interface WeightRangeChangeConfirmationResponse {
   code: "WEIGHT_RANGE_CHANGE_CONFIRMATION_REQUIRED";
   message: string;
   weightChange: WeightRangeChangeDetails;
+}
+
+export const ReceptionHistoryEventKind = {
+  PreLockEditAudit: 1,
+  Correction: 2,
+  Clarification: 3,
+} as const;
+
+export type ReceptionHistoryEventKind =
+  (typeof ReceptionHistoryEventKind)[keyof typeof ReceptionHistoryEventKind];
+
+export const ReceptionHistoryStage = {
+  BeforeCremation: 1,
+  CremationCreatedNotStarted: 2,
+  CremationStarted: 3,
+  CremationCompleted: 4,
+} as const;
+
+export type ReceptionHistoryStage =
+  (typeof ReceptionHistoryStage)[keyof typeof ReceptionHistoryStage];
+
+export const ReceptionHistoryField = {
+  VerifiedWeightKg: 1,
+  VeterinaryClinicId: 2,
+  ReferringVeterinarianId: 3,
+  HasPersonalBelongings: 4,
+  PersonalBelongingsDescription: 5,
+  ReferralNotes: 6,
+} as const;
+
+export type ReceptionHistoryField =
+  (typeof ReceptionHistoryField)[keyof typeof ReceptionHistoryField];
+
+export interface CorrectionValue<T> {
+  value: T;
+}
+
+export interface CreateReceptionCorrectionPayload {
+  requestId: string;
+  reason: string;
+  verifiedWeightKg?: CorrectionValue<number>;
+  veterinaryClinicId?: CorrectionValue<string | null>;
+  referringVeterinarianId?: CorrectionValue<string | null>;
+  hasPersonalBelongings?: CorrectionValue<boolean>;
+  personalBelongingsDescription?: CorrectionValue<string | null>;
+  referralNotes?: CorrectionValue<string | null>;
+  confirmWeightRangeChange: boolean;
+}
+
+export type ReceptionCorrectionDraft = Omit<
+  CreateReceptionCorrectionPayload,
+  "requestId" | "confirmWeightRangeChange"
+>;
+
+export interface CreateReceptionClarificationPayload {
+  requestId: string;
+  text: string;
+}
+
+export interface ReceptionHistoryChange {
+  field: ReceptionHistoryField;
+  originalValue: string | null;
+  newValue: string | null;
+  originalDisplayValue: string | null;
+  newDisplayValue: string | null;
+}
+
+export interface ReceptionHistoryEvent {
+  id: string;
+  receptionId: string;
+  cremationId: string | null;
+  requestId: string | null;
+  sequence: number;
+  eventKind: ReceptionHistoryEventKind;
+  stage: ReceptionHistoryStage;
+  cremationStatus: CremationStatus | null;
+  reason: string | null;
+  clarificationText: string | null;
+  actorUserId: string;
+  actorUserName: string;
+  actorRole: string;
+  createdAt: string;
+  changes: ReceptionHistoryChange[];
 }
 
 export interface ReceptionListParams {

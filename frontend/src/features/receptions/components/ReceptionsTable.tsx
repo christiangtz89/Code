@@ -1,3 +1,4 @@
+import { getCremationStatusLabel } from "../../cremations/utils/cremationLabels";
 import type { Reception } from "../types/reception.types";
 import {
   formatReceptionDate,
@@ -8,16 +9,26 @@ import {
 interface ReceptionsTableProps {
   receptions: Reception[];
   pendingReceptionId: string | null;
+  canManage: boolean;
+  canAmend: boolean;
   onCopyQrCode: (reception: Reception) => void;
   onEdit: (reception: Reception) => void;
+  onCorrection: (reception: Reception) => void;
+  onClarification: (reception: Reception) => void;
+  onHistory: (reception: Reception) => void;
   onDeactivate: (reception: Reception) => void;
 }
 
 export function ReceptionsTable({
   receptions,
   pendingReceptionId,
+  canManage,
+  canAmend,
   onCopyQrCode,
   onEdit,
+  onCorrection,
+  onClarification,
+  onHistory,
   onDeactivate,
 }: ReceptionsTableProps) {
   if (receptions.length === 0) {
@@ -95,6 +106,20 @@ export function ReceptionsTable({
                     <p className="mt-1 whitespace-nowrap text-xs text-slate-500">
                       {formatReceptionDate(reception.receivedAt)}
                     </p>
+
+                    {reception.isNormalEditLocked && (
+                      <div className="mt-2">
+                        <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                          Edición normal bloqueada
+                        </span>
+                        {reception.cremationStatus !== null && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Cremación:{" "}
+                            {getCremationStatusLabel(reception.cremationStatus)}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-5 py-4">
@@ -114,8 +139,24 @@ export function ReceptionsTable({
                     </p>
 
                     <p className="mt-1 text-xs text-slate-500">
-                      Peso verificado
+                      Peso operativo
                     </p>
+
+                    {reception.latestReportedCorrectedWeightKg !== null &&
+                      reception.latestReportedCorrectedWeightKg !==
+                        reception.verifiedWeightKg && (
+                        <div className="mt-3 border-t border-slate-200 pt-2">
+                          <p className="font-medium text-amber-800">
+                            {formatReceptionWeight(
+                              reception.latestReportedCorrectedWeightKg,
+                            )}{" "}
+                            kg
+                          </p>
+                          <p className="mt-1 text-xs text-amber-700">
+                            Peso corregido reportado
+                          </p>
+                        </div>
+                      )}
                   </td>
 
                   <td className="px-5 py-4">
@@ -173,24 +214,59 @@ export function ReceptionsTable({
                   </td>
 
                   <td className="whitespace-nowrap px-5 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex max-w-80 flex-wrap justify-end gap-2">
                       <button
                         type="button"
-                        onClick={() => onEdit(reception)}
+                        onClick={() => onHistory(reception)}
                         disabled={isPending}
                         className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Editar
+                        Historial
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => onDeactivate(reception)}
-                        disabled={isPending}
-                        className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isPending ? "Procesando..." : "Desactivar"}
-                      </button>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(reception)}
+                          disabled={isPending}
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {reception.isNormalEditLocked ? "Ver" : "Editar"}
+                        </button>
+                      )}
+
+                      {reception.hasCremation && canAmend && (
+                        <button
+                          type="button"
+                          onClick={() => onCorrection(reception)}
+                          disabled={isPending}
+                          className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Crear enmienda
+                        </button>
+                      )}
+
+                      {reception.hasCremation && canManage && (
+                        <button
+                          type="button"
+                          onClick={() => onClarification(reception)}
+                          disabled={isPending}
+                          className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Agregar aclaración
+                        </button>
+                      )}
+
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => onDeactivate(reception)}
+                          disabled={isPending}
+                          className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isPending ? "Procesando..." : "Desactivar"}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -54,17 +54,33 @@ export function isOwner(): boolean {
   }
 }
 
+export function currentRoles(): string[] {
+  const token = tokenStorage.get();
+  if (!token) return [];
+  try {
+    const claims = jwtDecode<PermissionClaims>(token);
+    return [
+      claims.role,
+      claims["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
+    ]
+      .flatMap((value) => (Array.isArray(value) ? value : value ? [value] : []))
+      .map((role) => role.trim().toUpperCase());
+  } catch {
+    return [];
+  }
+}
+
+export function hasRole(normalizedRoleName: string): boolean {
+  return currentRoles().includes(normalizedRoleName.trim().toUpperCase());
+}
+
 export function isOwnerOrAdmin(): boolean {
   const token = tokenStorage.get();
   if (!token) return false;
   try {
     const claims = jwtDecode<PermissionClaims>(token);
     if (claims.pcms_owner === "true") return true;
-    const roles = [
-      claims.role,
-      claims["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"],
-    ].flatMap((value) => (Array.isArray(value) ? value : value ? [value] : []));
-    return roles.includes("Admin");
+    return hasRole("ADMIN");
   } catch {
     return false;
   }

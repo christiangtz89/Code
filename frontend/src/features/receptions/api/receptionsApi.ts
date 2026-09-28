@@ -1,8 +1,11 @@
 import { apiClient } from "../../../services/apiClient";
 import type {
+  CreateReceptionClarificationPayload,
+  CreateReceptionCorrectionPayload,
   CreateReceptionPayload,
   PagedReceptions,
   Reception,
+  ReceptionHistoryEvent,
   ReceptionListParams,
   UpdateReceptionPayload,
 } from "../types/reception.types";
@@ -64,6 +67,40 @@ export async function updateReception(
   const response = await apiClient.put<Reception>(
     `${RECEPTIONS_URL}/${id}`,
     payload,
+  );
+
+  return response.data;
+}
+
+export async function createReceptionCorrection(
+  id: string,
+  payload: CreateReceptionCorrectionPayload,
+): Promise<ReceptionHistoryEvent> {
+  const response = await apiClient.post<ReceptionHistoryEvent>(
+    `${RECEPTIONS_URL}/${id}/amendments`,
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function createReceptionClarification(
+  id: string,
+  payload: CreateReceptionClarificationPayload,
+): Promise<ReceptionHistoryEvent> {
+  const response = await apiClient.post<ReceptionHistoryEvent>(
+    `${RECEPTIONS_URL}/${id}/clarifications`,
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function getReceptionHistory(
+  id: string,
+): Promise<ReceptionHistoryEvent[]> {
+  const response = await apiClient.get<ReceptionHistoryEvent[]>(
+    `${RECEPTIONS_URL}/${id}/amendments`,
   );
 
   return response.data;
