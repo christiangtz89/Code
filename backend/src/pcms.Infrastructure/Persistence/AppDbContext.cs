@@ -36,6 +36,8 @@ public class AppDbContext : DbContext
 
     public DbSet<ReceptionHistoryChange> ReceptionHistoryChanges { get; set; }
 
+    public DbSet<ReceptionLifecycleEvent> ReceptionLifecycleEvents { get; set; }
+
     public DbSet<Cremation> Cremations { get; set; }
 
     public DbSet<CremationPackage> CremationPackages { get; set; }
@@ -769,6 +771,184 @@ public class AppDbContext : DbContext
             entity.HasOne(change => change.ReceptionHistoryEvent)
                 .WithMany(historyEvent => historyEvent.Changes)
                 .HasForeignKey(change => change.ReceptionHistoryEventId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReceptionLifecycleEvent>(entity =>
+        {
+            entity.ToTable(
+                "EventosCicloVidaRecepcion",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_NumeroSecuencia",
+                        "\"NumeroSecuencia\" > 0");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_TipoAccion",
+                        "\"TipoAccion\" IN (1, 2, 3)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_TipoResultado",
+                        "\"TipoResultado\" IN (1, 2, 3)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_EtapaOperativa",
+                        "\"EtapaOperativaSnapshot\" IN (1, 2, 3, 4)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_Motivo",
+                        "NULLIF(BTRIM(\"Motivo\"), '') IS NOT NULL");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_ActorSnapshot",
+                        "NULLIF(BTRIM(\"NombreUsuarioCreoSnapshot\"), '') IS NOT NULL " +
+                        "AND NULLIF(BTRIM(\"RolUsuarioCreoSnapshot\"), '') IS NOT NULL");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_AccionResultado",
+                        "(\"TipoAccion\" = 1 AND \"TipoResultado\" = 1) " +
+                        "OR (\"TipoAccion\" IN (2, 3) AND \"TipoResultado\" IN (2, 3))");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_TransicionActivo",
+                        "(\"TipoAccion\" = 1 AND \"RecepcionActivaAnterior\" = \"RecepcionActivaNueva\") " +
+                        "OR (\"TipoAccion\" = 2 AND \"TipoResultado\" = 2 AND \"RecepcionActivaAnterior\" = TRUE AND \"RecepcionActivaNueva\" = FALSE) " +
+                        "OR (\"TipoAccion\" = 2 AND \"TipoResultado\" = 3 AND \"RecepcionActivaAnterior\" = \"RecepcionActivaNueva\") " +
+                        "OR (\"TipoAccion\" = 3 AND \"TipoResultado\" = 2 AND \"RecepcionActivaAnterior\" = FALSE AND \"RecepcionActivaNueva\" = TRUE) " +
+                        "OR (\"TipoAccion\" = 3 AND \"TipoResultado\" = 3 AND \"RecepcionActivaAnterior\" = \"RecepcionActivaNueva\")");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_MotivoBloqueo",
+                        "(\"TipoResultado\" = 3 AND \"MotivoBloqueoSnapshot\" IN (1, 2)) " +
+                        "OR (\"TipoResultado\" <> 3 AND \"MotivoBloqueoSnapshot\" = 0)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_BloqueoDependencias",
+                        "\"MotivoBloqueoSnapshot\" <> 1 OR \"DependenciasSnapshot\" <> 0");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_Dependencias",
+                        "\"DependenciasSnapshot\" >= 0 AND \"DependenciasSnapshot\" <= 127");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_EstadoRecoleccion",
+                        "\"EstadoRecoleccionSnapshot\" IS NULL OR \"EstadoRecoleccionSnapshot\" IN (1, 2, 3, 4, 5, 6)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_RecoleccionSnapshot",
+                        "(\"RecoleccionId\" IS NULL AND \"RecoleccionActivaSnapshot\" IS NULL AND \"EstadoRecoleccionSnapshot\" IS NULL " +
+                        "AND \"FechaRecoleccionSnapshot\" IS NULL AND \"FechaRecepcionRecoleccionSnapshot\" IS NULL) " +
+                        "OR (\"RecoleccionId\" IS NOT NULL AND \"RecoleccionActivaSnapshot\" IS NOT NULL AND \"EstadoRecoleccionSnapshot\" IS NOT NULL)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_SolicitudVeterinariaSnapshot",
+                        "(\"TieneSolicitudVeterinariaConvertidaSnapshot\" = FALSE AND \"SolicitudVeterinariaId\" IS NULL) " +
+                        "OR (\"TieneSolicitudVeterinariaConvertidaSnapshot\" = TRUE AND \"SolicitudVeterinariaId\" IS NOT NULL)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_EstadoCremacion",
+                        "\"EstadoCremacionSnapshot\" IS NULL OR \"EstadoCremacionSnapshot\" IN (1, 2, 3, 4, 5, 6, 7, 8, 9)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_CremacionSnapshot",
+                        "(\"CremacionId\" IS NULL AND \"CremacionActivaSnapshot\" IS NULL AND \"EstadoCremacionSnapshot\" IS NULL) " +
+                        "OR (\"CremacionId\" IS NOT NULL AND \"CremacionActivaSnapshot\" IS NOT NULL AND \"EstadoCremacionSnapshot\" IS NOT NULL)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_EtapaCremacion",
+                        "(\"CremacionId\" IS NULL AND \"EtapaOperativaSnapshot\" = 1) " +
+                        "OR (\"EstadoCremacionSnapshot\" IN (1, 2, 9) AND \"EtapaOperativaSnapshot\" = 2) " +
+                        "OR (\"EstadoCremacionSnapshot\" IN (3, 4, 5) AND \"EtapaOperativaSnapshot\" = 3) " +
+                        "OR (\"EstadoCremacionSnapshot\" IN (6, 7, 8) AND \"EtapaOperativaSnapshot\" = 4)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_CuentaPagoSnapshot",
+                        "(\"CuentaPagoId\" IS NULL AND \"TotalServicioSnapshot\" IS NULL AND \"MontoPagadoSnapshot\" IS NULL " +
+                        "AND \"MontoPagoRequeridoRecoleccionSnapshot\" IS NULL AND \"RequiereRevisionFinancieraSnapshot\" IS NULL " +
+                        "AND \"CantidadPagosSnapshot\" = 0) " +
+                        "OR (\"CuentaPagoId\" IS NOT NULL AND \"TotalServicioSnapshot\" IS NOT NULL " +
+                        "AND \"MontoPagadoSnapshot\" IS NOT NULL AND \"RequiereRevisionFinancieraSnapshot\" IS NOT NULL)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_ValoresNoNegativos",
+                        "\"CantidadPagosSnapshot\" >= 0 " +
+                        "AND \"CantidadEvidenciasRecepcionActivasSnapshot\" >= 0 " +
+                        "AND \"CantidadEvidenciasRecoleccionSnapshot\" >= 0 " +
+                        "AND \"CantidadHistorialAsignacionesRecoleccionSnapshot\" >= 0 " +
+                        "AND \"CantidadHistorialRecepcionSnapshot\" >= 0 " +
+                        "AND (\"TotalServicioSnapshot\" IS NULL OR \"TotalServicioSnapshot\" >= 0) " +
+                        "AND (\"MontoPagadoSnapshot\" IS NULL OR \"MontoPagadoSnapshot\" >= 0) " +
+                        "AND (\"MontoPagoRequeridoRecoleccionSnapshot\" IS NULL OR \"MontoPagoRequeridoRecoleccionSnapshot\" >= 0)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_ContextoHistorialRecepcion",
+                        "(\"CantidadHistorialRecepcionSnapshot\" = 0 AND \"UltimoNumeroSecuenciaHistorialRecepcionSnapshot\" IS NULL) " +
+                        "OR (\"CantidadHistorialRecepcionSnapshot\" > 0 AND \"UltimoNumeroSecuenciaHistorialRecepcionSnapshot\" > 0)");
+                    table.HasCheckConstraint(
+                        "CK_EventosCicloVidaRecepcion_DependenciasConsistentes",
+                        "(((\"DependenciasSnapshot\" & 1) <> 0) = (\"RecoleccionId\" IS NOT NULL)) " +
+                        "AND (((\"DependenciasSnapshot\" & 2) <> 0) = \"TieneSolicitudVeterinariaConvertidaSnapshot\") " +
+                        "AND (((\"DependenciasSnapshot\" & 4) <> 0) = (\"CremacionId\" IS NOT NULL)) " +
+                        "AND (((\"DependenciasSnapshot\" & 8) <> 0) = (\"CuentaPagoId\" IS NOT NULL)) " +
+                        "AND (((\"DependenciasSnapshot\" & 16) <> 0) = (\"CantidadPagosSnapshot\" > 0)) " +
+                        "AND (((\"DependenciasSnapshot\" & 32) <> 0) = (\"CantidadEvidenciasRecepcionActivasSnapshot\" > 0)) " +
+                        "AND (((\"DependenciasSnapshot\" & 64) <> 0) = (\"CantidadEvidenciasRecoleccionSnapshot\" > 0 OR \"CantidadHistorialAsignacionesRecoleccionSnapshot\" > 0))");
+                });
+
+            entity.HasKey(lifecycleEvent => lifecycleEvent.Id);
+
+            entity.Property(lifecycleEvent => lifecycleEvent.Id).HasColumnName("Id");
+            entity.Property(lifecycleEvent => lifecycleEvent.ReceptionId).HasColumnName("RecepcionId").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.RequestId).HasColumnName("SolicitudId").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.SequenceNumber).HasColumnName("NumeroSecuencia").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.ActionKind).HasColumnName("TipoAccion").HasConversion<int>().IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.OutcomeKind).HasColumnName("TipoResultado").HasConversion<int>().IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.Reason).HasColumnName("Motivo").HasMaxLength(1000).IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.CreatedAt).HasColumnName("FechaCreacion").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.CreatedByUserId).HasColumnName("CreadoPorUsuarioId").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.CreatedByUserNameSnapshot).HasColumnName("NombreUsuarioCreoSnapshot").HasMaxLength(200).IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.CreatedByRoleSnapshot).HasColumnName("RolUsuarioCreoSnapshot").HasMaxLength(100).IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.PreviousIsActive).HasColumnName("RecepcionActivaAnterior").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.NewIsActive).HasColumnName("RecepcionActivaNueva").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.OperationalStageSnapshot).HasColumnName("EtapaOperativaSnapshot").HasConversion<int>().IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.CollectionId).HasColumnName("RecoleccionId");
+            entity.Property(lifecycleEvent => lifecycleEvent.CollectionIsActiveSnapshot).HasColumnName("RecoleccionActivaSnapshot");
+            entity.Property(lifecycleEvent => lifecycleEvent.CollectionStatusSnapshot).HasColumnName("EstadoRecoleccionSnapshot").HasConversion<int>();
+            entity.Property(lifecycleEvent => lifecycleEvent.CollectionCollectedAtSnapshot).HasColumnName("FechaRecoleccionSnapshot");
+            entity.Property(lifecycleEvent => lifecycleEvent.CollectionReceivedAtSnapshot).HasColumnName("FechaRecepcionRecoleccionSnapshot");
+            entity.Property(lifecycleEvent => lifecycleEvent.HasConvertedVeterinaryRequestSnapshot).HasColumnName("TieneSolicitudVeterinariaConvertidaSnapshot").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.VeterinaryRequestId).HasColumnName("SolicitudVeterinariaId");
+            entity.Property(lifecycleEvent => lifecycleEvent.CremationId).HasColumnName("CremacionId");
+            entity.Property(lifecycleEvent => lifecycleEvent.CremationIsActiveSnapshot).HasColumnName("CremacionActivaSnapshot");
+            entity.Property(lifecycleEvent => lifecycleEvent.CremationStatusSnapshot).HasColumnName("EstadoCremacionSnapshot").HasConversion<int>();
+            entity.Property(lifecycleEvent => lifecycleEvent.PaymentAccountId).HasColumnName("CuentaPagoId");
+            entity.Property(lifecycleEvent => lifecycleEvent.ServiceTotalSnapshot).HasColumnName("TotalServicioSnapshot").HasPrecision(12, 2);
+            entity.Property(lifecycleEvent => lifecycleEvent.AmountPaidSnapshot).HasColumnName("MontoPagadoSnapshot").HasPrecision(12, 2);
+            entity.Property(lifecycleEvent => lifecycleEvent.RequiredCollectionPaymentAmountSnapshot).HasColumnName("MontoPagoRequeridoRecoleccionSnapshot").HasPrecision(12, 2);
+            entity.Property(lifecycleEvent => lifecycleEvent.RequiresFinancialReviewSnapshot).HasColumnName("RequiereRevisionFinancieraSnapshot");
+            entity.Property(lifecycleEvent => lifecycleEvent.PaymentCountSnapshot).HasColumnName("CantidadPagosSnapshot").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.ActiveReceptionEvidenceCountSnapshot).HasColumnName("CantidadEvidenciasRecepcionActivasSnapshot").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.CollectionEvidenceCountSnapshot).HasColumnName("CantidadEvidenciasRecoleccionSnapshot").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.CollectionAssignmentHistoryCountSnapshot).HasColumnName("CantidadHistorialAsignacionesRecoleccionSnapshot").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.ReceptionHistoryCountSnapshot).HasColumnName("CantidadHistorialRecepcionSnapshot").IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.LatestReceptionHistorySequenceSnapshot).HasColumnName("UltimoNumeroSecuenciaHistorialRecepcionSnapshot");
+            entity.Property(lifecycleEvent => lifecycleEvent.DependenciesSnapshot).HasColumnName("DependenciasSnapshot").HasConversion<int>().IsRequired();
+            entity.Property(lifecycleEvent => lifecycleEvent.BlockReasonSnapshot).HasColumnName("MotivoBloqueoSnapshot").HasConversion<int>().IsRequired();
+
+            entity.HasIndex(lifecycleEvent => new { lifecycleEvent.ReceptionId, lifecycleEvent.SequenceNumber }).IsUnique();
+            entity.HasIndex(lifecycleEvent => new { lifecycleEvent.ReceptionId, lifecycleEvent.RequestId }).IsUnique();
+            entity.HasIndex(lifecycleEvent => new { lifecycleEvent.ReceptionId, lifecycleEvent.CreatedAt, lifecycleEvent.Id });
+            entity.HasIndex(lifecycleEvent => lifecycleEvent.CreatedByUserId);
+            entity.HasIndex(lifecycleEvent => lifecycleEvent.CollectionId).HasFilter("\"RecoleccionId\" IS NOT NULL");
+            entity.HasIndex(lifecycleEvent => lifecycleEvent.VeterinaryRequestId).HasFilter("\"SolicitudVeterinariaId\" IS NOT NULL");
+            entity.HasIndex(lifecycleEvent => lifecycleEvent.CremationId).HasFilter("\"CremacionId\" IS NOT NULL");
+            entity.HasIndex(lifecycleEvent => lifecycleEvent.PaymentAccountId).HasFilter("\"CuentaPagoId\" IS NOT NULL");
+
+            entity.HasOne(lifecycleEvent => lifecycleEvent.Reception)
+                .WithMany(reception => reception.LifecycleEvents)
+                .HasForeignKey(lifecycleEvent => lifecycleEvent.ReceptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(lifecycleEvent => lifecycleEvent.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(lifecycleEvent => lifecycleEvent.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(lifecycleEvent => lifecycleEvent.Collection)
+                .WithMany()
+                .HasForeignKey(lifecycleEvent => lifecycleEvent.CollectionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(lifecycleEvent => lifecycleEvent.VeterinaryRequest)
+                .WithMany()
+                .HasForeignKey(lifecycleEvent => lifecycleEvent.VeterinaryRequestId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(lifecycleEvent => lifecycleEvent.Cremation)
+                .WithMany()
+                .HasForeignKey(lifecycleEvent => lifecycleEvent.CremationId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(lifecycleEvent => lifecycleEvent.PaymentAccount)
+                .WithMany()
+                .HasForeignKey(lifecycleEvent => lifecycleEvent.PaymentAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

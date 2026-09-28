@@ -55,4 +55,7 @@ public class Reception
 
     public ICollection<ReceptionHistoryEvent> HistoryEvents { get; set; }
         = new List<ReceptionHistoryEvent>();
+
+    public ICollection<ReceptionLifecycleEvent> LifecycleEvents { get; set; }
+        = new List<ReceptionLifecycleEvent>();
 }
