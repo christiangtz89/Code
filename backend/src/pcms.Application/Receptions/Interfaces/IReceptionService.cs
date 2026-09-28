@@ -18,7 +18,21 @@ public interface IReceptionService
 
     Task<ReceptionDto?> UpdateAsync(
         Guid id,
-        UpdateReceptionDto dto);
+        UpdateReceptionDto dto,
+        Guid actorUserId);
+
+    Task<ReceptionHistoryEventDto?> CreateCorrectionAsync(
+        Guid id,
+        CreateReceptionCorrectionDto dto,
+        Guid actorUserId);
+
+    Task<ReceptionHistoryEventDto?> CreateClarificationAsync(
+        Guid id,
+        CreateReceptionClarificationDto dto,
+        Guid actorUserId);
+
+    Task<IReadOnlyList<ReceptionHistoryEventDto>?> GetHistoryAsync(
+        Guid id);
 
     Task<bool> DeactivateAsync(Guid id);
 

@@ -1,3 +1,5 @@
+using pcms.Domain.Enums;
+
 namespace pcms.Application.Receptions.DTOs;
 
 public class ReceptionDto
@@ -35,6 +37,17 @@ public class ReceptionDto
     public string QrCode { get; set; } = string.Empty;
 
     public decimal VerifiedWeightKg { get; set; }
+
+    public decimal? LatestReportedCorrectedWeightKg { get; set; }
+
+    public bool HasCremation { get; set; }
+
+    public CremationStatus? CremationStatus { get; set; }
+
+    public ReceptionHistoryStage CurrentHistoryStage { get; set; }
+        = ReceptionHistoryStage.BeforeCremation;
+
+    public bool IsNormalEditLocked { get; set; }
 
     public bool HasPersonalBelongings { get; set; }
 

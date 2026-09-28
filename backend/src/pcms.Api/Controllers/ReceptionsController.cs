@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using pcms.Application.Auth;
 using pcms.Application.Receptions.DTOs;
 using pcms.Application.Receptions.Interfaces;
 using pcms.Application.Receptions.Exceptions;
@@ -136,12 +137,25 @@ public class ReceptionsController : ControllerBase
     Guid id,
     UpdateReceptionDto dto)
     {
+        var actorUserId = GetCurrentUserId();
+
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
         try
         {
             var reception =
                 await _receptionService.UpdateAsync(
                     id,
-                    dto);
+                    dto,
+                    actorUserId.Value);
 
             if (reception == null)
             {
@@ -227,6 +241,161 @@ public class ReceptionsController : ControllerBase
         }
     }
 
+    [HttpPost("{id:guid}/amendments")]
+    [Authorize(Policy = PermissionCodes.ReceptionsAmend)]
+    public async Task<ActionResult<ReceptionHistoryEventDto>>
+        CreateCorrection(
+            Guid id,
+            CreateReceptionCorrectionDto dto)
+    {
+        var actorUserId = GetCurrentUserId();
+
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+        try
+        {
+            var historyEvent =
+                await _receptionService.CreateCorrectionAsync(
+                    id,
+                    dto,
+                    actorUserId.Value);
+
+            if (historyEvent is null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Recepción no encontrada."
+                });
+            }
+
+            return Ok(historyEvent);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (WeightRangeChangeConfirmationRequiredException ex)
+        {
+            return WeightRangeConfirmationRequired(ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    [HttpPost("{id:guid}/clarifications")]
+    [Authorize(Policy = PermissionCodes.ReceptionsManage)]
+    public async Task<ActionResult<ReceptionHistoryEventDto>>
+        CreateClarification(
+            Guid id,
+            CreateReceptionClarificationDto dto)
+    {
+        var actorUserId = GetCurrentUserId();
+
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+        try
+        {
+            var historyEvent =
+                await _receptionService.CreateClarificationAsync(
+                    id,
+                    dto,
+                    actorUserId.Value);
+
+            if (historyEvent is null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Recepción no encontrada."
+                });
+            }
+
+            return Ok(historyEvent);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+    }
+
+    [HttpGet("{id:guid}/amendments")]
+    [Authorize(Policy = PermissionCodes.ReceptionsView)]
+    public async Task<ActionResult<
+        IReadOnlyList<ReceptionHistoryEventDto>>> GetHistory(Guid id)
+    {
+        var history = await _receptionService.GetHistoryAsync(id);
+
+        if (history is null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Recepción no encontrada."
+            });
+        }
+
+        return Ok(history);
+    }
+
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "Receptions.Manage")]
@@ -298,5 +467,34 @@ public class ReceptionsController : ControllerBase
         return Guid.TryParse(userIdValue, out var userId)
             ? userId
             : null;
+    }
+
+    private ConflictObjectResult WeightRangeConfirmationRequired(
+        WeightRangeChangeConfirmationRequiredException ex)
+    {
+        return Conflict(new
+        {
+            success = false,
+            code = "WEIGHT_RANGE_CHANGE_CONFIRMATION_REQUIRED",
+            message = ex.Message,
+            weightChange = new
+            {
+                previousWeightKg = ex.PreviousWeightKg,
+                newWeightKg = ex.NewWeightKg,
+                previousMinimumWeightKg =
+                    ex.PreviousMinimumWeightKg,
+                previousMaximumWeightKg =
+                    ex.PreviousMaximumWeightKg,
+                newMinimumWeightKg = ex.NewMinimumWeightKg,
+                newMaximumWeightKg = ex.NewMaximumWeightKg,
+                previousPrice = ex.PreviousPrice,
+                priceDifference = ex.PriceDifference,
+                amountPaid = ex.AmountPaid,
+                remainingBalance = ex.RemainingBalance,
+                overpaymentAmount = ex.OverpaymentAmount,
+                requiresFinancialReview = ex.RequiresFinancialReview,
+                newPrice = ex.NewPrice
+            }
+        });
     }
 }

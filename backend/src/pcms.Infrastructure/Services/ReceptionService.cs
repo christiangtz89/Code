@@ -1,5 +1,7 @@
 using System.Data;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using pcms.Application.Auth;
 using pcms.Application.Receptions.DTOs;
 using pcms.Application.Receptions.Interfaces;
 using pcms.Domain.Entities;
@@ -10,9 +12,11 @@ using pcms.Application.Receptions.Exceptions;
 
 namespace pcms.Infrastructure.Services;
 
-public class ReceptionService : IReceptionService
+public partial class ReceptionService : IReceptionService
 {
     private const decimal WeightCorrectionTolerance = 0.10m;
+    private static readonly Guid ProtectedAdminRoleId =
+        Guid.Parse("11111111-1111-1111-1111-111111111111");
     private readonly AppDbContext _context;
     private readonly ICremationPricingService _cremationPricingService;
 
@@ -352,6 +356,8 @@ public class ReceptionService : IReceptionService
             })
             .ToListAsync();
 
+        await EnrichReceptionDtosAsync(items);
+
         return new PagedReceptionsDto
         {
             Items = items,
@@ -365,7 +371,7 @@ public class ReceptionService : IReceptionService
 
     public async Task<ReceptionDto?> GetByIdAsync(Guid id)
     {
-        return await _context.Receptions
+        var reception = await _context.Receptions
             .AsNoTracking()
             .Where(r =>
                 r.Id == id &&
@@ -442,6 +448,13 @@ public class ReceptionService : IReceptionService
                 CreatedAt = r.CreatedAt
             })
             .FirstOrDefaultAsync();
+
+        if (reception is not null)
+        {
+            await EnrichReceptionDtosAsync([reception]);
+        }
+
+        return reception;
     }
 
     public async Task<ReceptionDto?> GetByQrCodeAsync(
@@ -456,7 +469,7 @@ public class ReceptionService : IReceptionService
             .Trim()
             .ToUpperInvariant();
 
-        return await _context.Receptions
+        var reception = await _context.Receptions
             .AsNoTracking()
             .Where(r =>
                 r.QrCode == normalizedQrCode &&
@@ -535,12 +548,20 @@ public class ReceptionService : IReceptionService
                 CreatedAt = r.CreatedAt
             })
             .FirstOrDefaultAsync();
+
+        if (reception is not null)
+        {
+            await EnrichReceptionDtosAsync([reception]);
+        }
+
+        return reception;
     }
 
 
     public async Task<ReceptionDto?> UpdateAsync(
     Guid id,
-    UpdateReceptionDto dto)
+    UpdateReceptionDto dto,
+    Guid actorUserId)
     {
         if (dto.VerifiedWeightKg <= 0)
         {
@@ -563,12 +584,40 @@ public class ReceptionService : IReceptionService
                 "Debe describir los objetos personales recibidos.");
         }
 
+        if (actorUserId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "No se pudo identificar al usuario que realiza la edición.");
+        }
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var lockedReceptionIds =
+            await _context.Database
+                .SqlQuery<Guid>($"""
+                    SELECT "Id" AS "Value"
+                    FROM "Recepciones"
+                    WHERE "Id" = {id}
+                      AND "Activo" = TRUE
+                    FOR UPDATE
+                    """)
+                .ToListAsync();
+
+        if (lockedReceptionIds.Count == 0)
+        {
+            return null;
+        }
+
         var reception = await _context.Receptions
             .Include(r => r.Pet)
                 .ThenInclude(p => p.Customer)
             .Include(r => r.ReceivedByUser)
             .Include(r => r.VeterinaryRequest)
             .Include(r => r.Collection)
+            .Include(r => r.VeterinaryClinic)
+            .Include(r => r.ReferringVeterinarian)
             .FirstOrDefaultAsync(r =>
                 r.Id == id &&
                 r.IsActive);
@@ -578,8 +627,87 @@ public class ReceptionService : IReceptionService
             return null;
         }
 
+        var hasLinkedCremation =
+            await _context.Cremations
+                .AsNoTracking()
+                .AnyAsync(cremation =>
+                    cremation.ReceptionId == reception.Id);
+
+        var actor = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user =>
+                user.Id == actorUserId &&
+                user.IsActive);
+
+        if (actor is null)
+        {
+            throw new ArgumentException(
+                "El usuario que realiza la edición no existe o está inactivo.");
+        }
+
+        var actorRoleSnapshot =
+            await ResolveActorRoleSnapshotAsync(actor);
+
+        var normalizedReferralNotes =
+            NormalizeOptionalText(dto.ReferralNotes);
+
+        var normalizedBelongingsDescription =
+            dto.HasPersonalBelongings
+                ? NormalizeOptionalText(
+                    dto.PersonalBelongingsDescription)
+                : null;
+
+        var normalizedNotes =
+            NormalizeOptionalText(dto.Notes);
+
+        var importantFieldChanged =
+            dto.VerifiedWeightKg != reception.VerifiedWeightKg ||
+            dto.VeterinaryClinicId != reception.VeterinaryClinicId ||
+            dto.ReferringVeterinarianId != reception.ReferringVeterinarianId ||
+            dto.HasPersonalBelongings != reception.HasPersonalBelongings ||
+            normalizedBelongingsDescription !=
+                reception.PersonalBelongingsDescription ||
+            normalizedReferralNotes != reception.ReferralNotes;
+
+        if (hasLinkedCremation && importantFieldChanged)
+        {
+            throw new InvalidOperationException(
+                "La recepción ya está vinculada a una cremación. " +
+                "Los campos operativos deben corregirse mediante una enmienda.");
+        }
+
+        if (hasLinkedCremation &&
+            normalizedNotes != reception.Notes)
+        {
+            throw new InvalidOperationException(
+                "La recepción ya está vinculada a una cremación. " +
+                "Agregue la información mediante el flujo de aclaraciones.");
+        }
+
         var originalWeightKg =
             reception.VerifiedWeightKg;
+
+        var originalVeterinaryClinicId =
+            reception.VeterinaryClinicId;
+
+        var originalVeterinaryClinicName =
+            reception.VeterinaryClinic?.Name;
+
+        var originalReferringVeterinarianId =
+            reception.ReferringVeterinarianId;
+
+        var originalReferringVeterinarianName =
+            GetVeterinarianFullName(
+                reception.ReferringVeterinarian);
+
+        var originalHasPersonalBelongings =
+            reception.HasPersonalBelongings;
+
+        var originalPersonalBelongingsDescription =
+            reception.PersonalBelongingsDescription;
+
+        var originalReferralNotes =
+            reception.ReferralNotes;
 
         var weightChanged =
             Math.Abs(
@@ -588,192 +716,17 @@ public class ReceptionService : IReceptionService
 
         if (weightChanged)
         {
-            if (reception.CollectionId.HasValue)
-            {
-                throw new InvalidOperationException(
-                    "El peso verificado de esta recepción ya fue " +
-                    "finalizado desde la recolección y no puede " +
-                    "modificarse desde la edición normal.");
-            }
-
-            var minimumAllowedWeightKg =
-                originalWeightKg *
-                (1m - WeightCorrectionTolerance);
-
-            var maximumAllowedWeightKg =
-                originalWeightKg *
-                (1m + WeightCorrectionTolerance);
-
-            if (dto.VerifiedWeightKg <
-                    minimumAllowedWeightKg ||
-                dto.VerifiedWeightKg >
-                    maximumAllowedWeightKg)
-            {
-                throw new InvalidOperationException(
-                    $"Verifica que sea la mascota correcta. " +
-                    $"El peso ingresado " +
-                    $"({dto.VerifiedWeightKg:F2} kg) " +
-                    $"está fuera de la tolerancia permitida " +
-                    $"de ±10% respecto al peso registrado " +
-                    $"({originalWeightKg:F2} kg). " +
-                    $"El rango permitido es de " +
-                    $"{minimumAllowedWeightKg:F2} a " +
-                    $"{maximumAllowedWeightKg:F2} kg.");
-            }
-
-            var pricingConfiguration =
-                await _context.CremationPricingConfigurations
-                    .AsNoTracking()
-                    .OrderBy(configuration =>
-                        configuration.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-            if (pricingConfiguration is null)
-            {
-                throw new InvalidOperationException(
-                    "No existe una configuración activa de rangos de peso.");
-            }
-
-            var currentRange =
-                GetWeightRange(
-                    originalWeightKg,
-                    pricingConfiguration.WeightInterval);
-
-            var newRange =
-                GetWeightRange(
-                    dto.VerifiedWeightKg,
-                    pricingConfiguration.WeightInterval);
-
-            var rangeDifference =
-                Math.Abs(
-                    newRange.Index -
-                    currentRange.Index);
-
-            if (rangeDifference > 1)
-            {
-                throw new InvalidOperationException(
-                    "Verifica que sea la mascota correcta. " +
-                    "El nuevo peso provocaría un cambio de dos o más " +
-                    "rangos de precio. No se realizó ningún cambio.");
-            }
-
             var cremation =
                 await _context.Cremations
                     .FirstOrDefaultAsync(c =>
                         c.ReceptionId == reception.Id &&
                         c.IsActive);
 
-            if (cremation is not null &&
-                cremation.Status != CremationStatus.Pending &&
-                cremation.Status != CremationStatus.Scheduled)
-            {
-                throw new InvalidOperationException(
-                    "El peso verificado no puede modificarse " +
-                    "mediante el flujo normal porque la cremación " +
-                    "ya fue iniciada. La corrección requiere una " +
-                    "revisión administrativa.");
-            }
-
-            decimal? previousPrice = null;
-            decimal? newPrice = null;
-
-            pcms.Application.CremationPricing.DTOs
-                .CremationPriceQuoteDto? newQuote = null;
-
-            if (cremation?.CremationPackageId.HasValue == true)
-            {
-                newQuote =
-                    await _cremationPricingService
-                        .GetQuoteAsync(
-                            cremation.CremationPackageId.Value,
-                            dto.VerifiedWeightKg,
-                            cremation.CremationType);
-
-                previousPrice =
-                    cremation.QuotedPrice;
-
-                newPrice =
-                    newQuote.Price;
-            }
-
-            var rangeChanged =
-                rangeDifference == 1;
-
-            if (rangeChanged &&
-                !dto.ConfirmWeightRangeChange)
-            {
-                throw new WeightRangeChangeConfirmationRequiredException(
-                    originalWeightKg,
-                    dto.VerifiedWeightKg,
-                    currentRange.MinimumWeightKg,
-                    currentRange.MaximumWeightKg,
-                    newRange.MinimumWeightKg,
-                    newRange.MaximumWeightKg,
-                    previousPrice,
-                    newPrice);
-            }
-
-            if (cremation is not null)
-            {
-                if (!rangeChanged)
-                {
-                    if (cremation.CremationPackageId.HasValue)
-                    {
-                        // Same bracket:
-                        // update only the verified quote weight.
-                        // Preserve historical price and payment total.
-                        cremation.QuotedWeightKg =
-                            dto.VerifiedWeightKg;
-                    }
-                }
-                else if (newQuote is not null)
-                {
-                    var paymentAccount =
-                        await _context.PaymentAccounts
-                            .Include(account =>
-                                account.Payments)
-                            .FirstOrDefaultAsync(account =>
-                                account.CremationId ==
-                                cremation.Id);
-
-                    if (paymentAccount is not null)
-                    {
-                        var amountPaid =
-                            paymentAccount.Payments.Sum(
-                                payment =>
-                                    payment.Amount);
-
-                        if (newQuote.Price < amountPaid)
-                        {
-                            throw new InvalidOperationException(
-                                $"La nueva cotización " +
-                                $"({newQuote.Price:C2}) " +
-                                $"no puede ser menor que el monto " +
-                                $"ya pagado ({amountPaid:C2}). " +
-                                "La corrección requiere una " +
-                                "revisión administrativa.");
-                        }
-
-                        paymentAccount.ServiceTotal =
-                            newQuote.Price;
-
-                        paymentAccount.UpdatedAt =
-                            DateTime.UtcNow;
-                    }
-
-                    cremation.QuotedPrice =
-                        newQuote.Price;
-
-                    cremation.QuotedWeightKg =
-                        newQuote.WeightKg;
-
-                    cremation.QuotedMinimumWeightKg =
-                        newQuote.MinimumWeightKg;
-
-                    cremation.QuotedMaximumWeightKg =
-                        newQuote.MaximumWeightKg;
-                }
-            }
+            await ApplyOperationalWeightChangeAsync(
+                reception,
+                cremation,
+                dto.VerifiedWeightKg,
+                dto.ConfirmWeightRangeChange);
         }
 
         VeterinaryClinic? veterinaryClinic = null;
@@ -826,11 +779,137 @@ public class ReceptionService : IReceptionService
                 referral.Veterinarian?.Id;
         }
 
+        var historyChanges =
+            new List<ReceptionHistoryChange>();
+
+        if (dto.VerifiedWeightKg != originalWeightKg)
+        {
+            historyChanges.Add(new ReceptionHistoryChange
+            {
+                Id = Guid.NewGuid(),
+                Field = ReceptionHistoryField.VerifiedWeightKg,
+                OriginalValue =
+                    originalWeightKg.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture),
+                NewValue =
+                    dto.VerifiedWeightKg.ToString(
+                        "0.00",
+                        CultureInfo.InvariantCulture)
+            });
+        }
+
+        if (reception.VeterinaryClinicId !=
+            originalVeterinaryClinicId)
+        {
+            historyChanges.Add(new ReceptionHistoryChange
+            {
+                Id = Guid.NewGuid(),
+                Field = ReceptionHistoryField.VeterinaryClinicId,
+                OriginalValue =
+                    originalVeterinaryClinicId?.ToString("D"),
+                NewValue =
+                    reception.VeterinaryClinicId?.ToString("D"),
+                OriginalDisplayValue =
+                    originalVeterinaryClinicName,
+                NewDisplayValue =
+                    veterinaryClinic?.Name
+            });
+        }
+
+        if (reception.ReferringVeterinarianId !=
+            originalReferringVeterinarianId)
+        {
+            historyChanges.Add(new ReceptionHistoryChange
+            {
+                Id = Guid.NewGuid(),
+                Field = ReceptionHistoryField.ReferringVeterinarianId,
+                OriginalValue =
+                    originalReferringVeterinarianId?.ToString("D"),
+                NewValue =
+                    reception.ReferringVeterinarianId?.ToString("D"),
+                OriginalDisplayValue =
+                    originalReferringVeterinarianName,
+                NewDisplayValue =
+                    GetVeterinarianFullName(
+                        referringVeterinarian)
+            });
+        }
+
+        if (dto.HasPersonalBelongings !=
+            originalHasPersonalBelongings)
+        {
+            historyChanges.Add(new ReceptionHistoryChange
+            {
+                Id = Guid.NewGuid(),
+                Field = ReceptionHistoryField.HasPersonalBelongings,
+                OriginalValue =
+                    originalHasPersonalBelongings
+                        ? "true"
+                        : "false",
+                NewValue =
+                    dto.HasPersonalBelongings
+                        ? "true"
+                        : "false"
+            });
+        }
+
+        if (normalizedBelongingsDescription !=
+            originalPersonalBelongingsDescription)
+        {
+            historyChanges.Add(new ReceptionHistoryChange
+            {
+                Id = Guid.NewGuid(),
+                Field =
+                    ReceptionHistoryField.PersonalBelongingsDescription,
+                OriginalValue =
+                    originalPersonalBelongingsDescription,
+                NewValue =
+                    normalizedBelongingsDescription
+            });
+        }
+
+        if (normalizedReferralNotes != originalReferralNotes)
+        {
+            historyChanges.Add(new ReceptionHistoryChange
+            {
+                Id = Guid.NewGuid(),
+                Field = ReceptionHistoryField.ReferralNotes,
+                OriginalValue = originalReferralNotes,
+                NewValue = normalizedReferralNotes
+            });
+        }
+
+        if (!hasLinkedCremation && historyChanges.Count > 0)
+        {
+            var currentSequenceNumber =
+                await _context.ReceptionHistoryEvents
+                    .Where(historyEvent =>
+                        historyEvent.ReceptionId == reception.Id)
+                    .MaxAsync(historyEvent =>
+                        (long?)historyEvent.SequenceNumber) ?? 0;
+
+            _context.ReceptionHistoryEvents.Add(
+                new ReceptionHistoryEvent
+                {
+                    Id = Guid.NewGuid(),
+                    ReceptionId = reception.Id,
+                    SequenceNumber = currentSequenceNumber + 1,
+                    EventKind =
+                        ReceptionHistoryEventKind.PreLockEditAudit,
+                    ReceptionStage =
+                        ReceptionHistoryStage.BeforeCremation,
+                    CreatedByUserId = actor.Id,
+                    CreatedByUserNameSnapshot =
+                        BuildUserNameSnapshot(actor),
+                    CreatedByRoleSnapshot = actorRoleSnapshot,
+                    CreatedAt = DateTime.UtcNow,
+                    Changes = historyChanges
+                });
+        }
+
         reception.ReferralNotes =
-            string.IsNullOrWhiteSpace(
-                dto.ReferralNotes)
-                ? null
-                : dto.ReferralNotes.Trim();
+            normalizedReferralNotes;
 
         reception.VerifiedWeightKg =
             dto.VerifiedWeightKg;
@@ -839,18 +918,15 @@ public class ReceptionService : IReceptionService
             dto.HasPersonalBelongings;
 
         reception.PersonalBelongingsDescription =
-            dto.HasPersonalBelongings
-                ? dto.PersonalBelongingsDescription?.Trim()
-                : null;
+            normalizedBelongingsDescription;
 
         reception.Notes =
-            string.IsNullOrWhiteSpace(dto.Notes)
-                ? null
-                : dto.Notes.Trim();
+            normalizedNotes;
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
-        return new ReceptionDto
+        var result = new ReceptionDto
         {
             Id = reception.Id,
 
@@ -931,6 +1007,10 @@ public class ReceptionService : IReceptionService
             CreatedAt =
                 reception.CreatedAt
         };
+
+        await EnrichReceptionDtosAsync([result]);
+
+        return result;
     }
 
     public async Task<bool> DeactivateAsync(Guid id)
@@ -983,7 +1063,7 @@ public class ReceptionService : IReceptionService
             .Trim()
             .ToLower();
 
-        return await _context.Receptions
+        var receptions = await _context.Receptions
             .AsNoTracking()
             .Where(r =>
                 r.IsActive &&
@@ -1077,6 +1157,94 @@ public class ReceptionService : IReceptionService
                 CreatedAt = r.CreatedAt
             })
             .ToListAsync();
+
+        await EnrichReceptionDtosAsync(receptions);
+
+        return receptions;
+    }
+
+    private async Task<string> ResolveActorRoleSnapshotAsync(
+        User actor)
+    {
+        if (actor.IsOwner)
+        {
+            return "Owner";
+        }
+
+        var role = await _context.UserRoles
+            .AsNoTracking()
+            .Where(userRole =>
+                userRole.UserId == actor.Id &&
+                userRole.Role.IsActive &&
+                userRole.Role.RolePermissions.Any(rolePermission =>
+                    rolePermission.Permission.Code ==
+                    PermissionCodes.ReceptionsManage))
+            .Select(userRole => new
+            {
+                userRole.RoleId,
+                userRole.Role.Name,
+                userRole.Role.NormalizedName
+            })
+            .OrderBy(candidate =>
+                candidate.RoleId == ProtectedAdminRoleId
+                    ? 0
+                    : 1)
+            .ThenBy(candidate => candidate.NormalizedName)
+            .ThenBy(candidate => candidate.RoleId)
+            .FirstOrDefaultAsync();
+
+        if (role is null)
+        {
+            throw new InvalidOperationException(
+                "El usuario autenticado no tiene un rol activo " +
+                "con permiso para administrar recepciones.");
+        }
+
+        return role.RoleId == ProtectedAdminRoleId
+            ? "Admin"
+            : role.Name;
+    }
+
+    private static string BuildUserNameSnapshot(User user)
+    {
+        var name = string.Join(
+            " ",
+            new[]
+            {
+                user.FirstName,
+                user.LastName
+            }.Where(value =>
+                !string.IsNullOrWhiteSpace(value)));
+
+        return name.Length <= 200
+            ? name
+            : name[..200];
+    }
+
+    private static string? GetVeterinarianFullName(
+        Veterinarian? veterinarian)
+    {
+        if (veterinarian is null)
+        {
+            return null;
+        }
+
+        return string.Join(
+            " ",
+            new[]
+            {
+                veterinarian.FirstName,
+                veterinarian.LastName,
+                veterinarian.SecondLastName
+            }.Where(value =>
+                !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 
     private sealed record WeightRangeInfo(
