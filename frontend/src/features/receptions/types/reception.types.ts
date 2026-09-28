@@ -83,6 +83,7 @@ export interface WeightRangeChangeDetails {
 
   previousPrice: number | null;
   newPrice: number | null;
+  newCremationPriceId: string | null;
   priceDifference: number | null;
   amountPaid: number | null;
   remainingBalance: number | null;
@@ -142,11 +143,16 @@ export interface CreateReceptionCorrectionPayload {
   personalBelongingsDescription?: CorrectionValue<string | null>;
   referralNotes?: CorrectionValue<string | null>;
   confirmWeightRangeChange: boolean;
+  expectedCremationPriceId?: string | null;
+  expectedNewPrice?: number | null;
 }
 
 export type ReceptionCorrectionDraft = Omit<
   CreateReceptionCorrectionPayload,
-  "requestId" | "confirmWeightRangeChange"
+  | "requestId"
+  | "confirmWeightRangeChange"
+  | "expectedCremationPriceId"
+  | "expectedNewPrice"
 >;
 
 export interface CreateReceptionClarificationPayload {

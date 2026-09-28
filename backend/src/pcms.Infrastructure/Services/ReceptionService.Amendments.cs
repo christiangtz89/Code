@@ -656,7 +656,9 @@ public partial class ReceptionService
                 reception,
                 cremation,
                 correctedWeight,
-                dto.ConfirmWeightRangeChange);
+                dto.ConfirmWeightRangeChange,
+                dto.ExpectedCremationPriceId,
+                dto.ExpectedNewPrice);
 
         reception.VerifiedWeightKg = correctedWeight;
         changes.Add(CreateWeightChange(
@@ -671,7 +673,9 @@ public partial class ReceptionService
         Reception reception,
         Cremation? cremation,
         decimal correctedWeight,
-        bool confirmWeightRangeChange)
+        bool confirmWeightRangeChange,
+        Guid? expectedCremationPriceId = null,
+        decimal? expectedNewPrice = null)
     {
         if (reception.CollectionId.HasValue)
         {
@@ -763,7 +767,12 @@ public partial class ReceptionService
             currentRange,
             newRange);
 
-        if (rangeChanged && !confirmWeightRangeChange)
+        var currentQuoteWasConfirmed = newQuote is null ||
+            expectedCremationPriceId == newQuote.CremationPriceId &&
+            expectedNewPrice == newQuote.Price;
+
+        if (rangeChanged &&
+            (!confirmWeightRangeChange || !currentQuoteWasConfirmed))
         {
             throw new WeightRangeChangeConfirmationRequiredException(
                 originalWeight,
@@ -774,7 +783,8 @@ public partial class ReceptionService
                 newRange.MaximumWeightKg,
                 previousPrice,
                 newQuote?.Price,
-                amountPaid);
+                amountPaid,
+                newQuote?.CremationPriceId);
         }
 
         if (cremation is null)

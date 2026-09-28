@@ -376,6 +376,9 @@ export function ReceptionsPage() {
             ...weightRangeChangeConfirmation.draft,
             requestId: weightRangeChangeConfirmation.requestId,
             confirmWeightRangeChange: true,
+            expectedCremationPriceId:
+              weightRangeChangeConfirmation.details.newCremationPriceId,
+            expectedNewPrice: weightRangeChangeConfirmation.details.newPrice,
           },
         });
         await refreshReceptionAndHistory(
@@ -388,6 +391,16 @@ export function ReceptionsPage() {
 
       setWeightRangeChangeConfirmation(null);
     } catch (error) {
+      const confirmation = getWeightRangeChangeConfirmation(error);
+
+      if (confirmation && weightRangeChangeConfirmation.kind === "correction") {
+        setWeightRangeChangeConfirmation({
+          ...weightRangeChangeConfirmation,
+          details: confirmation.weightChange,
+        });
+        return;
+      }
+
       toast.error(
         getApiErrorMessage(
           error,

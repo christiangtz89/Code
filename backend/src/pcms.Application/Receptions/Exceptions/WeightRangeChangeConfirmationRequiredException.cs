@@ -19,6 +19,8 @@ public sealed class WeightRangeChangeConfirmationRequiredException
 
     public decimal? NewPrice { get; }
 
+    public Guid? NewCremationPriceId { get; }
+
     public decimal? PriceDifference { get; }
 
     public decimal? AmountPaid { get; }
@@ -38,7 +40,8 @@ public sealed class WeightRangeChangeConfirmationRequiredException
         decimal newMaximumWeightKg,
         decimal? previousPrice,
         decimal? newPrice,
-        decimal? amountPaid = null)
+        decimal? amountPaid = null,
+        Guid? newCremationPriceId = null)
         : base(
             "El cambio de peso modifica el rango de precio y requiere confirmación.")
     {
@@ -75,5 +78,6 @@ public sealed class WeightRangeChangeConfirmationRequiredException
 
         PreviousPrice = previousPrice;
         NewPrice = newPrice;
+        NewCremationPriceId = newCremationPriceId;
     }
 }

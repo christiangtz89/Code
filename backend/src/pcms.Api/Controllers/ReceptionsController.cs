@@ -493,7 +493,8 @@ public class ReceptionsController : ControllerBase
                 remainingBalance = ex.RemainingBalance,
                 overpaymentAmount = ex.OverpaymentAmount,
                 requiresFinancialReview = ex.RequiresFinancialReview,
-                newPrice = ex.NewPrice
+                newPrice = ex.NewPrice,
+                newCremationPriceId = ex.NewCremationPriceId
             }
         });
     }

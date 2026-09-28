@@ -29,6 +29,10 @@ public sealed class CreateReceptionCorrectionDto
     public CorrectionValueDto<string?>? ReferralNotes { get; set; }
 
     public bool ConfirmWeightRangeChange { get; set; }
+
+    public Guid? ExpectedCremationPriceId { get; set; }
+
+    public decimal? ExpectedNewPrice { get; set; }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
