@@ -1,4 +1,6 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using pcms.Application.Cremations.DTOs;
 using pcms.Application.Cremations.Interfaces;
 using pcms.Domain.Entities;
@@ -41,7 +43,29 @@ public class CremationService : ICremationService
     }
 
     public async Task<CremationDto> CreateAsync(
-    CreateCremationDto dto)
+        CreateCremationDto dto)
+    {
+        Exception? concurrencyException = null;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await CreateCoreAsync(dto);
+            }
+            catch (Exception exception)
+                when (IsCremationConcurrencyConflict(exception))
+            {
+                concurrencyException = exception;
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        throw CremationConcurrencyConflict(concurrencyException!);
+    }
+
+    private async Task<CremationDto> CreateCoreAsync(
+        CreateCremationDto dto)
     {
         if (dto.ReceptionId == Guid.Empty)
         {
@@ -53,6 +77,16 @@ public class CremationService : ICremationService
         {
             throw new ArgumentException(
                 "Debe seleccionar un paquete o servicio válido.");
+        }
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        if (!await LockActiveReceptionAsync(dto.ReceptionId))
+        {
+            throw new InvalidOperationException(
+                "No se encontró una recepción activa.");
         }
 
         var reception = await _context.Receptions
@@ -306,6 +340,7 @@ public class CremationService : ICremationService
         }
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new CremationDto
         {
@@ -758,13 +793,48 @@ public class CremationService : ICremationService
     }
 
     public async Task<CremationDto?> UpdateAsync(
-    Guid id,
-    UpdateCremationDto dto)
+        Guid id,
+        UpdateCremationDto dto)
+    {
+        Exception? concurrencyException = null;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await UpdateCoreAsync(id, dto);
+            }
+            catch (Exception exception)
+                when (IsCremationConcurrencyConflict(exception))
+            {
+                concurrencyException = exception;
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        throw CremationConcurrencyConflict(concurrencyException!);
+    }
+
+    private async Task<CremationDto?> UpdateCoreAsync(
+        Guid id,
+        UpdateCremationDto dto)
     {
         if (dto.CremationPackageId == Guid.Empty)
         {
             throw new ArgumentException(
                 "Debe seleccionar un paquete o servicio válido.");
+        }
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var receptionId = await LockReceptionForCremationAsync(id);
+
+        if (!receptionId.HasValue ||
+            !await LockActiveCremationAsync(id, receptionId.Value))
+        {
+            return null;
         }
 
         var cremation = await _context.Cremations
@@ -1068,6 +1138,7 @@ public class CremationService : ICremationService
         }
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new CremationDto
         {
@@ -1151,8 +1222,31 @@ public class CremationService : ICremationService
     }
 
     public async Task<CremationDto?> ChangeStatusAsync(
-    Guid id,
-    ChangeCremationStatusDto dto)
+        Guid id,
+        ChangeCremationStatusDto dto)
+    {
+        Exception? concurrencyException = null;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await ChangeStatusCoreAsync(id, dto);
+            }
+            catch (Exception exception)
+                when (IsCremationConcurrencyConflict(exception))
+            {
+                concurrencyException = exception;
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        throw CremationConcurrencyConflict(concurrencyException!);
+    }
+
+    private async Task<CremationDto?> ChangeStatusCoreAsync(
+        Guid id,
+        ChangeCremationStatusDto dto)
     {
         if (!Enum.IsDefined(
                 typeof(CremationStatus),
@@ -1160,6 +1254,18 @@ public class CremationService : ICremationService
         {
             throw new ArgumentException(
                 "El estado de cremación no es válido.");
+        }
+
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var receptionId = await LockReceptionForCremationAsync(id);
+
+        if (!receptionId.HasValue ||
+            !await LockActiveCremationAsync(id, receptionId.Value))
+        {
+            return null;
         }
 
         var cremation = await _context.Cremations
@@ -1266,6 +1372,7 @@ public class CremationService : ICremationService
         }
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new CremationDto
         {
@@ -1362,6 +1469,98 @@ public class CremationService : ICremationService
             CreatedAt = cremation.CreatedAt
         };
     }
+
+    private async Task<bool> LockActiveReceptionAsync(Guid receptionId)
+    {
+        var receptionIds = await _context.Database
+            .SqlQuery<Guid>($"""
+                SELECT "Id" AS "Value"
+                FROM "Recepciones"
+                WHERE "Id" = {receptionId}
+                  AND "Activo" = TRUE
+                FOR UPDATE
+                """)
+            .ToListAsync();
+
+        return receptionIds.Count > 0;
+    }
+
+    private async Task<Guid?> LockReceptionForCremationAsync(
+        Guid cremationId)
+    {
+        var receptionIds = await _context.Database
+            .SqlQuery<Guid>($"""
+                SELECT reception."Id" AS "Value"
+                FROM "Recepciones" AS reception
+                WHERE reception."Id" = (
+                    SELECT cremation."RecepcionId"
+                    FROM "Cremaciones" AS cremation
+                    WHERE cremation."Id" = {cremationId}
+                      AND cremation."Activo" = TRUE)
+                FOR UPDATE
+                """)
+            .ToListAsync();
+
+        return receptionIds.Count == 0
+            ? null
+            : receptionIds[0];
+    }
+
+    private async Task<bool> LockActiveCremationAsync(
+        Guid cremationId,
+        Guid receptionId)
+    {
+        var cremationIds = await _context.Database
+            .SqlQuery<Guid>($"""
+                SELECT "Id" AS "Value"
+                FROM "Cremaciones"
+                WHERE "Id" = {cremationId}
+                  AND "RecepcionId" = {receptionId}
+                  AND "Activo" = TRUE
+                FOR UPDATE
+                """)
+            .ToListAsync();
+
+        return cremationIds.Count > 0;
+    }
+
+    private static bool IsCremationConcurrencyConflict(
+        Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is not PostgresException postgresException)
+            {
+                continue;
+            }
+
+            if (postgresException.SqlState is
+                PostgresErrorCodes.SerializationFailure or
+                PostgresErrorCodes.DeadlockDetected)
+            {
+                return true;
+            }
+
+            if (postgresException.SqlState ==
+                    PostgresErrorCodes.UniqueViolation &&
+                postgresException.ConstraintName ==
+                    "IX_Cremaciones_RecepcionId")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static InvalidOperationException CremationConcurrencyConflict(
+        Exception innerException) =>
+        new(
+            "La cremación cambió por otra operación concurrente. " +
+            "Intente nuevamente.",
+            innerException);
 
     public async Task<bool> DeactivateAsync(Guid id)
     {

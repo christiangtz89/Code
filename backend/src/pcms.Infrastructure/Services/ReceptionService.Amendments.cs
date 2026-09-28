@@ -1,6 +1,7 @@
 using System.Data;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using pcms.Application.Auth;
 using pcms.Application.Receptions.DTOs;
 using pcms.Application.Receptions.Exceptions;
@@ -16,6 +17,33 @@ public partial class ReceptionService
         CreateReceptionCorrectionDto dto,
         Guid actorUserId)
     {
+        Exception? concurrencyException = null;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await CreateCorrectionCoreAsync(
+                    id,
+                    dto,
+                    actorUserId);
+            }
+            catch (Exception exception)
+                when (IsReceptionConcurrencyConflict(exception))
+            {
+                concurrencyException = exception;
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        throw ReceptionConcurrencyConflict(concurrencyException!);
+    }
+
+    private async Task<ReceptionHistoryEventDto?> CreateCorrectionCoreAsync(
+        Guid id,
+        CreateReceptionCorrectionDto dto,
+        Guid actorUserId)
+    {
         ValidateCorrectionRequest(dto, actorUserId);
 
         await using var transaction =
@@ -26,6 +54,9 @@ public partial class ReceptionService
         {
             return null;
         }
+
+        var lockedCremationId =
+            await LockCremationByReceptionAsync(id);
 
         var reception = await _context.Receptions
             .Include(item => item.VeterinaryClinic)
@@ -43,7 +74,7 @@ public partial class ReceptionService
 
         var cremation = await _context.Cremations
             .FirstOrDefaultAsync(item =>
-                item.ReceptionId == reception.Id);
+                item.Id == lockedCremationId);
 
         if (cremation is null)
         {
@@ -231,6 +262,33 @@ public partial class ReceptionService
         CreateReceptionClarificationDto dto,
         Guid actorUserId)
     {
+        Exception? concurrencyException = null;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await CreateClarificationCoreAsync(
+                    id,
+                    dto,
+                    actorUserId);
+            }
+            catch (Exception exception)
+                when (IsReceptionConcurrencyConflict(exception))
+            {
+                concurrencyException = exception;
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        throw ReceptionConcurrencyConflict(concurrencyException!);
+    }
+
+    private async Task<ReceptionHistoryEventDto?> CreateClarificationCoreAsync(
+        Guid id,
+        CreateReceptionClarificationDto dto,
+        Guid actorUserId)
+    {
         if (dto.RequestId == Guid.Empty)
         {
             throw new ArgumentException(
@@ -266,6 +324,9 @@ public partial class ReceptionService
             return null;
         }
 
+        var lockedCremationId =
+            await LockCremationByReceptionAsync(id);
+
         var receptionExists = await _context.Receptions
             .AnyAsync(item =>
                 item.Id == id &&
@@ -279,7 +340,7 @@ public partial class ReceptionService
         var cremation = await _context.Cremations
             .AsNoTracking()
             .FirstOrDefaultAsync(item =>
-                item.ReceptionId == id);
+                item.Id == lockedCremationId);
 
         if (cremation is null)
         {
@@ -992,6 +1053,62 @@ public partial class ReceptionService
 
         return lockedReceptionIds.Count > 0;
     }
+
+    private async Task<Guid?> LockCremationByReceptionAsync(
+        Guid receptionId)
+    {
+        var cremationIds = await _context.Database
+            .SqlQuery<Guid>($"""
+                SELECT "Id" AS "Value"
+                FROM "Cremaciones"
+                WHERE "RecepcionId" = {receptionId}
+                FOR UPDATE
+                """)
+            .ToListAsync();
+
+        return cremationIds.Count == 0
+            ? null
+            : cremationIds[0];
+    }
+
+    private static bool IsReceptionConcurrencyConflict(
+        Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is not PostgresException postgresException)
+            {
+                continue;
+            }
+
+            if (postgresException.SqlState is
+                PostgresErrorCodes.SerializationFailure or
+                PostgresErrorCodes.DeadlockDetected)
+            {
+                return true;
+            }
+
+            if (postgresException.SqlState ==
+                    PostgresErrorCodes.UniqueViolation &&
+                postgresException.ConstraintName is
+                    "IX_EventosHistorialRecepcion_RecepcionId_NumeroSecuencia" or
+                    "IX_EventosHistorialRecepcion_RecepcionId_SolicitudId")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static InvalidOperationException ReceptionConcurrencyConflict(
+        Exception innerException) =>
+        new(
+            "La recepción cambió por otra operación concurrente. " +
+            "Intente nuevamente.",
+            innerException);
 
     private async Task<long> GetNextHistorySequenceAsync(Guid receptionId)
     {

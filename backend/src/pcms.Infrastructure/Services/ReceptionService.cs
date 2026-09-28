@@ -559,6 +559,30 @@ public partial class ReceptionService : IReceptionService
 
 
     public async Task<ReceptionDto?> UpdateAsync(
+        Guid id,
+        UpdateReceptionDto dto,
+        Guid actorUserId)
+    {
+        Exception? concurrencyException = null;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await UpdateCoreAsync(id, dto, actorUserId);
+            }
+            catch (Exception exception)
+                when (IsReceptionConcurrencyConflict(exception))
+            {
+                concurrencyException = exception;
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        throw ReceptionConcurrencyConflict(concurrencyException!);
+    }
+
+    private async Task<ReceptionDto?> UpdateCoreAsync(
     Guid id,
     UpdateReceptionDto dto,
     Guid actorUserId)
@@ -594,21 +618,13 @@ public partial class ReceptionService : IReceptionService
             await _context.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable);
 
-        var lockedReceptionIds =
-            await _context.Database
-                .SqlQuery<Guid>($"""
-                    SELECT "Id" AS "Value"
-                    FROM "Recepciones"
-                    WHERE "Id" = {id}
-                      AND "Activo" = TRUE
-                    FOR UPDATE
-                    """)
-                .ToListAsync();
-
-        if (lockedReceptionIds.Count == 0)
+        if (!await LockActiveReceptionAsync(id))
         {
             return null;
         }
+
+        var linkedCremationId =
+            await LockCremationByReceptionAsync(id);
 
         var reception = await _context.Receptions
             .Include(r => r.Pet)
@@ -627,11 +643,7 @@ public partial class ReceptionService : IReceptionService
             return null;
         }
 
-        var hasLinkedCremation =
-            await _context.Cremations
-                .AsNoTracking()
-                .AnyAsync(cremation =>
-                    cremation.ReceptionId == reception.Id);
+        var hasLinkedCremation = linkedCremationId.HasValue;
 
         var actor = await _context.Users
             .AsNoTracking()
