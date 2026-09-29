@@ -1,3 +1,4 @@
+import type { CollectionStatus } from "../../collections/types/collection.types";
 import type { CremationStatus } from "../../cremations/types/cremation.types";
 
 export interface Reception {
@@ -189,6 +190,99 @@ export interface ReceptionHistoryEvent {
 export interface ReceptionListParams {
   page?: number;
   pageSize?: number;
+  includeInactive?: boolean;
+}
+
+export const ReceptionLifecycleAction = {
+  DeactivationRequested: 1,
+  Deactivate: 2,
+  Restore: 3,
+} as const;
+
+export type ReceptionLifecycleAction =
+  (typeof ReceptionLifecycleAction)[keyof typeof ReceptionLifecycleAction];
+
+export const ReceptionLifecycleOutcome = {
+  Recorded: 1,
+  Succeeded: 2,
+  Blocked: 3,
+} as const;
+
+export type ReceptionLifecycleOutcome =
+  (typeof ReceptionLifecycleOutcome)[keyof typeof ReceptionLifecycleOutcome];
+
+export const ReceptionLifecycleDependency = {
+  None: 0,
+  Collection: 1,
+  ConvertedVeterinaryRequest: 2,
+  Cremation: 4,
+  PaymentAccount: 8,
+  PaymentHistory: 16,
+  DirectReceptionEvidence: 32,
+  CollectionEvidence: 64,
+} as const;
+
+export type ReceptionLifecycleDependency = number;
+
+export const ReceptionLifecycleBlockReason = {
+  None: 0,
+  Dependencies: 1,
+  ReceptionState: 2,
+} as const;
+
+export type ReceptionLifecycleBlockReason =
+  (typeof ReceptionLifecycleBlockReason)[keyof typeof ReceptionLifecycleBlockReason];
+
+export interface ReceptionLifecycleActionRequest {
+  requestId: string;
+  reason: string;
+}
+
+export interface ReceptionLifecycleEvent {
+  id: string;
+  receptionId: string;
+  requestId: string;
+  sequence: number;
+  action: ReceptionLifecycleAction;
+  outcome: ReceptionLifecycleOutcome;
+  reason: string;
+  actorUserId: string;
+  actorUserName: string;
+  actorRole: string;
+  createdAt: string;
+  previousIsActive: boolean;
+  newIsActive: boolean;
+  operationalStage: ReceptionHistoryStage;
+  collectionId: string | null;
+  collectionIsActive: boolean | null;
+  collectionStatus: CollectionStatus | null;
+  collectionCollectedAt: string | null;
+  collectionReceivedAt: string | null;
+  hasConvertedVeterinaryRequest: boolean;
+  veterinaryRequestId: string | null;
+  cremationId: string | null;
+  cremationIsActive: boolean | null;
+  cremationStatus: CremationStatus | null;
+  paymentAccountId: string | null;
+  serviceTotal: number | null;
+  amountPaid: number | null;
+  requiredCollectionPaymentAmount: number | null;
+  requiresFinancialReview: boolean | null;
+  paymentCount: number;
+  activeReceptionEvidenceCount: number;
+  collectionEvidenceCount: number;
+  collectionAssignmentHistoryCount: number;
+  receptionHistoryCount: number;
+  latestReceptionHistorySequence: number | null;
+  dependencies: ReceptionLifecycleDependency;
+  blockReason: ReceptionLifecycleBlockReason;
+}
+
+export interface ReceptionLifecycleDecision {
+  event: ReceptionLifecycleEvent;
+  isReplay: boolean;
+  isBlocked: boolean;
+  message: string;
 }
 
 export interface ReceptionPhoto {

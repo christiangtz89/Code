@@ -85,3 +85,15 @@ export function isOwnerOrAdmin(): boolean {
     return false;
   }
 }
+
+export function canApproveReceptionLifecycle(): boolean {
+  return isOwnerOrAdmin() && hasPermission("Receptions.Manage");
+}
+
+export function canRequestReceptionDeactivation(): boolean {
+  return (
+    !isOwnerOrAdmin() &&
+    hasRole("MANAGER") &&
+    hasPermission("Receptions.Manage")
+  );
+}

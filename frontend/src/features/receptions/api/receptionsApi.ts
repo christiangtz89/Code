@@ -6,6 +6,9 @@ import type {
   PagedReceptions,
   Reception,
   ReceptionHistoryEvent,
+  ReceptionLifecycleActionRequest,
+  ReceptionLifecycleDecision,
+  ReceptionLifecycleEvent,
   ReceptionListParams,
   UpdateReceptionPayload,
 } from "../types/reception.types";
@@ -19,14 +22,20 @@ export async function getReceptions(
     params: {
       page: params.page ?? 1,
       pageSize: params.pageSize ?? 10,
+      includeInactive: params.includeInactive ?? false,
     },
   });
 
   return response.data;
 }
 
-export async function getReceptionById(id: string): Promise<Reception> {
-  const response = await apiClient.get<Reception>(`${RECEPTIONS_URL}/${id}`);
+export async function getReceptionById(
+  id: string,
+  includeInactive = false,
+): Promise<Reception> {
+  const response = await apiClient.get<Reception>(`${RECEPTIONS_URL}/${id}`, {
+    params: { includeInactive },
+  });
 
   return response.data;
 }
@@ -106,10 +115,48 @@ export async function getReceptionHistory(
   return response.data;
 }
 
-export async function deactivateReception(id: string): Promise<void> {
-  await apiClient.delete(`${RECEPTIONS_URL}/${id}`);
+export async function deactivateReception(
+  id: string,
+  payload: ReceptionLifecycleActionRequest,
+): Promise<ReceptionLifecycleDecision> {
+  const response = await apiClient.post<ReceptionLifecycleDecision>(
+    `${RECEPTIONS_URL}/${id}/lifecycle/deactivate`,
+    payload,
+  );
+
+  return response.data;
 }
 
-export async function restoreReception(id: string): Promise<void> {
-  await apiClient.patch(`${RECEPTIONS_URL}/${id}/restore`);
+export async function restoreReception(
+  id: string,
+  payload: ReceptionLifecycleActionRequest,
+): Promise<ReceptionLifecycleDecision> {
+  const response = await apiClient.post<ReceptionLifecycleDecision>(
+    `${RECEPTIONS_URL}/${id}/lifecycle/restore`,
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function requestReceptionDeactivation(
+  id: string,
+  payload: ReceptionLifecycleActionRequest,
+): Promise<ReceptionLifecycleDecision> {
+  const response = await apiClient.post<ReceptionLifecycleDecision>(
+    `${RECEPTIONS_URL}/${id}/lifecycle/deactivation-request`,
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function getReceptionLifecycleHistory(
+  id: string,
+): Promise<ReceptionLifecycleEvent[]> {
+  const response = await apiClient.get<ReceptionLifecycleEvent[]>(
+    `${RECEPTIONS_URL}/${id}/lifecycle`,
+  );
+
+  return response.data;
 }

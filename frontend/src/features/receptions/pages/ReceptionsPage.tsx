@@ -8,6 +8,8 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
+  canApproveReceptionLifecycle,
+  canRequestReceptionDeactivation,
   hasPermission,
   hasRole,
   isOwnerOrAdmin,
@@ -17,8 +19,11 @@ import {
   createReceptionCorrection,
   createReception,
   deactivateReception,
+  getReceptionLifecycleHistory,
   getReceptionHistory,
   getReceptions,
+  requestReceptionDeactivation,
+  restoreReception,
   searchReceptions,
   updateReception,
 } from "../api/receptionsApi";
@@ -26,6 +31,11 @@ import { ReceptionClarificationModal } from "../components/ReceptionClarificatio
 import { ReceptionCorrectionModal } from "../components/ReceptionCorrectionModal";
 import { ReceptionFormModal } from "../components/ReceptionFormModal";
 import { ReceptionHistoryModal } from "../components/ReceptionHistoryModal";
+import {
+  ReceptionLifecycleActionModal,
+  type ReceptionLifecycleActionMode,
+} from "../components/ReceptionLifecycleActionModal";
+import { ReceptionLifecycleHistoryModal } from "../components/ReceptionLifecycleHistoryModal";
 import { WeightRangeChangeConfirmationModal } from "../components/WeightRangeChangeConfirmationModal";
 import { ReceptionsTable } from "../components/ReceptionsTable";
 import type { ReceptionFormValues } from "../schemas/receptionSchema";
@@ -33,6 +43,8 @@ import type {
   PagedReceptions,
   Reception,
   ReceptionCorrectionDraft,
+  ReceptionLifecycleActionRequest,
+  ReceptionLifecycleDecision,
   UpdateReceptionPayload,
   WeightRangeChangeDetails,
 } from "../types/reception.types";
@@ -42,6 +54,7 @@ import {
 } from "../utils/receptionPayload";
 import { getWeightRangeChangeConfirmation } from "../utils/weightRangeChangeConfirmation";
 import { getReceptionCorrectionFingerprint } from "../utils/receptionCorrection";
+import { getReceptionLifecycleDependencyLabels } from "../utils/receptionLifecycleLabels";
 
 type ReceptionFormMode = "create" | "edit";
 
@@ -82,6 +95,30 @@ interface ClarificationAttempt {
   text: string;
 }
 
+interface LifecycleActionState {
+  mode: ReceptionLifecycleActionMode;
+  reception: Reception;
+}
+
+interface LifecycleAttempt {
+  receptionId: string;
+  mode: ReceptionLifecycleActionMode;
+  normalizedReason: string;
+  requestId: string;
+}
+
+interface LifecycleActionVariables {
+  id: string;
+  mode: ReceptionLifecycleActionMode;
+  payload: ReceptionLifecycleActionRequest;
+}
+
+interface LifecycleErrorDetails {
+  message: string;
+  dependencies: string[];
+  eventRecorded: boolean;
+}
+
 interface ApiErrorResponse {
   title?: string;
   detail?: string;
@@ -119,6 +156,47 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function getLifecycleErrorDetails(error: unknown): LifecycleErrorDetails {
+  const fallback = "No fue posible completar la acción de ciclo de vida.";
+
+  if (!axios.isAxiosError(error) || !error.response) {
+    return {
+      message: getApiErrorMessage(error, fallback),
+      dependencies: [],
+      eventRecorded: false,
+    };
+  }
+
+  const data = error.response.data as
+    Partial<ReceptionLifecycleDecision> | ApiErrorResponse | string | undefined;
+  const candidateMessage = getApiErrorMessage(error, fallback);
+  const message = /(postgres|npgsql|sqlstate|exception|stack trace)/i.test(
+    candidateMessage,
+  )
+    ? fallback
+    : candidateMessage;
+  const dependencies =
+    data &&
+    typeof data === "object" &&
+    "event" in data &&
+    data.event &&
+    typeof data.event.dependencies === "number"
+      ? getReceptionLifecycleDependencyLabels(data.event.dependencies)
+      : [];
+  const eventRecorded =
+    error.response.status === 409 &&
+    data !== undefined &&
+    typeof data === "object" &&
+    "isBlocked" in data &&
+    data.isBlocked === true &&
+    "event" in data &&
+    data.event !== null &&
+    typeof data.event === "object" &&
+    typeof data.event.id === "string";
+
+  return { message, dependencies, eventRecorded };
+}
+
 export function ReceptionsPage() {
   const queryClient = useQueryClient();
 
@@ -127,6 +205,7 @@ export function ReceptionsPage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [includeInactive, setIncludeInactive] = useState(false);
 
   const [modalState, setModalState] = useState<ReceptionModalState | null>(
     null,
@@ -141,12 +220,23 @@ export function ReceptionsPage() {
   const [historyReception, setHistoryReception] = useState<Reception | null>(
     null,
   );
+  const [lifecycleHistoryReception, setLifecycleHistoryReception] =
+    useState<Reception | null>(null);
+  const [lifecycleAction, setLifecycleAction] =
+    useState<LifecycleActionState | null>(null);
+  const [lifecycleAttempt, setLifecycleAttempt] =
+    useState<LifecycleAttempt | null>(null);
+  const [lifecycleError, setLifecycleError] =
+    useState<LifecycleErrorDetails | null>(null);
   const [correctionAttempt, setCorrectionAttempt] =
     useState<CorrectionAttempt | null>(null);
   const [clarificationAttempt, setClarificationAttempt] =
     useState<ClarificationAttempt | null>(null);
 
   const canManage = hasPermission("Receptions.Manage");
+  const canViewLifecycleHistory = hasPermission("Receptions.View");
+  const canApproveLifecycle = canApproveReceptionLifecycle();
+  const canRequestDeactivation = canRequestReceptionDeactivation();
   const canAmend =
     hasPermission("Receptions.Amend") &&
     (isOwnerOrAdmin() || hasRole("MANAGER"));
@@ -165,7 +255,13 @@ export function ReceptionsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [normalizedSearch, pageSize]);
+  }, [normalizedSearch, pageSize, includeInactive]);
+
+  useEffect(() => {
+    if (!canApproveLifecycle && includeInactive) {
+      setIncludeInactive(false);
+    }
+  }, [canApproveLifecycle, includeInactive]);
 
   const receptionsQuery = useQuery({
     queryKey: [
@@ -174,11 +270,12 @@ export function ReceptionsPage() {
         page,
         pageSize,
         search: normalizedSearch,
+        includeInactive,
       },
     ],
 
     queryFn: async (): Promise<PagedReceptions> => {
-      if (normalizedSearch) {
+      if (normalizedSearch && !includeInactive) {
         const found = await searchReceptions(normalizedSearch);
 
         const totalItems = found.length;
@@ -200,6 +297,7 @@ export function ReceptionsPage() {
       return getReceptions({
         page,
         pageSize,
+        includeInactive,
       });
     },
 
@@ -217,6 +315,9 @@ export function ReceptionsPage() {
       refreshReceptions(),
       queryClient.invalidateQueries({
         queryKey: ["reception-history", receptionId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["reception-lifecycle", receptionId],
       }),
     ]);
   }
@@ -249,19 +350,16 @@ export function ReceptionsPage() {
     },
   });
 
-  const deactivateMutation = useMutation({
-    mutationFn: deactivateReception,
-
-    onSuccess: async () => {
-      toast.success("La recepción fue desactivada.");
-
-      await refreshReceptions();
-    },
-
-    onError: (error) => {
-      toast.error(
-        getApiErrorMessage(error, "No fue posible desactivar la recepción."),
-      );
+  const lifecycleMutation = useMutation({
+    mutationFn: ({ id, mode, payload }: LifecycleActionVariables) => {
+      switch (mode) {
+        case "deactivate":
+          return deactivateReception(id, payload);
+        case "restore":
+          return restoreReception(id, payload);
+        case "request":
+          return requestReceptionDeactivation(id, payload);
+      }
     },
   });
 
@@ -289,6 +387,12 @@ export function ReceptionsPage() {
     queryKey: ["reception-history", historyReception?.id],
     queryFn: () => getReceptionHistory(historyReception!.id),
     enabled: historyReception !== null,
+  });
+
+  const lifecycleHistoryQuery = useQuery({
+    queryKey: ["reception-lifecycle", lifecycleHistoryReception?.id],
+    queryFn: () => getReceptionLifecycleHistory(lifecycleHistoryReception!.id),
+    enabled: lifecycleHistoryReception !== null,
   });
 
   const receptions = receptionsQuery.data?.items ?? [];
@@ -494,13 +598,78 @@ export function ReceptionsPage() {
     }
   }
 
-  function handleDeactivate(reception: Reception) {
-    const confirmed = window.confirm(
-      `¿Deseas desactivar la recepción de ${reception.petName}?`,
-    );
+  function openLifecycleAction(
+    mode: ReceptionLifecycleActionMode,
+    reception: Reception,
+  ) {
+    setLifecycleAttempt(null);
+    setLifecycleError(null);
+    setLifecycleAction({ mode, reception });
+  }
 
-    if (confirmed) {
-      deactivateMutation.mutate(reception.id);
+  function closeLifecycleAction() {
+    if (lifecycleMutation.isPending) {
+      return;
+    }
+
+    setLifecycleAction(null);
+    setLifecycleAttempt(null);
+    setLifecycleError(null);
+  }
+
+  async function handleLifecycleSubmit(reason: string) {
+    if (lifecycleAction === null) {
+      return;
+    }
+
+    const normalizedReason = reason.trim();
+    const requestId =
+      lifecycleAttempt?.receptionId === lifecycleAction.reception.id &&
+      lifecycleAttempt.mode === lifecycleAction.mode &&
+      lifecycleAttempt.normalizedReason === normalizedReason
+        ? lifecycleAttempt.requestId
+        : crypto.randomUUID();
+
+    setLifecycleAttempt({
+      receptionId: lifecycleAction.reception.id,
+      mode: lifecycleAction.mode,
+      normalizedReason,
+      requestId,
+    });
+    setLifecycleError(null);
+
+    try {
+      await lifecycleMutation.mutateAsync({
+        id: lifecycleAction.reception.id,
+        mode: lifecycleAction.mode,
+        payload: { requestId, reason: normalizedReason },
+      });
+
+      await refreshReceptionAndHistory(lifecycleAction.reception.id);
+
+      if (lifecycleAction.mode === "deactivate") {
+        toast.success("La recepción fue desactivada.");
+      } else if (lifecycleAction.mode === "restore") {
+        toast.success("La recepción fue restaurada.");
+      } else {
+        toast.success(
+          "Solicitud de desactivación registrada. La recepción permanece activa; Owner o Admin debe revisarla de forma independiente.",
+        );
+      }
+
+      setLifecycleAction(null);
+      setLifecycleAttempt(null);
+      setLifecycleError(null);
+    } catch (error) {
+      const details = getLifecycleErrorDetails(error);
+
+      if (details.eventRecorded) {
+        await queryClient.invalidateQueries({
+          queryKey: ["reception-lifecycle", lifecycleAction.reception.id],
+        });
+      }
+
+      setLifecycleError(details);
     }
   }
 
@@ -555,8 +724,13 @@ export function ReceptionsPage() {
               type="search"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Buscar por QR, mascota, cliente o usuario..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 sm:max-w-xl"
+              disabled={includeInactive}
+              placeholder={
+                includeInactive
+                  ? "La búsqueda está disponible en la vista de activas"
+                  : "Buscar por QR, mascota, cliente o usuario..."
+              }
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 sm:max-w-xl"
             />
 
             {searchInput && (
@@ -569,6 +743,25 @@ export function ReceptionsPage() {
               </button>
             )}
           </div>
+
+          {canApproveLifecycle && (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={includeInactive}
+                onChange={(event) => {
+                  const nextValue = event.target.checked;
+                  setIncludeInactive(nextValue);
+                  if (nextValue) {
+                    setSearchInput("");
+                    setDebouncedSearch("");
+                  }
+                }}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Incluir inactivas
+            </label>
+          )}
 
           <select
             value={pageSize}
@@ -611,9 +804,17 @@ export function ReceptionsPage() {
         {!receptionsQuery.isLoading && !receptionsQuery.isError && (
           <ReceptionsTable
             receptions={receptions}
-            pendingReceptionId={deactivateMutation.variables ?? null}
+            includeInactive={includeInactive}
+            pendingLifecycleReceptionId={
+              lifecycleMutation.isPending
+                ? (lifecycleMutation.variables?.id ?? null)
+                : null
+            }
             canManage={canManage}
             canAmend={canAmend}
+            canApproveLifecycle={canApproveLifecycle}
+            canRequestDeactivation={canRequestDeactivation}
+            canViewLifecycleHistory={canViewLifecycleHistory}
             onCopyQrCode={handleCopyQrCode}
             onEdit={(reception) =>
               setModalState({
@@ -630,7 +831,8 @@ export function ReceptionsPage() {
               setClarificationReception(reception);
             }}
             onHistory={setHistoryReception}
-            onDeactivate={handleDeactivate}
+            onLifecycleHistory={setLifecycleHistoryReception}
+            onLifecycleAction={openLifecycleAction}
           />
         )}
       </div>
@@ -709,6 +911,28 @@ export function ReceptionsPage() {
           void historyQuery.refetch();
         }}
         onClose={() => setHistoryReception(null)}
+      />
+      <ReceptionLifecycleHistoryModal
+        isOpen={lifecycleHistoryReception !== null}
+        reception={lifecycleHistoryReception}
+        history={lifecycleHistoryQuery.data ?? []}
+        isLoading={lifecycleHistoryQuery.isLoading}
+        isError={lifecycleHistoryQuery.isError}
+        onRetry={() => {
+          void lifecycleHistoryQuery.refetch();
+        }}
+        onClose={() => setLifecycleHistoryReception(null)}
+      />
+      <ReceptionLifecycleActionModal
+        isOpen={lifecycleAction !== null}
+        mode={lifecycleAction?.mode ?? "deactivate"}
+        reception={lifecycleAction?.reception ?? null}
+        isSubmitting={lifecycleMutation.isPending}
+        serverError={lifecycleError?.message ?? null}
+        blockedDependencies={lifecycleError?.dependencies ?? []}
+        onReasonChange={() => setLifecycleError(null)}
+        onClose={closeLifecycleAction}
+        onSubmit={handleLifecycleSubmit}
       />
       {weightRangeChangeConfirmation && (
         <WeightRangeChangeConfirmationModal
