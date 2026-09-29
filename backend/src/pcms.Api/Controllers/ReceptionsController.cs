@@ -71,14 +71,21 @@ public class ReceptionsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedReceptionsDto>> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool includeInactive = false)
     {
         try
         {
+            var actorUserId = includeInactive
+                ? GetCurrentUserId()
+                : null;
+
             var receptions =
                 await _receptionService.GetAllAsync(
                     page,
-                    pageSize);
+                    pageSize,
+                    includeInactive,
+                    actorUserId);
 
             return Ok(receptions);
         }
@@ -90,14 +97,42 @@ public class ReceptionsController : ControllerBase
                 message = ex.Message
             });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+        }
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ReceptionDto>> GetById(
-        Guid id)
+        Guid id,
+        [FromQuery] bool includeInactive = false)
     {
-        var reception =
-            await _receptionService.GetByIdAsync(id);
+        ReceptionDto? reception;
+
+        try
+        {
+            reception = await _receptionService.GetByIdAsync(
+                id,
+                includeInactive,
+                includeInactive ? GetCurrentUserId() : null);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+        }
 
         if (reception == null)
         {
@@ -396,45 +431,58 @@ public class ReceptionsController : ControllerBase
         return Ok(history);
     }
 
+    [HttpPost("{id:guid}/lifecycle/deactivate")]
+    [Authorize(Policy = PermissionCodes.ReceptionsManage)]
+    public async Task<ActionResult<ReceptionLifecycleDecisionDto>>
+        DeactivateLifecycle(
+            Guid id,
+            ReceptionLifecycleActionRequestDto request) =>
+        await ExecuteLifecycleAction(
+            id,
+            request,
+            _receptionService.DeactivateAsync);
 
-    [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "Receptions.Manage")]
-    public async Task<IActionResult> Deactivate(Guid id)
+    [HttpPost("{id:guid}/lifecycle/restore")]
+    [Authorize(Policy = PermissionCodes.ReceptionsManage)]
+    public async Task<ActionResult<ReceptionLifecycleDecisionDto>>
+        RestoreLifecycle(
+            Guid id,
+            ReceptionLifecycleActionRequestDto request) =>
+        await ExecuteLifecycleAction(
+            id,
+            request,
+            _receptionService.RestoreAsync);
+
+    [HttpPost("{id:guid}/lifecycle/deactivation-request")]
+    [Authorize(Policy = PermissionCodes.ReceptionsManage)]
+    public async Task<ActionResult<ReceptionLifecycleDecisionDto>>
+        RequestDeactivation(
+            Guid id,
+            ReceptionLifecycleActionRequestDto request) =>
+        await ExecuteLifecycleAction(
+            id,
+            request,
+            _receptionService.RequestDeactivationAsync);
+
+    [HttpGet("{id:guid}/lifecycle")]
+    [Authorize(Policy = PermissionCodes.ReceptionsView)]
+    public async Task<ActionResult<
+        IReadOnlyList<ReceptionLifecycleEventDto>>>
+        GetLifecycleHistory(Guid id)
     {
-        var success =
-            await _receptionService.DeactivateAsync(id);
+        var history =
+            await _receptionService.GetLifecycleHistoryAsync(id);
 
-        if (!success)
+        if (history is null)
         {
             return NotFound(new
             {
                 success = false,
-                message =
-                    "No se encontró una recepción activa."
+                message = "Recepción no encontrada."
             });
         }
 
-        return NoContent();
-    }
-
-    [HttpPatch("{id:guid}/restore")]
-    [Authorize(Policy = "Receptions.Manage")]
-    public async Task<IActionResult> Restore(Guid id)
-    {
-        var success =
-            await _receptionService.RestoreAsync(id);
-
-        if (!success)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message =
-                    "No se encontró una recepción inactiva."
-            });
-        }
-
-        return NoContent();
+        return Ok(history);
     }
 
     [HttpGet("search")]
@@ -467,6 +515,73 @@ public class ReceptionsController : ControllerBase
         return Guid.TryParse(userIdValue, out var userId)
             ? userId
             : null;
+    }
+
+    private async Task<ActionResult<ReceptionLifecycleDecisionDto>>
+        ExecuteLifecycleAction(
+            Guid id,
+            ReceptionLifecycleActionRequestDto request,
+            Func<Guid, ReceptionLifecycleActionRequestDto, Guid,
+                Task<ReceptionLifecycleDecisionDto?>> action)
+    {
+        var actorUserId = GetCurrentUserId();
+
+        if (!actorUserId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message =
+                    "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+        try
+        {
+            var decision = await action(
+                id,
+                request,
+                actorUserId.Value);
+
+            if (decision is null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Recepción no encontrada."
+                });
+            }
+
+            return decision.IsBlocked
+                ? Conflict(decision)
+                : Ok(decision);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
     }
 
     private ConflictObjectResult WeightRangeConfirmationRequired(

@@ -38,13 +38,64 @@ public class PaymentService : IPaymentService
                 "La cremación es requerida.");
         }
 
-        var cremation =
-    await _context.Cremations
-        .AsNoTracking()
-        .Include(c => c.CremationPackage)
-        .FirstOrDefaultAsync(c =>
-            c.Id == dto.CremationId &&
-            c.IsActive);
+        try
+        {
+            return await CreateAccountCoreAsync(dto);
+        }
+        catch (Exception exception)
+            when (IsReceptionPaymentConcurrencyConflict(exception))
+        {
+            throw new InvalidOperationException(
+                "La operación cambió mientras se procesaba. " +
+                "Actualiza la información e intenta nuevamente.",
+                exception);
+        }
+    }
+
+    private async Task<PaymentAccountDto> CreateAccountCoreAsync(
+        CreatePaymentAccountDto dto)
+    {
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var receptionIds = await _context.Database
+            .SqlQuery<Guid>($"""
+                SELECT reception."Id" AS "Value"
+                FROM "Recepciones" AS reception
+                INNER JOIN "Cremaciones" AS cremation
+                    ON cremation."RecepcionId" = reception."Id"
+                WHERE cremation."Id" = {dto.CremationId}
+                FOR UPDATE OF reception
+                """)
+            .ToListAsync();
+
+        if (receptionIds.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No se encontró la recepción de la cremación.");
+        }
+
+        var receptionId = receptionIds[0];
+        var receptionIsActive = await _context.Receptions
+            .AsNoTracking()
+            .AnyAsync(reception =>
+                reception.Id == receptionId &&
+                reception.IsActive);
+
+        if (!receptionIsActive)
+        {
+            throw new InvalidOperationException(
+                "No se puede crear una cuenta de pago para una recepción inactiva.");
+        }
+
+        var cremation = await _context.Cremations
+            .AsNoTracking()
+            .Include(current => current.CremationPackage)
+            .FirstOrDefaultAsync(current =>
+                current.Id == dto.CremationId &&
+                current.ReceptionId == receptionId &&
+                current.IsActive);
 
         if (cremation == null)
         {
@@ -89,10 +140,30 @@ public class PaymentService : IPaymentService
         _context.PaymentAccounts.Add(account);
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return await GetByIdAsync(account.Id)
             ?? throw new InvalidOperationException(
                 "No fue posible recuperar la cuenta de pago creada.");
+    }
+
+    private static bool IsReceptionPaymentConcurrencyConflict(
+        Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is PostgresException postgresException &&
+                postgresException.SqlState is
+                    PostgresErrorCodes.SerializationFailure or
+                    PostgresErrorCodes.DeadlockDetected)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task<PaymentAccountDto>

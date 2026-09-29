@@ -10,9 +10,14 @@ public interface IReceptionService
 
     Task<PagedReceptionsDto> GetAllAsync(
         int page,
-        int pageSize);
+        int pageSize,
+        bool includeInactive = false,
+        Guid? actorUserId = null);
 
-    Task<ReceptionDto?> GetByIdAsync(Guid id);
+    Task<ReceptionDto?> GetByIdAsync(
+        Guid id,
+        bool includeInactive = false,
+        Guid? actorUserId = null);
 
     Task<ReceptionDto?> GetByQrCodeAsync(string qrCode);
 
@@ -34,9 +39,23 @@ public interface IReceptionService
     Task<IReadOnlyList<ReceptionHistoryEventDto>?> GetHistoryAsync(
         Guid id);
 
-    Task<bool> DeactivateAsync(Guid id);
+    Task<ReceptionLifecycleDecisionDto?> DeactivateAsync(
+        Guid id,
+        ReceptionLifecycleActionRequestDto request,
+        Guid actorUserId);
 
-    Task<bool> RestoreAsync(Guid id);
+    Task<ReceptionLifecycleDecisionDto?> RestoreAsync(
+        Guid id,
+        ReceptionLifecycleActionRequestDto request,
+        Guid actorUserId);
+
+    Task<ReceptionLifecycleDecisionDto?> RequestDeactivationAsync(
+        Guid id,
+        ReceptionLifecycleActionRequestDto request,
+        Guid actorUserId);
+
+    Task<IReadOnlyList<ReceptionLifecycleEventDto>?>
+        GetLifecycleHistoryAsync(Guid id);
 
     Task<IEnumerable<ReceptionDto>> SearchAsync(string search);
 }

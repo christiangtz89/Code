@@ -253,7 +253,9 @@ public partial class ReceptionService : IReceptionService
 
     public async Task<PagedReceptionsDto> GetAllAsync(
     int page,
-    int pageSize)
+    int pageSize,
+    bool includeInactive = false,
+    Guid? actorUserId = null)
     {
         if (page < 1)
         {
@@ -269,9 +271,14 @@ public partial class ReceptionService : IReceptionService
                 "El tamaño de página debe estar entre 1 y 100.");
         }
 
+        if (includeInactive)
+        {
+            await EnsureInactiveReceptionReadAuthorizedAsync(actorUserId);
+        }
+
         var query = _context.Receptions
             .AsNoTracking()
-            .Where(r => r.IsActive);
+            .Where(r => includeInactive || r.IsActive);
 
         var totalItems = await query.CountAsync();
 
@@ -369,13 +376,21 @@ public partial class ReceptionService : IReceptionService
         };
     }
 
-    public async Task<ReceptionDto?> GetByIdAsync(Guid id)
+    public async Task<ReceptionDto?> GetByIdAsync(
+        Guid id,
+        bool includeInactive = false,
+        Guid? actorUserId = null)
     {
+        if (includeInactive)
+        {
+            await EnsureInactiveReceptionReadAuthorizedAsync(actorUserId);
+        }
+
         var reception = await _context.Receptions
             .AsNoTracking()
             .Where(r =>
                 r.Id == id &&
-                r.IsActive)
+                (includeInactive || r.IsActive))
             .Select(r => new ReceptionDto
             {
                 Id = r.Id,
@@ -1023,44 +1038,6 @@ public partial class ReceptionService : IReceptionService
         await EnrichReceptionDtosAsync([result]);
 
         return result;
-    }
-
-    public async Task<bool> DeactivateAsync(Guid id)
-    {
-        var reception = await _context.Receptions
-            .FirstOrDefaultAsync(r =>
-                r.Id == id &&
-                r.IsActive);
-
-        if (reception == null)
-        {
-            return false;
-        }
-
-        reception.IsActive = false;
-
-        await _context.SaveChangesAsync();
-
-        return true;
-    }
-
-    public async Task<bool> RestoreAsync(Guid id)
-    {
-        var reception = await _context.Receptions
-            .FirstOrDefaultAsync(r =>
-                r.Id == id &&
-                !r.IsActive);
-
-        if (reception == null)
-        {
-            return false;
-        }
-
-        reception.IsActive = true;
-
-        await _context.SaveChangesAsync();
-
-        return true;
     }
 
     public async Task<IEnumerable<ReceptionDto>> SearchAsync(

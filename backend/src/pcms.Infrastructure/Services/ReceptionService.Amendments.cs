@@ -404,9 +404,7 @@ public partial class ReceptionService
     {
         var receptionExists = await _context.Receptions
             .AsNoTracking()
-            .AnyAsync(item =>
-                item.Id == id &&
-                item.IsActive);
+            .AnyAsync(item => item.Id == id);
 
         if (!receptionExists)
         {
