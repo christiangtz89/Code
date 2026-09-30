@@ -3,7 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { getPets } from "../../pets/api/petsApi";
-import { getVeterinariansByClinic } from "../../veterinarians/api/veterinariansApi";
+import {
+  getVeterinarians,
+  getVeterinariansByClinic,
+} from "../../veterinarians/api/veterinariansApi";
 import { getVeterinarianFullName } from "../../veterinarians/utils/veterinarianName";
 import { getVeterinaryClinics } from "../../veterinary-clinics/api/veterinaryClinicsApi";
 import {
@@ -56,6 +59,11 @@ export function ReceptionFormModal({
     name: "veterinaryClinicId",
   });
 
+  const selectedVeterinarianId = useWatch({
+    control,
+    name: "referringVeterinarianId",
+  });
+
   const hasPersonalBelongings = useWatch({
     control,
     name: "hasPersonalBelongings",
@@ -88,11 +96,29 @@ export function ReceptionFormModal({
   });
 
   const veterinariansQuery = useQuery({
-    queryKey: ["veterinarians", "reception-options", selectedClinicId],
+    queryKey: [
+      "veterinarians",
+      "reception-options",
+      selectedClinicId || "independent",
+    ],
 
-    queryFn: () => getVeterinariansByClinic(selectedClinicId, true),
+    queryFn: async () => {
+      if (selectedClinicId) {
+        return getVeterinariansByClinic(selectedClinicId, true);
+      }
 
-    enabled: isOpen && selectedClinicId.length > 0,
+      const result = await getVeterinarians({
+        page: 1,
+        pageSize: 100,
+        isActive: true,
+      });
+
+      return result.items.filter(
+        (veterinarian) => veterinarian.veterinaryClinicId === null,
+      );
+    },
+
+    enabled: isOpen,
   });
 
   const pets = useMemo(
@@ -146,10 +172,25 @@ export function ReceptionFormModal({
       (veterinarian) => veterinarian.id === reception.referringVeterinarianId,
     );
 
+  const isOriginalClinicContext =
+    reception !== null &&
+    selectedClinicId === (reception.veterinaryClinicId ?? "");
+
+  const shouldShowHistoricalVeterinarian =
+    veterinarianIsMissingFromOptions &&
+    isOriginalClinicContext &&
+    selectedVeterinarianId === reception?.referringVeterinarianId;
+
   const isCollectionOrigin =
     mode === "edit" && reception?.isCollectionOrigin === true;
   const isNormalEditLocked =
     mode === "edit" && reception?.isNormalEditLocked === true;
+  const isReferralSourceLocked =
+    mode === "edit" &&
+    (reception?.isVeterinaryRequestOrigin === true ||
+      reception?.isCollectionOrigin === true);
+  const hasReferralSource =
+    selectedClinicId.length > 0 || selectedVeterinarianId.length > 0;
 
   useEffect(() => {
     if (!isOpen) {
@@ -385,7 +426,10 @@ export function ReceptionFormModal({
                 <select
                   id="reception-clinic"
                   disabled={
-                    isSubmitting || clinicsQuery.isLoading || isNormalEditLocked
+                    isSubmitting ||
+                    clinicsQuery.isLoading ||
+                    isNormalEditLocked ||
+                    isReferralSourceLocked
                   }
                   {...clinicField}
                   onChange={(event) => {
@@ -394,19 +438,13 @@ export function ReceptionFormModal({
                     setValue("referringVeterinarianId", "", {
                       shouldValidate: true,
                     });
-
-                    if (event.target.value === "") {
-                      setValue("referralNotes", "", {
-                        shouldValidate: true,
-                      });
-                    }
                   }}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 >
                   <option value="">
                     {clinicsQuery.isLoading
                       ? "Cargando veterinarias..."
-                      : "Recepción directa"}
+                      : "Sin veterinaria / independiente"}
                   </option>
 
                   {clinicIsMissingFromOptions &&
@@ -446,21 +484,22 @@ export function ReceptionFormModal({
                   disabled={
                     isSubmitting ||
                     isNormalEditLocked ||
-                    selectedClinicId.length === 0 ||
-                    veterinariansQuery.isLoading
+                    isReferralSourceLocked ||
+                    veterinariansQuery.isLoading ||
+                    veterinariansQuery.isError
                   }
                   {...register("referringVeterinarianId")}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 >
                   <option value="">
-                    {selectedClinicId.length === 0
-                      ? "Selecciona primero una veterinaria"
-                      : veterinariansQuery.isLoading
-                        ? "Cargando veterinarios..."
-                        : "Sin veterinario referente"}
+                    {veterinariansQuery.isLoading
+                      ? "Cargando veterinarios..."
+                      : selectedClinicId.length > 0
+                        ? "Sin veterinario referente"
+                        : "Sin veterinario / recepción directa"}
                   </option>
 
-                  {veterinarianIsMissingFromOptions &&
+                  {shouldShowHistoricalVeterinarian &&
                     reception?.referringVeterinarianId && (
                       <option value={reception.referringVeterinarianId}>
                         Dr.{" "}
@@ -481,8 +520,28 @@ export function ReceptionFormModal({
                     {errors.referringVeterinarianId.message}
                   </p>
                 )}
+
+                {veterinariansQuery.isError && (
+                  <div className="mt-2 text-sm text-red-600">
+                    <p>No fue posible cargar los veterinarios activos.</p>
+                    <button
+                      type="button"
+                      onClick={() => void veterinariansQuery.refetch()}
+                      className="mt-1 font-medium underline underline-offset-2"
+                    >
+                      Intentar nuevamente
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
+
+            {isReferralSourceLocked && (
+              <p className="mt-3 text-xs text-slate-500">
+                La veterinaria y el veterinario provienen del registro de origen
+                y no pueden modificarse desde la edición normal.
+              </p>
+            )}
 
             <div className="mt-5">
               <label
@@ -500,9 +559,7 @@ export function ReceptionFormModal({
                 rows={3}
                 maxLength={1000}
                 disabled={
-                  isSubmitting ||
-                  isNormalEditLocked ||
-                  selectedClinicId.length === 0
+                  isSubmitting || isNormalEditLocked || !hasReferralSource
                 }
                 {...register("referralNotes")}
                 className="mt-2 block w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"

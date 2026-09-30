@@ -70,23 +70,15 @@ export const receptionSchema = z
     }
 
     if (
-      values.referringVeterinarianId !== "" &&
-      values.veterinaryClinicId === ""
+      values.referralNotes.length > 0 &&
+      values.veterinaryClinicId === "" &&
+      values.referringVeterinarianId === ""
     ) {
-      context.addIssue({
-        code: "custom",
-        path: ["referringVeterinarianId"],
-        message:
-          "Debe seleccionar una veterinaria antes de elegir al veterinario referente.",
-      });
-    }
-
-    if (values.referralNotes.length > 0 && values.veterinaryClinicId === "") {
       context.addIssue({
         code: "custom",
         path: ["referralNotes"],
         message:
-          "Debe seleccionar una veterinaria para registrar notas de referencia.",
+          "Debe seleccionar una veterinaria o un veterinario para registrar notas de referencia.",
       });
     }
   });

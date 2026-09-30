@@ -59,6 +59,10 @@ export function ReceptionCorrectionModal({
     control,
     name: "veterinaryClinicId",
   });
+  const selectedVeterinarianId = useWatch({
+    control,
+    name: "referringVeterinarianId",
+  });
   const hasPersonalBelongings = useWatch({
     control,
     name: "hasPersonalBelongings",
@@ -147,6 +151,10 @@ export function ReceptionCorrectionModal({
     !veterinarians.some(
       (veterinarian) => veterinarian.id === reception.referringVeterinarianId,
     );
+  const shouldShowHistoricalVeterinarian =
+    veterinarianIsMissing &&
+    selectedClinicId === (reception.veterinaryClinicId ?? "") &&
+    selectedVeterinarianId === reception.referringVeterinarianId;
 
   async function submit(values: ReceptionCorrectionFormValues) {
     const draft = buildReceptionCorrectionDraft(activeReception, values);
@@ -387,7 +395,7 @@ export function ReceptionCorrectionModal({
                         ? "Sin veterinario referente"
                         : "Sin veterinario / recepción directa"}
                   </option>
-                  {veterinarianIsMissing &&
+                  {shouldShowHistoricalVeterinarian &&
                     reception.referringVeterinarianId && (
                       <option value={reception.referringVeterinarianId}>
                         Dr. {reception.referringVeterinarianName ?? "Actual"}
