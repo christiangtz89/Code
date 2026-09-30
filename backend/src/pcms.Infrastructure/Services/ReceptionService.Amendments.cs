@@ -128,24 +128,6 @@ public partial class ReceptionService
             dto.ReferringVeterinarianId is not null ||
             dto.ReferralNotes is not null;
 
-        var previouslyCorrectedReferralFields = referralCorrectionRequested
-            ? await _context.ReceptionHistoryEvents
-                .AsNoTracking()
-                .Where(historyEvent =>
-                    historyEvent.ReceptionId == reception.Id &&
-                    historyEvent.EventKind ==
-                        ReceptionHistoryEventKind.Correction)
-                .SelectMany(historyEvent => historyEvent.Changes)
-                .Where(change =>
-                    change.Field ==
-                        ReceptionHistoryField.VeterinaryClinicId ||
-                    change.Field ==
-                        ReceptionHistoryField.ReferringVeterinarianId)
-                .Select(change => change.Field)
-                .Distinct()
-                .ToListAsync()
-            : [];
-
         var referral = referralCorrectionRequested
             ? await ValidateReferralSourceAsync(
                 requestedClinicId,
@@ -160,10 +142,7 @@ public partial class ReceptionService
             ReceptionHistoryField.VeterinaryClinicId,
             reception.VeterinaryClinicId,
             requestedClinicId,
-            GetEffectiveClinicDisplayName(
-                reception,
-                previouslyCorrectedReferralFields.Contains(
-                    ReceptionHistoryField.VeterinaryClinicId)),
+            GetEffectiveClinicDisplayName(reception),
             referral.Clinic?.Name,
             changes);
 
@@ -172,10 +151,7 @@ public partial class ReceptionService
             ReceptionHistoryField.ReferringVeterinarianId,
             reception.ReferringVeterinarianId,
             requestedVeterinarianId,
-            GetEffectiveVeterinarianDisplayName(
-                reception,
-                previouslyCorrectedReferralFields.Contains(
-                    ReceptionHistoryField.ReferringVeterinarianId)),
+            GetEffectiveVeterinarianDisplayName(reception),
             GetVeterinarianFullName(referral.Veterinarian),
             changes);
 
@@ -222,8 +198,20 @@ public partial class ReceptionService
                 "La corrección no contiene cambios efectivos.");
         }
 
-        reception.VeterinaryClinicId = requestedClinicId;
-        reception.ReferringVeterinarianId = requestedVeterinarianId;
+        if (dto.VeterinaryClinicId is not null)
+        {
+            reception.VeterinaryClinicId = requestedClinicId;
+            reception.VeterinaryClinicNameSnapshot =
+                referral.Clinic?.Name;
+        }
+
+        if (dto.ReferringVeterinarianId is not null)
+        {
+            reception.ReferringVeterinarianId = requestedVeterinarianId;
+            reception.ReferringVeterinarianNameSnapshot =
+                GetVeterinarianFullName(referral.Veterinarian);
+        }
+
         reception.ReferralNotes = normalizedReferralNotes;
         reception.HasPersonalBelongings = requestedHasBelongings;
         reception.PersonalBelongingsDescription =
@@ -473,10 +461,12 @@ public partial class ReceptionService
                     ? (CremationStatus?)null
                     : item.Cremation.Status,
                 item.VeterinaryClinicId,
+                item.VeterinaryClinicNameSnapshot,
                 VeterinaryClinicName = item.VeterinaryClinic == null
                     ? null
                     : item.VeterinaryClinic.Name,
                 item.ReferringVeterinarianId,
+                item.ReferringVeterinarianNameSnapshot,
                 VeterinarianFirstName =
                     item.ReferringVeterinarian == null
                         ? null
@@ -489,20 +479,9 @@ public partial class ReceptionService
                     item.ReferringVeterinarian == null
                         ? null
                         : item.ReferringVeterinarian.SecondLastName,
-                HasClinicCorrection = item.HistoryEvents.Any(
-                    historyEvent =>
-                        historyEvent.EventKind ==
-                            ReceptionHistoryEventKind.Correction &&
-                        historyEvent.Changes.Any(change =>
-                            change.Field ==
-                            ReceptionHistoryField.VeterinaryClinicId)),
-                HasVeterinarianCorrection = item.HistoryEvents.Any(
-                    historyEvent =>
-                        historyEvent.EventKind ==
-                            ReceptionHistoryEventKind.Correction &&
-                        historyEvent.Changes.Any(change =>
-                            change.Field ==
-                            ReceptionHistoryField.ReferringVeterinarianId))
+                item.ReceivedByUserNameSnapshot,
+                ReceivedByUserFirstName = item.ReceivedByUser.FirstName,
+                ReceivedByUserLastName = item.ReceivedByUser.LastName
             })
             .ToDictionaryAsync(item => item.Id);
 
@@ -553,34 +532,33 @@ public partial class ReceptionService
                 ? GetHistoryStage(state.CremationStatus.Value)
                 : ReceptionHistoryStage.BeforeCremation;
 
-            if (state.HasClinicCorrection)
-            {
-                reception.VeterinaryClinicId =
-                    state.VeterinaryClinicId;
-                reception.VeterinaryClinicName =
-                    state.VeterinaryClinicName;
-            }
+            reception.ReceivedByUserName =
+                ResolveHistoricalDisplayName(
+                    state.ReceivedByUserNameSnapshot,
+                    reception.ReceivedByUserId,
+                    BuildUserNameSnapshot(
+                        state.ReceivedByUserFirstName,
+                        state.ReceivedByUserLastName)) ??
+                string.Empty;
 
-            if (state.HasVeterinarianCorrection)
-            {
-                reception.ReferringVeterinarianId =
-                    state.ReferringVeterinarianId;
-                reception.ReferringVeterinarianName = string.Join(
-                    " ",
-                    new[]
-                    {
+            reception.VeterinaryClinicId =
+                state.VeterinaryClinicId;
+            reception.VeterinaryClinicName =
+                ResolveHistoricalDisplayName(
+                    state.VeterinaryClinicNameSnapshot,
+                    state.VeterinaryClinicId,
+                    state.VeterinaryClinicName);
+
+            reception.ReferringVeterinarianId =
+                state.ReferringVeterinarianId;
+            reception.ReferringVeterinarianName =
+                ResolveHistoricalDisplayName(
+                    state.ReferringVeterinarianNameSnapshot,
+                    state.ReferringVeterinarianId,
+                    GetVeterinarianFullName(
                         state.VeterinarianFirstName,
                         state.VeterinarianLastName,
-                        state.VeterinarianSecondLastName
-                    }.Where(value =>
-                        !string.IsNullOrWhiteSpace(value)));
-
-                if (string.IsNullOrWhiteSpace(
-                        reception.ReferringVeterinarianName))
-                {
-                    reception.ReferringVeterinarianName = null;
-                }
-            }
+                        state.VeterinarianSecondLastName));
 
             if (latestReportedWeights.TryGetValue(
                     reception.Id,
@@ -1362,33 +1340,21 @@ public partial class ReceptionService
     }
 
     private static string? GetEffectiveClinicDisplayName(
-        Reception reception,
-        bool hasPriorCorrection)
+        Reception reception)
     {
-        if (hasPriorCorrection)
-        {
-            return reception.VeterinaryClinic?.Name;
-        }
-
-        return reception.VeterinaryRequest?.VeterinaryClinicNameSnapshot ??
-            reception.Collection?.VeterinaryClinicNameSnapshot ??
-            reception.VeterinaryClinic?.Name;
+        return ResolveHistoricalDisplayName(
+            reception.VeterinaryClinicNameSnapshot,
+            reception.VeterinaryClinicId,
+            reception.VeterinaryClinic?.Name);
     }
 
     private static string? GetEffectiveVeterinarianDisplayName(
-        Reception reception,
-        bool hasPriorCorrection)
+        Reception reception)
     {
-        if (hasPriorCorrection)
-        {
-            return GetVeterinarianFullName(
-                reception.ReferringVeterinarian);
-        }
-
-        return reception.VeterinaryRequest?
-                .ReferringVeterinarianNameSnapshot ??
-            reception.Collection?.ReferringVeterinarianNameSnapshot ??
-            GetVeterinarianFullName(reception.ReferringVeterinarian);
+        return ResolveHistoricalDisplayName(
+            reception.ReferringVeterinarianNameSnapshot,
+            reception.ReferringVeterinarianId,
+            GetVeterinarianFullName(reception.ReferringVeterinarian));
     }
 
     private static ReceptionHistoryEventDto MapHistoryEvent(

@@ -656,11 +656,27 @@ public class VeterinaryRequestService
             ReceivedByUserId =
                 receivedByUser.Id,
 
+            ReceivedByUserNameSnapshot =
+                BuildPersonName(
+                    receivedByUser.FirstName,
+                    receivedByUser.LastName,
+                    null),
+
             VeterinaryClinicId =
                 request.VeterinaryClinicId,
 
+            VeterinaryClinicNameSnapshot =
+                request.VeterinaryClinicId.HasValue
+                    ? request.VeterinaryClinicNameSnapshot
+                    : null,
+
             ReferringVeterinarianId =
                 request.ReferringVeterinarianId,
+
+            ReferringVeterinarianNameSnapshot =
+                request.ReferringVeterinarianId.HasValue
+                    ? request.ReferringVeterinarianNameSnapshot
+                    : null,
 
             ReceivedAt = currentTime,
 

@@ -123,47 +123,6 @@ public partial class ReceptionService : IReceptionService
             dto.VeterinaryClinicId,
             dto.ReferringVeterinarianId,
             dto.ReferralNotes);
-
-
-
-        VeterinaryClinic? veterinaryClinic = null;
-        Veterinarian? referringVeterinarian = null;
-
-        if (dto.VeterinaryClinicId.HasValue)
-        {
-            veterinaryClinic = await _context.VeterinaryClinics
-                .FirstOrDefaultAsync(v =>
-                    v.Id == dto.VeterinaryClinicId.Value &&
-                    v.IsActive);
-
-            if (veterinaryClinic == null)
-            {
-                throw new InvalidOperationException(
-                    "Active veterinary clinic not found.");
-            }
-        }
-
-        if (dto.ReferringVeterinarianId.HasValue)
-        {
-            referringVeterinarian = await _context.Veterinarians
-                .FirstOrDefaultAsync(v =>
-                    v.Id == dto.ReferringVeterinarianId.Value &&
-                    v.IsActive);
-
-            if (referringVeterinarian == null)
-            {
-                throw new InvalidOperationException(
-                    "Active referring veterinarian not found.");
-            }
-
-            if (referringVeterinarian.VeterinaryClinicId !=
-                dto.VeterinaryClinicId)
-            {
-                throw new InvalidOperationException(
-                    "The referring veterinarian does not belong to the selected veterinary clinic.");
-            }
-        }
-
         var currentTime = DateTime.UtcNow;
         var identitySnapshot =
             CustomerPetWorkflowRules.CaptureReceptionIdentity(pet);
@@ -175,11 +134,17 @@ public partial class ReceptionService : IReceptionService
             PetNameSnapshot = identitySnapshot.PetName,
             CustomerNameSnapshot = identitySnapshot.CustomerName,
             ReceivedByUserId = receivedByUser.Id,
+            ReceivedByUserNameSnapshot =
+                BuildUserNameSnapshot(receivedByUser),
             VeterinaryClinicId =
         referral.Clinic?.Id,
+            VeterinaryClinicNameSnapshot =
+                referral.Clinic?.Name,
 
             ReferringVeterinarianId =
         referral.Veterinarian?.Id,
+            ReferringVeterinarianNameSnapshot =
+                GetVeterinarianFullName(referral.Veterinarian),
             ReferralNotes = string.IsNullOrWhiteSpace(dto.ReferralNotes)
                 ? null
                 : dto.ReferralNotes.Trim(),
@@ -215,20 +180,17 @@ public partial class ReceptionService : IReceptionService
             ReceivedByUserId =
                 reception.ReceivedByUserId,
             ReceivedByUserName =
-                receivedByUser.FirstName + " " +
-                receivedByUser.LastName,
+                reception.ReceivedByUserNameSnapshot,
             VeterinaryClinicId = reception.VeterinaryClinicId,
 
-            VeterinaryClinicName = veterinaryClinic?.Name,
+            VeterinaryClinicName =
+                reception.VeterinaryClinicNameSnapshot,
 
             ReferringVeterinarianId =
                 reception.ReferringVeterinarianId,
 
             ReferringVeterinarianName =
-                referringVeterinarian == null
-                ? null
-                : referringVeterinarian.FirstName + " " +
-                referringVeterinarian.LastName,
+                reception.ReferringVeterinarianNameSnapshot,
 
             IsVeterinaryRequestOrigin = false,
             VeterinaryRequestId = null,
@@ -718,14 +680,27 @@ public partial class ReceptionService : IReceptionService
             reception.VeterinaryClinicId;
 
         var originalVeterinaryClinicName =
-            reception.VeterinaryClinic?.Name;
+            ResolveHistoricalDisplayName(
+                reception.VeterinaryClinicNameSnapshot,
+                reception.VeterinaryClinicId,
+                reception.VeterinaryClinic?.Name);
 
         var originalReferringVeterinarianId =
             reception.ReferringVeterinarianId;
 
         var originalReferringVeterinarianName =
-            GetVeterinarianFullName(
-                reception.ReferringVeterinarian);
+            ResolveHistoricalDisplayName(
+                reception.ReferringVeterinarianNameSnapshot,
+                reception.ReferringVeterinarianId,
+                GetVeterinarianFullName(
+                    reception.ReferringVeterinarian));
+
+        var veterinaryClinicChanged =
+            dto.VeterinaryClinicId != originalVeterinaryClinicId;
+
+        var referringVeterinarianChanged =
+            dto.ReferringVeterinarianId !=
+                originalReferringVeterinarianId;
 
         var originalHasPersonalBelongings =
             reception.HasPersonalBelongings;
@@ -804,6 +779,18 @@ public partial class ReceptionService : IReceptionService
 
             reception.ReferringVeterinarianId =
                 referral.Veterinarian?.Id;
+
+            if (veterinaryClinicChanged)
+            {
+                reception.VeterinaryClinicNameSnapshot =
+                    referral.Clinic?.Name;
+            }
+
+            if (referringVeterinarianChanged)
+            {
+                reception.ReferringVeterinarianNameSnapshot =
+                    GetVeterinarianFullName(referral.Veterinarian);
+            }
         }
 
         var historyChanges =
@@ -840,7 +827,7 @@ public partial class ReceptionService : IReceptionService
                 OriginalDisplayValue =
                     originalVeterinaryClinicName,
                 NewDisplayValue =
-                    veterinaryClinic?.Name
+                    reception.VeterinaryClinicNameSnapshot
             });
         }
 
@@ -858,8 +845,7 @@ public partial class ReceptionService : IReceptionService
                 OriginalDisplayValue =
                     originalReferringVeterinarianName,
                 NewDisplayValue =
-                    GetVeterinarianFullName(
-                        referringVeterinarian)
+                    reception.ReferringVeterinarianNameSnapshot
             });
         }
 
@@ -1066,11 +1052,46 @@ public partial class ReceptionService : IReceptionService
                     r.CustomerNameSnapshot.ToLower()
                         .Contains(normalizedSearch) ||
 
-                    r.ReceivedByUser.FirstName.ToLower()
-                        .Contains(normalizedSearch) ||
+                    (
+                        r.ReceivedByUserNameSnapshot != null &&
+                        r.ReceivedByUserNameSnapshot.Trim() != ""
+                            ? r.ReceivedByUserNameSnapshot.ToLower()
+                                .Contains(normalizedSearch)
+                            : (r.ReceivedByUser.FirstName + " " +
+                               r.ReceivedByUser.LastName).ToLower()
+                                .Contains(normalizedSearch)
+                    ) ||
 
-                    r.ReceivedByUser.LastName.ToLower()
-                        .Contains(normalizedSearch)
+                    (
+                        r.VeterinaryClinicNameSnapshot != null &&
+                        r.VeterinaryClinicNameSnapshot.Trim() != ""
+                            ? r.VeterinaryClinicNameSnapshot.ToLower()
+                                .Contains(normalizedSearch)
+                            : r.VeterinaryClinicId.HasValue &&
+                              r.VeterinaryClinic != null &&
+                              r.VeterinaryClinic.Name.ToLower()
+                                .Contains(normalizedSearch)
+                    ) ||
+
+                    (
+                        r.ReferringVeterinarianNameSnapshot != null &&
+                        r.ReferringVeterinarianNameSnapshot.Trim() != ""
+                            ? r.ReferringVeterinarianNameSnapshot.ToLower()
+                                .Contains(normalizedSearch)
+                            : r.ReferringVeterinarianId.HasValue &&
+                              r.ReferringVeterinarian != null &&
+                              (
+                                  r.ReferringVeterinarian.FirstName + " " +
+                                  r.ReferringVeterinarian.LastName +
+                                  (
+                                      r.ReferringVeterinarian.SecondLastName == null ||
+                                      r.ReferringVeterinarian.SecondLastName.Trim() == ""
+                                          ? ""
+                                          : " " + r.ReferringVeterinarian.SecondLastName
+                                  )
+                              ).ToLower()
+                                  .Contains(normalizedSearch)
+                    )
                 ))
             .OrderByDescending(r => r.ReceivedAt)
             .Select(r => new ReceptionDto
@@ -1196,12 +1217,21 @@ public partial class ReceptionService : IReceptionService
 
     private static string BuildUserNameSnapshot(User user)
     {
+        return BuildUserNameSnapshot(
+            user.FirstName,
+            user.LastName);
+    }
+
+    private static string BuildUserNameSnapshot(
+        string? firstName,
+        string? lastName)
+    {
         var name = string.Join(
             " ",
             new[]
             {
-                user.FirstName,
-                user.LastName
+                firstName,
+                lastName
             }.Where(value =>
                 !string.IsNullOrWhiteSpace(value)));
 
@@ -1218,15 +1248,49 @@ public partial class ReceptionService : IReceptionService
             return null;
         }
 
-        return string.Join(
+        return GetVeterinarianFullName(
+            veterinarian.FirstName,
+            veterinarian.LastName,
+            veterinarian.SecondLastName);
+    }
+
+    private static string? GetVeterinarianFullName(
+        string? firstName,
+        string? lastName,
+        string? secondLastName)
+    {
+        var name = string.Join(
             " ",
             new[]
             {
-                veterinarian.FirstName,
-                veterinarian.LastName,
-                veterinarian.SecondLastName
+                firstName,
+                lastName,
+                secondLastName
             }.Where(value =>
                 !string.IsNullOrWhiteSpace(value)));
+
+        return string.IsNullOrWhiteSpace(name)
+            ? null
+            : name;
+    }
+
+    private static string? ResolveHistoricalDisplayName(
+        string? snapshot,
+        Guid? relatedId,
+        string? currentName)
+    {
+        if (!string.IsNullOrWhiteSpace(snapshot))
+        {
+            return snapshot;
+        }
+
+        if (!relatedId.HasValue ||
+            string.IsNullOrWhiteSpace(currentName))
+        {
+            return null;
+        }
+
+        return $"{currentName} (nombre histórico no disponible)";
     }
 
     private static string? NormalizeOptionalText(string? value)

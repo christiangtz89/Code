@@ -1477,6 +1477,9 @@ public class CollectionService : ICollectionService
             amountPaid > paymentAccount.ServiceTotal;
         paymentAccount.UpdatedAt = currentTime;
 
+        var receivedByUserNameSnapshot =
+            GetUserFullName(receivedByUser);
+
         var reception =
             new Reception
             {
@@ -1494,14 +1497,27 @@ public class CollectionService : ICollectionService
                 ReceivedByUserId =
                     receivedByUser.Id,
 
+                ReceivedByUserNameSnapshot =
+                    receivedByUserNameSnapshot,
+
                 CollectionId =
                     collection.Id,
 
                 VeterinaryClinicId =
                     collection.VeterinaryClinicId,
 
+                VeterinaryClinicNameSnapshot =
+                    collection.VeterinaryClinicId.HasValue
+                        ? collection.VeterinaryClinicNameSnapshot
+                        : null,
+
                 ReferringVeterinarianId =
                     collection.ReferringVeterinarianId,
+
+                ReferringVeterinarianNameSnapshot =
+                    collection.ReferringVeterinarianId.HasValue
+                        ? collection.ReferringVeterinarianNameSnapshot
+                        : null,
 
                 ReceivedAt =
                     currentTime,
@@ -1552,7 +1568,7 @@ public class CollectionService : ICollectionService
             receivedByUser.Id;
 
         collection.ReceivedByUserNameSnapshot =
-            GetUserFullName(receivedByUser);
+            receivedByUserNameSnapshot;
 
         await _context.SaveChangesAsync();
 
