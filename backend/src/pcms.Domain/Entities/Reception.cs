@@ -16,7 +16,13 @@ public class Reception
 
     public Guid? VeterinaryClinicId { get; set; }
 
+    public string? VeterinaryClinicNameSnapshot { get; set; }
+
     public Guid? ReferringVeterinarianId { get; set; }
+
+    public string? ReferringVeterinarianNameSnapshot { get; set; }
+
+    public string? ReceivedByUserNameSnapshot { get; set; }
 
     public DateTime ReceivedAt { get; set; }
 

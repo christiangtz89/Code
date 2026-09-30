@@ -536,8 +536,18 @@ public class AppDbContext : DbContext
         entity.Property(r => r.VeterinaryClinicId)
             .HasColumnName("VeterinariaId");
 
+        entity.Property(r => r.VeterinaryClinicNameSnapshot)
+            .HasColumnName("NombreVeterinariaSnapshot")
+            .HasMaxLength(200);
+
         entity.Property(r => r.ReferringVeterinarianId)
             .HasColumnName("VeterinarioReferenteId");
+
+        entity.Property(r => r.ReferringVeterinarianNameSnapshot)
+            .HasColumnName("NombreVeterinarioReferenteSnapshot");
+
+        entity.Property(r => r.ReceivedByUserNameSnapshot)
+            .HasColumnName("NombreUsuarioRecibioSnapshot");
 
         entity.Property(r => r.ReceivedAt)
             .HasColumnName("FechaRecepcion")
