@@ -5,9 +5,13 @@ import { useForm, useWatch } from "react-hook-form";
 import {
   getVeterinarians,
   getVeterinariansByClinic,
+  searchVeterinarians,
 } from "../../veterinarians/api/veterinariansApi";
 import { getVeterinarianFullName } from "../../veterinarians/utils/veterinarianName";
-import { getVeterinaryClinics } from "../../veterinary-clinics/api/veterinaryClinicsApi";
+import {
+  getVeterinaryClinics,
+  searchVeterinaryClinics,
+} from "../../veterinary-clinics/api/veterinaryClinicsApi";
 import {
   receptionCorrectionSchema,
   type ReceptionCorrectionFormValues,
@@ -18,6 +22,18 @@ import type {
 } from "../types/reception.types";
 import { buildReceptionCorrectionDraft } from "../utils/receptionCorrection";
 import { formatReceptionWeight } from "../utils/receptionFormatters";
+import { ReceptionLookupPagination } from "./ReceptionLookupPagination";
+
+interface SelectedLookupOption {
+  id: string;
+  label: string;
+}
+
+interface SelectedVeterinarianOption extends SelectedLookupOption {
+  veterinaryClinicId: string | null;
+}
+
+const RECEPTION_LOOKUP_PAGE_SIZE = 20;
 
 interface ReceptionCorrectionModalProps {
   isOpen: boolean;
@@ -35,6 +51,17 @@ export function ReceptionCorrectionModal({
   onSubmit,
 }: ReceptionCorrectionModalProps) {
   const [noChangesMessage, setNoChangesMessage] = useState<string | null>(null);
+  const [clinicSearchInput, setClinicSearchInput] = useState("");
+  const [debouncedClinicSearch, setDebouncedClinicSearch] = useState("");
+  const [clinicPage, setClinicPage] = useState(1);
+  const [selectedClinicOption, setSelectedClinicOption] =
+    useState<SelectedLookupOption | null>(null);
+  const [veterinarianSearchInput, setVeterinarianSearchInput] = useState("");
+  const [debouncedVeterinarianSearch, setDebouncedVeterinarianSearch] =
+    useState("");
+  const [veterinarianPage, setVeterinarianPage] = useState(1);
+  const [selectedVeterinarianOption, setSelectedVeterinarianOption] =
+    useState<SelectedVeterinarianOption | null>(null);
   const {
     register,
     reset,
@@ -68,11 +95,36 @@ export function ReceptionCorrectionModal({
     name: "hasPersonalBelongings",
   });
 
+  const normalizedClinicSearch = debouncedClinicSearch.trim();
+  const normalizedVeterinarianSearch = debouncedVeterinarianSearch.trim();
+  const isClinicSearchPending =
+    clinicSearchInput.trim() !== normalizedClinicSearch;
+  const isVeterinarianSearchPending =
+    veterinarianSearchInput.trim() !== normalizedVeterinarianSearch;
+
   const clinicsQuery = useQuery({
-    queryKey: ["veterinary-clinics", "reception-correction-options", true],
-    queryFn: () =>
-      getVeterinaryClinics({ page: 1, pageSize: 100, isActive: true }),
-    enabled: isOpen,
+    queryKey: [
+      "veterinary-clinics",
+      "reception-correction-options",
+      true,
+      normalizedClinicSearch,
+      clinicPage,
+    ],
+    queryFn: () => {
+      const params = {
+        page: clinicPage,
+        pageSize: RECEPTION_LOOKUP_PAGE_SIZE,
+        isActive: true,
+      };
+
+      return normalizedClinicSearch
+        ? searchVeterinaryClinics({
+            ...params,
+            search: normalizedClinicSearch,
+          })
+        : getVeterinaryClinics(params);
+    },
+    enabled: isOpen && !isClinicSearchPending,
   });
 
   const veterinariansQuery = useQuery({
@@ -80,22 +132,37 @@ export function ReceptionCorrectionModal({
       "veterinarians",
       "reception-correction-options",
       selectedClinicId || "independent",
+      selectedClinicId ? "clinic" : normalizedVeterinarianSearch,
+      selectedClinicId ? 1 : veterinarianPage,
     ],
     queryFn: async () => {
       if (selectedClinicId) {
-        return getVeterinariansByClinic(selectedClinicId, true);
+        const items = await getVeterinariansByClinic(selectedClinicId, true);
+        return {
+          items,
+          page: 1,
+          pageSize: items.length,
+          totalItems: items.length,
+          totalPages: 1,
+        };
       }
 
-      const result = await getVeterinarians({
-        page: 1,
-        pageSize: 100,
+      const params = {
+        page: veterinarianPage,
+        pageSize: RECEPTION_LOOKUP_PAGE_SIZE,
         isActive: true,
-      });
-      return result.items.filter(
-        (veterinarian) => veterinarian.veterinaryClinicId === null,
-      );
+        independentOnly: true,
+      };
+
+      return normalizedVeterinarianSearch
+        ? searchVeterinarians({
+            ...params,
+            search: normalizedVeterinarianSearch,
+          })
+        : getVeterinarians(params);
     },
-    enabled: isOpen,
+    enabled:
+      isOpen && (selectedClinicId.length > 0 || !isVeterinarianSearchPending),
   });
 
   const clinics = useMemo(
@@ -107,14 +174,18 @@ export function ReceptionCorrectionModal({
   );
   const veterinarians = useMemo(
     () =>
-      [...(veterinariansQuery.data ?? [])].sort((first, second) =>
+      [...(veterinariansQuery.data?.items ?? [])].sort((first, second) =>
         getVeterinarianFullName(first).localeCompare(
           getVeterinarianFullName(second),
           "es-MX",
         ),
       ),
-    [veterinariansQuery.data],
+    [veterinariansQuery.data?.items],
   );
+
+  const visibleClinics = isClinicSearchPending ? [] : clinics;
+  const visibleVeterinarians =
+    !selectedClinicId && isVeterinarianSearchPending ? [] : veterinarians;
 
   useEffect(() => {
     if (!isOpen || reception === null) {
@@ -134,7 +205,50 @@ export function ReceptionCorrectionModal({
       referralNotes: reception.referralNotes ?? "",
     });
     setNoChangesMessage(null);
+    setClinicSearchInput("");
+    setDebouncedClinicSearch("");
+    setClinicPage(1);
+    setSelectedClinicOption(
+      reception.veterinaryClinicId
+        ? {
+            id: reception.veterinaryClinicId,
+            label: reception.veterinaryClinicName ?? "Veterinaria actual",
+          }
+        : null,
+    );
+    setVeterinarianSearchInput("");
+    setDebouncedVeterinarianSearch("");
+    setVeterinarianPage(1);
+    setSelectedVeterinarianOption(
+      reception.referringVeterinarianId
+        ? {
+            id: reception.referringVeterinarianId,
+            label: `Dr. ${
+              reception.referringVeterinarianName ?? "Veterinario actual"
+            }`,
+            veterinaryClinicId: reception.veterinaryClinicId,
+          }
+        : null,
+    );
   }, [isOpen, reception, reset]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedClinicSearch(clinicSearchInput.trim());
+      setClinicPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [clinicSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedVeterinarianSearch(veterinarianSearchInput.trim());
+      setVeterinarianPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [veterinarianSearchInput]);
 
   if (!isOpen || reception === null) {
     return null;
@@ -142,19 +256,24 @@ export function ReceptionCorrectionModal({
 
   const activeReception = reception;
   const clinicField = register("veterinaryClinicId");
+  const veterinarianField = register("referringVeterinarianId");
   const belongingsField = register("hasPersonalBelongings");
-  const clinicIsMissing =
-    reception.veterinaryClinicId !== null &&
-    !clinics.some((clinic) => clinic.id === reception.veterinaryClinicId);
-  const veterinarianIsMissing =
-    reception.referringVeterinarianId !== null &&
-    !veterinarians.some(
-      (veterinarian) => veterinarian.id === reception.referringVeterinarianId,
-    );
-  const shouldShowHistoricalVeterinarian =
-    veterinarianIsMissing &&
-    selectedClinicId === (reception.veterinaryClinicId ?? "") &&
-    selectedVeterinarianId === reception.referringVeterinarianId;
+  const retainedClinicOption =
+    selectedClinicId &&
+    !visibleClinics.some((clinic) => clinic.id === selectedClinicId) &&
+    selectedClinicOption?.id === selectedClinicId
+      ? selectedClinicOption
+      : null;
+  const selectedClinicContext = selectedClinicId || null;
+  const retainedVeterinarianOption =
+    selectedVeterinarianId &&
+    !visibleVeterinarians.some(
+      (veterinarian) => veterinarian.id === selectedVeterinarianId,
+    ) &&
+    selectedVeterinarianOption?.id === selectedVeterinarianId &&
+    selectedVeterinarianOption.veterinaryClinicId === selectedClinicContext
+      ? selectedVeterinarianOption
+      : null;
 
   async function submit(values: ReceptionCorrectionFormValues) {
     const draft = buildReceptionCorrectionDraft(activeReception, values);
@@ -319,8 +438,33 @@ export function ReceptionCorrectionModal({
                 >
                   Veterinaria
                 </label>
+                <div className="mt-2">
+                  <label
+                    htmlFor="correction-clinic-search"
+                    className="block text-xs font-medium text-slate-600"
+                  >
+                    Buscar veterinaria
+                  </label>
+                  <input
+                    id="correction-clinic-search"
+                    type="search"
+                    value={clinicSearchInput}
+                    onChange={(event) =>
+                      setClinicSearchInput(event.target.value)
+                    }
+                    disabled={isSubmitting}
+                    placeholder="Nombre de la veterinaria"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                  />
+                  {isClinicSearchPending && (
+                    <p className="mt-1 text-xs text-slate-500" role="status">
+                      Buscando...
+                    </p>
+                  )}
+                </div>
                 <select
                   id="correction-clinic"
+                  value={selectedClinicId}
                   disabled={
                     isSubmitting ||
                     clinicsQuery.isLoading ||
@@ -329,24 +473,34 @@ export function ReceptionCorrectionModal({
                   {...clinicField}
                   onChange={(event) => {
                     clinicField.onChange(event);
+                    const clinic = clinics.find(
+                      (candidate) => candidate.id === event.target.value,
+                    );
+                    setSelectedClinicOption(
+                      clinic ? { id: clinic.id, label: clinic.name } : null,
+                    );
                     setValue("referringVeterinarianId", "", {
                       shouldValidate: true,
                     });
+                    setSelectedVeterinarianOption(null);
+                    setVeterinarianSearchInput("");
+                    setDebouncedVeterinarianSearch("");
+                    setVeterinarianPage(1);
                     setNoChangesMessage(null);
                   }}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 >
                   <option value="">
-                    {clinicsQuery.isLoading
+                    {clinicsQuery.isLoading || isClinicSearchPending
                       ? "Cargando veterinarias..."
                       : "Sin veterinaria / independiente"}
                   </option>
-                  {clinicIsMissing && reception.veterinaryClinicId && (
-                    <option value={reception.veterinaryClinicId}>
-                      {reception.veterinaryClinicName ?? "Veterinaria actual"}
+                  {retainedClinicOption && (
+                    <option value={retainedClinicOption.id}>
+                      {retainedClinicOption.label}
                     </option>
                   )}
-                  {clinics.map((clinic) => (
+                  {visibleClinics.map((clinic) => (
                     <option key={clinic.id} value={clinic.id}>
                       {clinic.name}
                     </option>
@@ -369,6 +523,24 @@ export function ReceptionCorrectionModal({
                     </button>
                   </div>
                 )}
+                {!clinicsQuery.isLoading &&
+                  !clinicsQuery.isError &&
+                  !isClinicSearchPending &&
+                  visibleClinics.length === 0 && (
+                    <p className="mt-2 text-sm text-slate-500" role="status">
+                      No se encontraron veterinarias.
+                    </p>
+                  )}
+                {!clinicsQuery.isLoading &&
+                  !clinicsQuery.isError &&
+                  !isClinicSearchPending && (
+                    <ReceptionLookupPagination
+                      page={clinicPage}
+                      totalPages={clinicsQuery.data?.totalPages ?? 0}
+                      isFetching={clinicsQuery.isFetching}
+                      onPageChange={setClinicPage}
+                    />
+                  )}
               </div>
 
               <div>
@@ -378,30 +550,75 @@ export function ReceptionCorrectionModal({
                 >
                   Veterinario referente
                 </label>
+                {!selectedClinicId && (
+                  <div className="mt-2">
+                    <label
+                      htmlFor="correction-veterinarian-search"
+                      className="block text-xs font-medium text-slate-600"
+                    >
+                      Buscar veterinario independiente
+                    </label>
+                    <input
+                      id="correction-veterinarian-search"
+                      type="search"
+                      value={veterinarianSearchInput}
+                      onChange={(event) =>
+                        setVeterinarianSearchInput(event.target.value)
+                      }
+                      disabled={isSubmitting}
+                      placeholder="Nombre del veterinario"
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                    />
+                    {isVeterinarianSearchPending && (
+                      <p className="mt-1 text-xs text-slate-500" role="status">
+                        Buscando...
+                      </p>
+                    )}
+                  </div>
+                )}
                 <select
                   id="correction-veterinarian"
+                  value={selectedVeterinarianId}
                   disabled={
                     isSubmitting ||
                     veterinariansQuery.isLoading ||
                     veterinariansQuery.isError
                   }
-                  {...register("referringVeterinarianId")}
+                  {...veterinarianField}
+                  onChange={(event) => {
+                    veterinarianField.onChange(event);
+                    const veterinarian = veterinarians.find(
+                      (candidate) => candidate.id === event.target.value,
+                    );
+                    setSelectedVeterinarianOption(
+                      veterinarian
+                        ? {
+                            id: veterinarian.id,
+                            label: `Dr. ${getVeterinarianFullName(
+                              veterinarian,
+                            )}`,
+                            veterinaryClinicId: veterinarian.veterinaryClinicId,
+                          }
+                        : null,
+                    );
+                    setNoChangesMessage(null);
+                  }}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 >
                   <option value="">
-                    {veterinariansQuery.isLoading
+                    {veterinariansQuery.isLoading ||
+                    (!selectedClinicId && isVeterinarianSearchPending)
                       ? "Cargando veterinarios..."
                       : selectedClinicId
                         ? "Sin veterinario referente"
                         : "Sin veterinario / recepción directa"}
                   </option>
-                  {shouldShowHistoricalVeterinarian &&
-                    reception.referringVeterinarianId && (
-                      <option value={reception.referringVeterinarianId}>
-                        Dr. {reception.referringVeterinarianName ?? "Actual"}
-                      </option>
-                    )}
-                  {veterinarians.map((veterinarian) => (
+                  {retainedVeterinarianOption && (
+                    <option value={retainedVeterinarianOption.id}>
+                      {retainedVeterinarianOption.label}
+                    </option>
+                  )}
+                  {visibleVeterinarians.map((veterinarian) => (
                     <option key={veterinarian.id} value={veterinarian.id}>
                       Dr. {getVeterinarianFullName(veterinarian)}
                     </option>
@@ -424,6 +641,27 @@ export function ReceptionCorrectionModal({
                     </button>
                   </div>
                 )}
+                {!veterinariansQuery.isLoading &&
+                  !veterinariansQuery.isError &&
+                  (!selectedClinicId ? !isVeterinarianSearchPending : true) &&
+                  visibleVeterinarians.length === 0 && (
+                    <p className="mt-2 text-sm text-slate-500" role="status">
+                      {selectedClinicId
+                        ? "No se encontraron veterinarios en esta veterinaria."
+                        : "No se encontraron veterinarios independientes."}
+                    </p>
+                  )}
+                {!selectedClinicId &&
+                  !veterinariansQuery.isLoading &&
+                  !veterinariansQuery.isError &&
+                  !isVeterinarianSearchPending && (
+                    <ReceptionLookupPagination
+                      page={veterinarianPage}
+                      totalPages={veterinariansQuery.data?.totalPages ?? 0}
+                      isFetching={veterinariansQuery.isFetching}
+                      onPageChange={setVeterinarianPage}
+                    />
+                  )}
               </div>
             </div>
 

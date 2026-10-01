@@ -1,19 +1,35 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { getPets } from "../../pets/api/petsApi";
 import {
   getVeterinarians,
   getVeterinariansByClinic,
+  searchVeterinarians,
 } from "../../veterinarians/api/veterinariansApi";
 import { getVeterinarianFullName } from "../../veterinarians/utils/veterinarianName";
-import { getVeterinaryClinics } from "../../veterinary-clinics/api/veterinaryClinicsApi";
+import {
+  getVeterinaryClinics,
+  searchVeterinaryClinics,
+} from "../../veterinary-clinics/api/veterinaryClinicsApi";
 import {
   receptionSchema,
   type ReceptionFormValues,
 } from "../schemas/receptionSchema";
 import type { Reception } from "../types/reception.types";
+import { ReceptionLookupPagination } from "./ReceptionLookupPagination";
+
+interface SelectedLookupOption {
+  id: string;
+  label: string;
+}
+
+interface SelectedVeterinarianOption extends SelectedLookupOption {
+  veterinaryClinicId: string | null;
+}
+
+const RECEPTION_LOOKUP_PAGE_SIZE = 20;
 
 interface ReceptionFormModalProps {
   isOpen: boolean;
@@ -32,6 +48,22 @@ export function ReceptionFormModal({
   onClose,
   onSubmit,
 }: ReceptionFormModalProps) {
+  const [petSearchInput, setPetSearchInput] = useState("");
+  const [debouncedPetSearch, setDebouncedPetSearch] = useState("");
+  const [petPage, setPetPage] = useState(1);
+  const [selectedPetOption, setSelectedPetOption] =
+    useState<SelectedLookupOption | null>(null);
+  const [clinicSearchInput, setClinicSearchInput] = useState("");
+  const [debouncedClinicSearch, setDebouncedClinicSearch] = useState("");
+  const [clinicPage, setClinicPage] = useState(1);
+  const [selectedClinicOption, setSelectedClinicOption] =
+    useState<SelectedLookupOption | null>(null);
+  const [veterinarianSearchInput, setVeterinarianSearchInput] = useState("");
+  const [debouncedVeterinarianSearch, setDebouncedVeterinarianSearch] =
+    useState("");
+  const [veterinarianPage, setVeterinarianPage] = useState(1);
+  const [selectedVeterinarianOption, setSelectedVeterinarianOption] =
+    useState<SelectedVeterinarianOption | null>(null);
   const {
     register,
     reset,
@@ -59,6 +91,11 @@ export function ReceptionFormModal({
     name: "veterinaryClinicId",
   });
 
+  const selectedPetId = useWatch({
+    control,
+    name: "petId",
+  });
+
   const selectedVeterinarianId = useWatch({
     control,
     name: "referringVeterinarianId",
@@ -69,30 +106,64 @@ export function ReceptionFormModal({
     name: "hasPersonalBelongings",
   });
 
+  const isCollectionOrigin =
+    mode === "edit" && reception?.isCollectionOrigin === true;
+  const isNormalEditLocked =
+    mode === "edit" && reception?.isNormalEditLocked === true;
+  const isReferralSourceLocked =
+    mode === "edit" &&
+    (reception?.isVeterinaryRequestOrigin === true ||
+      reception?.isCollectionOrigin === true);
+  const canEditReferral = !isNormalEditLocked && !isReferralSourceLocked;
+
+  const normalizedPetSearch = debouncedPetSearch.trim();
+  const normalizedClinicSearch = debouncedClinicSearch.trim();
+  const normalizedVeterinarianSearch = debouncedVeterinarianSearch.trim();
+  const isPetSearchPending = petSearchInput.trim() !== normalizedPetSearch;
+  const isClinicSearchPending =
+    clinicSearchInput.trim() !== normalizedClinicSearch;
+  const isVeterinarianSearchPending =
+    veterinarianSearchInput.trim() !== normalizedVeterinarianSearch;
+
   const petsQuery = useQuery({
-    queryKey: ["pets", "reception-options", true],
+    queryKey: ["pets", "reception-options", true, normalizedPetSearch, petPage],
 
     queryFn: () =>
       getPets({
-        page: 1,
-        pageSize: 100,
+        page: petPage,
+        pageSize: RECEPTION_LOOKUP_PAGE_SIZE,
         isActive: true,
+        search: normalizedPetSearch || undefined,
       }),
 
-    enabled: isOpen,
+    enabled: isOpen && mode === "create" && !isPetSearchPending,
   });
 
   const clinicsQuery = useQuery({
-    queryKey: ["veterinary-clinics", "reception-options", true],
+    queryKey: [
+      "veterinary-clinics",
+      "reception-options",
+      true,
+      normalizedClinicSearch,
+      clinicPage,
+    ],
 
-    queryFn: () =>
-      getVeterinaryClinics({
-        page: 1,
-        pageSize: 100,
+    queryFn: () => {
+      const params = {
+        page: clinicPage,
+        pageSize: RECEPTION_LOOKUP_PAGE_SIZE,
         isActive: true,
-      }),
+      };
 
-    enabled: isOpen,
+      return normalizedClinicSearch
+        ? searchVeterinaryClinics({
+            ...params,
+            search: normalizedClinicSearch,
+          })
+        : getVeterinaryClinics(params);
+    },
+
+    enabled: isOpen && canEditReferral && !isClinicSearchPending,
   });
 
   const veterinariansQuery = useQuery({
@@ -100,25 +171,41 @@ export function ReceptionFormModal({
       "veterinarians",
       "reception-options",
       selectedClinicId || "independent",
+      selectedClinicId ? "clinic" : normalizedVeterinarianSearch,
+      selectedClinicId ? 1 : veterinarianPage,
     ],
 
     queryFn: async () => {
       if (selectedClinicId) {
-        return getVeterinariansByClinic(selectedClinicId, true);
+        const items = await getVeterinariansByClinic(selectedClinicId, true);
+        return {
+          items,
+          page: 1,
+          pageSize: items.length,
+          totalItems: items.length,
+          totalPages: 1,
+        };
       }
 
-      const result = await getVeterinarians({
-        page: 1,
-        pageSize: 100,
+      const params = {
+        page: veterinarianPage,
+        pageSize: RECEPTION_LOOKUP_PAGE_SIZE,
         isActive: true,
-      });
+        independentOnly: true,
+      };
 
-      return result.items.filter(
-        (veterinarian) => veterinarian.veterinaryClinicId === null,
-      );
+      return normalizedVeterinarianSearch
+        ? searchVeterinarians({
+            ...params,
+            search: normalizedVeterinarianSearch,
+          })
+        : getVeterinarians(params);
     },
 
-    enabled: isOpen,
+    enabled:
+      isOpen &&
+      canEditReferral &&
+      (selectedClinicId.length > 0 || !isVeterinarianSearchPending),
   });
 
   const pets = useMemo(
@@ -148,47 +235,41 @@ export function ReceptionFormModal({
 
   const veterinarians = useMemo(
     () =>
-      [...(veterinariansQuery.data ?? [])].sort((first, second) =>
+      [...(veterinariansQuery.data?.items ?? [])].sort((first, second) =>
         getVeterinarianFullName(first).localeCompare(
           getVeterinarianFullName(second),
           "es-MX",
         ),
       ),
-    [veterinariansQuery.data],
+    [veterinariansQuery.data?.items],
   );
 
-  const petIsMissingFromOptions =
-    reception !== null && !pets.some((pet) => pet.id === reception.petId);
+  const visiblePets = isPetSearchPending ? [] : pets;
+  const visibleClinics = isClinicSearchPending ? [] : clinics;
+  const visibleVeterinarians =
+    !selectedClinicId && isVeterinarianSearchPending ? [] : veterinarians;
 
-  const clinicIsMissingFromOptions =
-    reception?.veterinaryClinicId !== null &&
-    reception?.veterinaryClinicId !== undefined &&
-    !clinics.some((clinic) => clinic.id === reception.veterinaryClinicId);
+  const retainedPetOption =
+    selectedPetId && !visiblePets.some((pet) => pet.id === selectedPetId)
+      ? selectedPetOption
+      : null;
+  const retainedClinicOption =
+    selectedClinicId &&
+    !visibleClinics.some((clinic) => clinic.id === selectedClinicId) &&
+    selectedClinicOption?.id === selectedClinicId
+      ? selectedClinicOption
+      : null;
+  const selectedClinicContext = selectedClinicId || null;
+  const retainedVeterinarianOption =
+    selectedVeterinarianId &&
+    !visibleVeterinarians.some(
+      (veterinarian) => veterinarian.id === selectedVeterinarianId,
+    ) &&
+    selectedVeterinarianOption?.id === selectedVeterinarianId &&
+    selectedVeterinarianOption.veterinaryClinicId === selectedClinicContext
+      ? selectedVeterinarianOption
+      : null;
 
-  const veterinarianIsMissingFromOptions =
-    reception?.referringVeterinarianId !== null &&
-    reception?.referringVeterinarianId !== undefined &&
-    !veterinarians.some(
-      (veterinarian) => veterinarian.id === reception.referringVeterinarianId,
-    );
-
-  const isOriginalClinicContext =
-    reception !== null &&
-    selectedClinicId === (reception.veterinaryClinicId ?? "");
-
-  const shouldShowHistoricalVeterinarian =
-    veterinarianIsMissingFromOptions &&
-    isOriginalClinicContext &&
-    selectedVeterinarianId === reception?.referringVeterinarianId;
-
-  const isCollectionOrigin =
-    mode === "edit" && reception?.isCollectionOrigin === true;
-  const isNormalEditLocked =
-    mode === "edit" && reception?.isNormalEditLocked === true;
-  const isReferralSourceLocked =
-    mode === "edit" &&
-    (reception?.isVeterinaryRequestOrigin === true ||
-      reception?.isCollectionOrigin === true);
   const hasReferralSource =
     selectedClinicId.length > 0 || selectedVeterinarianId.length > 0;
 
@@ -209,13 +290,78 @@ export function ReceptionFormModal({
       referralNotes: reception?.referralNotes ?? "",
       notes: reception?.notes ?? "",
     });
+    setPetSearchInput("");
+    setDebouncedPetSearch("");
+    setPetPage(1);
+    setSelectedPetOption(
+      reception
+        ? {
+            id: reception.petId,
+            label: `${reception.petName} — ${reception.customerName}`,
+          }
+        : null,
+    );
+    setClinicSearchInput("");
+    setDebouncedClinicSearch("");
+    setClinicPage(1);
+    setSelectedClinicOption(
+      reception?.veterinaryClinicId
+        ? {
+            id: reception.veterinaryClinicId,
+            label: reception.veterinaryClinicName ?? "Veterinaria actual",
+          }
+        : null,
+    );
+    setVeterinarianSearchInput("");
+    setDebouncedVeterinarianSearch("");
+    setVeterinarianPage(1);
+    setSelectedVeterinarianOption(
+      reception?.referringVeterinarianId
+        ? {
+            id: reception.referringVeterinarianId,
+            label: `Dr. ${
+              reception.referringVeterinarianName ?? "Veterinario actual"
+            }`,
+            veterinaryClinicId: reception.veterinaryClinicId,
+          }
+        : null,
+    );
   }, [isOpen, reception, reset]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedPetSearch(petSearchInput.trim());
+      setPetPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [petSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedClinicSearch(clinicSearchInput.trim());
+      setClinicPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [clinicSearchInput]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedVeterinarianSearch(veterinarianSearchInput.trim());
+      setVeterinarianPage(1);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [veterinarianSearchInput]);
 
   if (!isOpen) {
     return null;
   }
 
   const clinicField = register("veterinaryClinicId");
+  const petField = register("petId");
+  const veterinarianField = register("referringVeterinarianId");
   const belongingsField = register("hasPersonalBelongings");
 
   function handleBackdropClick() {
@@ -296,25 +442,70 @@ export function ReceptionFormModal({
               Mascota
             </label>
 
+            {mode === "create" && (
+              <div className="mt-2">
+                <label
+                  htmlFor="reception-pet-search"
+                  className="block text-xs font-medium text-slate-600"
+                >
+                  Buscar mascota
+                </label>
+                <input
+                  id="reception-pet-search"
+                  type="search"
+                  value={petSearchInput}
+                  onChange={(event) => setPetSearchInput(event.target.value)}
+                  disabled={isSubmitting}
+                  placeholder="Nombre, cliente o especie"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                />
+                {isPetSearchPending && (
+                  <p className="mt-1 text-xs text-slate-500" role="status">
+                    Buscando...
+                  </p>
+                )}
+              </div>
+            )}
+
             <select
               id="reception-pet"
-              disabled={isSubmitting || petsQuery.isLoading || mode === "edit"}
-              {...register("petId")}
+              value={selectedPetId}
+              disabled={
+                isSubmitting ||
+                petsQuery.isLoading ||
+                petsQuery.isError ||
+                mode === "edit"
+              }
+              {...petField}
+              onChange={(event) => {
+                petField.onChange(event);
+                const pet = pets.find(
+                  (candidate) => candidate.id === event.target.value,
+                );
+                setSelectedPetOption(
+                  pet
+                    ? {
+                        id: pet.id,
+                        label: `${pet.name} — ${pet.customerName} · ${pet.species}`,
+                      }
+                    : null,
+                );
+              }}
               className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
             >
               <option value="">
-                {petsQuery.isLoading
+                {petsQuery.isLoading || isPetSearchPending
                   ? "Cargando mascotas..."
                   : "Selecciona una mascota"}
               </option>
 
-              {petIsMissingFromOptions && reception && (
-                <option value={reception.petId}>
-                  {reception.petName} — {reception.customerName}
+              {retainedPetOption && (
+                <option value={retainedPetOption.id}>
+                  {retainedPetOption.label}
                 </option>
               )}
 
-              {pets.map((pet) => (
+              {visiblePets.map((pet) => (
                 <option key={pet.id} value={pet.id}>
                   {pet.name} — {pet.customerName} · {pet.species}
                 </option>
@@ -334,10 +525,39 @@ export function ReceptionFormModal({
             )}
 
             {petsQuery.isError && (
-              <p className="mt-2 text-sm text-red-600">
-                No fue posible cargar las mascotas activas.
-              </p>
+              <div className="mt-2 text-sm text-red-600">
+                <p>No fue posible cargar las mascotas activas.</p>
+                <button
+                  type="button"
+                  onClick={() => void petsQuery.refetch()}
+                  className="mt-1 font-medium underline underline-offset-2"
+                >
+                  Intentar nuevamente
+                </button>
+              </div>
             )}
+
+            {mode === "create" &&
+              !petsQuery.isLoading &&
+              !petsQuery.isError &&
+              !isPetSearchPending &&
+              visiblePets.length === 0 && (
+                <p className="mt-2 text-sm text-slate-500" role="status">
+                  No se encontraron mascotas.
+                </p>
+              )}
+
+            {mode === "create" &&
+              !petsQuery.isLoading &&
+              !petsQuery.isError &&
+              !isPetSearchPending && (
+                <ReceptionLookupPagination
+                  page={petPage}
+                  totalPages={petsQuery.data?.totalPages ?? 0}
+                  isFetching={petsQuery.isFetching}
+                  onPageChange={setPetPage}
+                />
+              )}
           </div>
 
           <div>
@@ -423,11 +643,40 @@ export function ReceptionFormModal({
                   </span>
                 </label>
 
+                {canEditReferral && (
+                  <div className="mt-2">
+                    <label
+                      htmlFor="reception-clinic-search"
+                      className="block text-xs font-medium text-slate-600"
+                    >
+                      Buscar veterinaria
+                    </label>
+                    <input
+                      id="reception-clinic-search"
+                      type="search"
+                      value={clinicSearchInput}
+                      onChange={(event) =>
+                        setClinicSearchInput(event.target.value)
+                      }
+                      disabled={isSubmitting}
+                      placeholder="Nombre de la veterinaria"
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                    />
+                    {isClinicSearchPending && (
+                      <p className="mt-1 text-xs text-slate-500" role="status">
+                        Buscando...
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <select
                   id="reception-clinic"
+                  value={selectedClinicId}
                   disabled={
                     isSubmitting ||
                     clinicsQuery.isLoading ||
+                    clinicsQuery.isError ||
                     isNormalEditLocked ||
                     isReferralSourceLocked
                   }
@@ -435,26 +684,36 @@ export function ReceptionFormModal({
                   onChange={(event) => {
                     clinicField.onChange(event);
 
+                    const clinic = clinics.find(
+                      (candidate) => candidate.id === event.target.value,
+                    );
+                    setSelectedClinicOption(
+                      clinic ? { id: clinic.id, label: clinic.name } : null,
+                    );
+
                     setValue("referringVeterinarianId", "", {
                       shouldValidate: true,
                     });
+                    setSelectedVeterinarianOption(null);
+                    setVeterinarianSearchInput("");
+                    setDebouncedVeterinarianSearch("");
+                    setVeterinarianPage(1);
                   }}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 >
                   <option value="">
-                    {clinicsQuery.isLoading
+                    {clinicsQuery.isLoading || isClinicSearchPending
                       ? "Cargando veterinarias..."
                       : "Sin veterinaria / independiente"}
                   </option>
 
-                  {clinicIsMissingFromOptions &&
-                    reception?.veterinaryClinicId && (
-                      <option value={reception.veterinaryClinicId}>
-                        {reception.veterinaryClinicName ?? "Veterinaria actual"}
-                      </option>
-                    )}
+                  {retainedClinicOption && (
+                    <option value={retainedClinicOption.id}>
+                      {retainedClinicOption.label}
+                    </option>
+                  )}
 
-                  {clinics.map((clinic) => (
+                  {visibleClinics.map((clinic) => (
                     <option key={clinic.id} value={clinic.id}>
                       {clinic.name}
                     </option>
@@ -466,6 +725,41 @@ export function ReceptionFormModal({
                     {errors.veterinaryClinicId.message}
                   </p>
                 )}
+
+                {canEditReferral && clinicsQuery.isError && (
+                  <div className="mt-2 text-sm text-red-600">
+                    <p>No fue posible cargar las veterinarias activas.</p>
+                    <button
+                      type="button"
+                      onClick={() => void clinicsQuery.refetch()}
+                      className="mt-1 font-medium underline underline-offset-2"
+                    >
+                      Intentar nuevamente
+                    </button>
+                  </div>
+                )}
+
+                {canEditReferral &&
+                  !clinicsQuery.isLoading &&
+                  !clinicsQuery.isError &&
+                  !isClinicSearchPending &&
+                  visibleClinics.length === 0 && (
+                    <p className="mt-2 text-sm text-slate-500" role="status">
+                      No se encontraron veterinarias.
+                    </p>
+                  )}
+
+                {canEditReferral &&
+                  !clinicsQuery.isLoading &&
+                  !clinicsQuery.isError &&
+                  !isClinicSearchPending && (
+                    <ReceptionLookupPagination
+                      page={clinicPage}
+                      totalPages={clinicsQuery.data?.totalPages ?? 0}
+                      isFetching={clinicsQuery.isFetching}
+                      onPageChange={setClinicPage}
+                    />
+                  )}
               </div>
 
               <div>
@@ -479,8 +773,36 @@ export function ReceptionFormModal({
                   </span>
                 </label>
 
+                {canEditReferral && !selectedClinicId && (
+                  <div className="mt-2">
+                    <label
+                      htmlFor="reception-veterinarian-search"
+                      className="block text-xs font-medium text-slate-600"
+                    >
+                      Buscar veterinario independiente
+                    </label>
+                    <input
+                      id="reception-veterinarian-search"
+                      type="search"
+                      value={veterinarianSearchInput}
+                      onChange={(event) =>
+                        setVeterinarianSearchInput(event.target.value)
+                      }
+                      disabled={isSubmitting}
+                      placeholder="Nombre del veterinario"
+                      className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                    />
+                    {isVeterinarianSearchPending && (
+                      <p className="mt-1 text-xs text-slate-500" role="status">
+                        Buscando...
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <select
                   id="reception-veterinarian"
+                  value={selectedVeterinarianId}
                   disabled={
                     isSubmitting ||
                     isNormalEditLocked ||
@@ -488,27 +810,42 @@ export function ReceptionFormModal({
                     veterinariansQuery.isLoading ||
                     veterinariansQuery.isError
                   }
-                  {...register("referringVeterinarianId")}
+                  {...veterinarianField}
+                  onChange={(event) => {
+                    veterinarianField.onChange(event);
+                    const veterinarian = veterinarians.find(
+                      (candidate) => candidate.id === event.target.value,
+                    );
+                    setSelectedVeterinarianOption(
+                      veterinarian
+                        ? {
+                            id: veterinarian.id,
+                            label: `Dr. ${getVeterinarianFullName(
+                              veterinarian,
+                            )}`,
+                            veterinaryClinicId: veterinarian.veterinaryClinicId,
+                          }
+                        : null,
+                    );
+                  }}
                   className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 >
                   <option value="">
-                    {veterinariansQuery.isLoading
+                    {veterinariansQuery.isLoading ||
+                    (!selectedClinicId && isVeterinarianSearchPending)
                       ? "Cargando veterinarios..."
                       : selectedClinicId.length > 0
                         ? "Sin veterinario referente"
                         : "Sin veterinario / recepción directa"}
                   </option>
 
-                  {shouldShowHistoricalVeterinarian &&
-                    reception?.referringVeterinarianId && (
-                      <option value={reception.referringVeterinarianId}>
-                        Dr.{" "}
-                        {reception.referringVeterinarianName ??
-                          "Veterinario actual"}
-                      </option>
-                    )}
+                  {retainedVeterinarianOption && (
+                    <option value={retainedVeterinarianOption.id}>
+                      {retainedVeterinarianOption.label}
+                    </option>
+                  )}
 
-                  {veterinarians.map((veterinarian) => (
+                  {visibleVeterinarians.map((veterinarian) => (
                     <option key={veterinarian.id} value={veterinarian.id}>
                       Dr. {getVeterinarianFullName(veterinarian)}
                     </option>
@@ -533,6 +870,31 @@ export function ReceptionFormModal({
                     </button>
                   </div>
                 )}
+
+                {canEditReferral &&
+                  !veterinariansQuery.isLoading &&
+                  !veterinariansQuery.isError &&
+                  (!selectedClinicId ? !isVeterinarianSearchPending : true) &&
+                  visibleVeterinarians.length === 0 && (
+                    <p className="mt-2 text-sm text-slate-500" role="status">
+                      {selectedClinicId
+                        ? "No se encontraron veterinarios en esta veterinaria."
+                        : "No se encontraron veterinarios independientes."}
+                    </p>
+                  )}
+
+                {canEditReferral &&
+                  !selectedClinicId &&
+                  !veterinariansQuery.isLoading &&
+                  !veterinariansQuery.isError &&
+                  !isVeterinarianSearchPending && (
+                    <ReceptionLookupPagination
+                      page={veterinarianPage}
+                      totalPages={veterinariansQuery.data?.totalPages ?? 0}
+                      isFetching={veterinariansQuery.isFetching}
+                      onPageChange={setVeterinarianPage}
+                    />
+                  )}
               </div>
             </div>
 
