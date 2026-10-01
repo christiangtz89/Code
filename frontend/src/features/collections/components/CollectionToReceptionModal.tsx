@@ -190,14 +190,16 @@ export function CollectionToReceptionModal({
               </div>
             </div>
 
-            {collection.veterinaryClinicName && (
+            {(collection.veterinaryClinicName ||
+              collection.referringVeterinarianName) && (
               <div className="mt-5 border-t border-slate-200 pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Veterinaria
+                  Referencia veterinaria
                 </p>
 
                 <p className="mt-1 text-sm font-medium text-slate-800">
-                  {collection.veterinaryClinicName}
+                  {collection.veterinaryClinicName ??
+                    "Veterinario independiente"}
                 </p>
 
                 {collection.referringVeterinarianName && (

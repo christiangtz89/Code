@@ -609,9 +609,7 @@ export function ReceptionCorrectionModal({
                     {veterinariansQuery.isLoading ||
                     (!selectedClinicId && isVeterinarianSearchPending)
                       ? "Cargando veterinarios..."
-                      : selectedClinicId
-                        ? "Sin veterinario referente"
-                        : "Sin veterinario / recepción directa"}
+                      : "Sin veterinario referente"}
                   </option>
                   {retainedVeterinarianOption && (
                     <option value={retainedVeterinarianOption.id}>

@@ -30,6 +30,10 @@ import {
   formatReceptionWeight,
   showOptionalReceptionValue,
 } from "../utils/receptionFormatters";
+import {
+  getReceptionOriginLabel,
+  getReceptionReferralSourceLabel,
+} from "../utils/receptionLabels";
 import { ReceptionLookupPagination } from "./ReceptionLookupPagination";
 
 interface SelectedLookupOption {
@@ -119,17 +123,6 @@ function ReceptionReadOnlyModal({
     }
   }
 
-  const referralSource = reception.veterinaryClinicName
-    ? reception.veterinaryClinicName
-    : reception.referringVeterinarianName
-      ? "Veterinario independiente"
-      : "Recepción directa";
-  const origin = reception.isVeterinaryRequestOrigin
-    ? "Solicitud veterinaria"
-    : reception.isCollectionOrigin
-      ? "Recolección"
-      : "Recepción directa";
-
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 px-4 py-8"
@@ -183,7 +176,10 @@ function ReceptionReadOnlyModal({
                 label="Estado"
                 value={reception.isActive ? "Activa" : "Inactiva"}
               />
-              <ReadOnlyField label="Origen" value={origin} />
+              <ReadOnlyField
+                label="Origen"
+                value={getReceptionOriginLabel(reception)}
+              />
               <ReadOnlyField
                 label="Cremación"
                 value={
@@ -208,7 +204,10 @@ function ReceptionReadOnlyModal({
               Referencia veterinaria
             </h3>
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <ReadOnlyField label="Procedencia" value={referralSource} />
+              <ReadOnlyField
+                label="Fuente de referencia"
+                value={getReceptionReferralSourceLabel(reception)}
+              />
               <ReadOnlyField
                 label="Veterinario"
                 value={
@@ -862,7 +861,9 @@ function ReceptionEditableFormModal({
             </legend>
 
             <p className="mb-4 text-sm text-slate-500">
-              Deja estos campos vacíos cuando la recepción sea directa.
+              Selecciona una veterinaria con su veterinario o un veterinario
+              independiente. Deja ambos campos vacíos cuando no exista
+              referencia veterinaria.
             </p>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -1068,9 +1069,7 @@ function ReceptionEditableFormModal({
                     {veterinariansQuery.isLoading ||
                     (!selectedClinicId && isVeterinarianSearchPending)
                       ? "Cargando veterinarios..."
-                      : selectedClinicId.length > 0
-                        ? "Sin veterinario referente"
-                        : "Sin veterinario / recepción directa"}
+                      : "Sin veterinario referente"}
                   </option>
 
                   {retainedVeterinarianOption && (

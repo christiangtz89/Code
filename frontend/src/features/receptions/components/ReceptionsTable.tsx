@@ -6,6 +6,10 @@ import {
   formatReceptionWeight,
   showOptionalReceptionValue,
 } from "../utils/receptionFormatters";
+import {
+  getReceptionOriginLabel,
+  getReceptionReferralSourceLabel,
+} from "../utils/receptionLabels";
 
 interface ReceptionsTableProps {
   receptions: Reception[];
@@ -129,6 +133,10 @@ export function ReceptionsTable({
                       {formatReceptionDate(reception.receivedAt)}
                     </p>
 
+                    <p className="mt-2 text-xs font-medium text-slate-600">
+                      Origen: {getReceptionOriginLabel(reception)}
+                    </p>
+
                     {!reception.isActive && (
                       <span className="mt-2 inline-flex rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
                         Inactiva
@@ -189,10 +197,7 @@ export function ReceptionsTable({
 
                   <td className="px-5 py-4">
                     <p className="text-sm font-medium text-slate-800">
-                      {showOptionalReceptionValue(
-                        reception.veterinaryClinicName,
-                        "Recepción directa",
-                      )}
+                      {getReceptionReferralSourceLabel(reception)}
                     </p>
 
                     {reception.referringVeterinarianName && (
