@@ -46,7 +46,8 @@ public class PetsController : ControllerBase
 public async Task<ActionResult<PagedPetsDto>> GetAll(
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 10,
-    [FromQuery] bool isActive = true)
+    [FromQuery] bool isActive = true,
+    [FromQuery] string? search = null)
     {
     if (page < 1)
     {
@@ -67,7 +68,8 @@ public async Task<ActionResult<PagedPetsDto>> GetAll(
     var pets = await _petService.GetAllAsync(
         page,
         pageSize,
-        isActive);
+        isActive,
+        search);
 
     return Ok(pets);
     }

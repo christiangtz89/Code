@@ -35,12 +35,14 @@ export interface GetVeterinariansParams {
   pageSize: number;
   isActive: boolean;
   veterinaryClinicId?: string;
+  independentOnly?: boolean;
 }
 
 export interface SearchVeterinariansParams {
   search: string;
   isActive: boolean;
   veterinaryClinicId?: string;
+  independentOnly?: boolean;
   page: number;
   pageSize: number;
 }

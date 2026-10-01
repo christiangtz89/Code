@@ -57,7 +57,8 @@ public class VeterinariansController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] bool isActive = true,
-        [FromQuery] Guid? veterinaryClinicId = null)
+        [FromQuery] Guid? veterinaryClinicId = null,
+        [FromQuery] bool independentOnly = false)
     {
         if (page < 1)
         {
@@ -78,12 +79,22 @@ public class VeterinariansController : ControllerBase
             });
         }
 
+        if (independentOnly && veterinaryClinicId.HasValue)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "No se puede combinar el filtro de veterinarios independientes con una veterinaria específica."
+            });
+        }
+
         var veterinarians =
     await _veterinarianService.GetAllAsync(
         page,
         pageSize,
         isActive,
-        veterinaryClinicId);
+        veterinaryClinicId,
+        independentOnly);
 
         return Ok(veterinarians);
     }
@@ -217,7 +228,8 @@ public class VeterinariansController : ControllerBase
         [FromQuery] bool isActive = true,
         [FromQuery] Guid? veterinaryClinicId = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool independentOnly = false)
     {
         if (string.IsNullOrWhiteSpace(search))
         {
@@ -237,13 +249,23 @@ public class VeterinariansController : ControllerBase
             });
         }
 
+        if (independentOnly && veterinaryClinicId.HasValue)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "No se puede combinar el filtro de veterinarios independientes con una veterinaria específica."
+            });
+        }
+
         var veterinarians =
             await _veterinarianService.SearchAsync(
                 search,
                 isActive,
                 veterinaryClinicId,
                 page,
-                pageSize);
+                pageSize,
+                independentOnly);
 
         return Ok(veterinarians);
     }

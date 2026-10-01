@@ -68,6 +68,7 @@ export interface GetPetsParams {
   page: number;
   pageSize: number;
   isActive: boolean;
+  search?: string;
 }
 
 export interface SearchPetsParams {

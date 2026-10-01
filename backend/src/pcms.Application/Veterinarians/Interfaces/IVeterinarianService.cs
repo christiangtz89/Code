@@ -12,7 +12,8 @@ public interface IVeterinarianService
         int page,
         int pageSize,
         bool isActive,
-        Guid? veterinaryClinicId);
+        Guid? veterinaryClinicId,
+        bool independentOnly = false);
 
     Task<VeterinarianDto?> GetByIdAsync(Guid id);
 
@@ -34,7 +35,8 @@ public interface IVeterinarianService
         bool isActive,
         Guid? veterinaryClinicId,
         int page,
-        int pageSize);
+        int pageSize,
+        bool independentOnly = false);
 
     Task<PaginatedResult<VeterinarianClinicOptionDto>>
         GetClinicOptionsAsync(

@@ -10,7 +10,8 @@ public interface IPetService
     Task<PagedPetsDto> GetAllAsync(
         int page,
         int pageSize,
-        bool isActive);
+        bool isActive,
+        string? search = null);
 
     Task<PetDto?> GetByIdAsync(Guid id);
 

@@ -112,7 +112,8 @@ if (customer == null)
     public async Task<PagedPetsDto> GetAllAsync(
     int page,
     int pageSize,
-    bool isActive)
+    bool isActive,
+    string? search = null)
 {
     page = Math.Max(page, 1);
     pageSize = Math.Clamp(pageSize, 1, 100);
@@ -121,12 +122,29 @@ if (customer == null)
         .AsNoTracking()
         .Where(p => p.IsActive == isActive);
 
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        var normalizedSearch = search.Trim().ToLower();
+
+        query = query.Where(p =>
+            p.Name.ToLower().Contains(normalizedSearch) ||
+            p.Species.ToLower().Contains(normalizedSearch) ||
+            p.Breed.ToLower().Contains(normalizedSearch) ||
+            p.Customer.FirstName
+                .ToLower()
+                .Contains(normalizedSearch) ||
+            p.Customer.LastName
+                .ToLower()
+                .Contains(normalizedSearch));
+    }
+
     var totalItems = await query.CountAsync();
 
     var items = await query
         .OrderBy(p => p.Name)
         .ThenBy(p => p.Customer.LastName)
         .ThenBy(p => p.Customer.FirstName)
+        .ThenBy(p => p.Id)
         .Skip((page - 1) * pageSize)
         .Take(pageSize)
         .Select(p => new PetDto

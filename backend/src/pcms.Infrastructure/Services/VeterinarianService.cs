@@ -9,6 +9,10 @@ namespace pcms.Infrastructure.Services;
 
 public class VeterinarianService : IVeterinarianService
 {
+    private const string IncompatibleLookupFiltersMessage =
+        "No se puede combinar el filtro de veterinarios independientes " +
+        "con una veterinaria específica.";
+
     private readonly AppDbContext _context;
 
     public VeterinarianService(AppDbContext context)
@@ -144,8 +148,15 @@ public class VeterinarianService : IVeterinarianService
         int page,
         int pageSize,
         bool isActive,
-        Guid? veterinaryClinicId)
+        Guid? veterinaryClinicId,
+        bool independentOnly = false)
     {
+        if (independentOnly && veterinaryClinicId.HasValue)
+        {
+            throw new ArgumentException(
+                IncompatibleLookupFiltersMessage);
+        }
+
         var query = _context.Veterinarians
             .AsNoTracking()
             .Where(v =>
@@ -154,9 +165,18 @@ public class VeterinarianService : IVeterinarianService
                     !isActive ||
                     v.VeterinaryClinicId == null ||
                     v.VeterinaryClinic!.IsActive
-                ) &&
-                (!veterinaryClinicId.HasValue ||
-                    v.VeterinaryClinicId == veterinaryClinicId.Value));
+                ));
+
+        if (independentOnly)
+        {
+            query = query.Where(v =>
+                v.VeterinaryClinicId == null);
+        }
+        else if (veterinaryClinicId.HasValue)
+        {
+            query = query.Where(v =>
+                v.VeterinaryClinicId == veterinaryClinicId.Value);
+        }
 
         var totalItems = await query.CountAsync();
 
@@ -164,6 +184,7 @@ public class VeterinarianService : IVeterinarianService
             .OrderBy(v => v.LastName)
             .ThenBy(v => v.SecondLastName)
             .ThenBy(v => v.FirstName)
+            .ThenBy(v => v.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(v => new VeterinarianDto
@@ -532,8 +553,15 @@ public class VeterinarianService : IVeterinarianService
             bool isActive,
             Guid? veterinaryClinicId,
             int page,
-            int pageSize)
+            int pageSize,
+            bool independentOnly = false)
     {
+        if (independentOnly && veterinaryClinicId.HasValue)
+        {
+            throw new ArgumentException(
+                IncompatibleLookupFiltersMessage);
+        }
+
         var normalizedSearch =
             search.Trim();
 
@@ -557,9 +585,20 @@ public class VeterinarianService : IVeterinarianService
                     !isActive ||
                     v.VeterinaryClinicId == null ||
                     v.VeterinaryClinic!.IsActive
-                ) &&
-                (!veterinaryClinicId.HasValue ||
-                    v.VeterinaryClinicId == veterinaryClinicId.Value) &&
+                ));
+
+        if (independentOnly)
+        {
+            query = query.Where(v =>
+                v.VeterinaryClinicId == null);
+        }
+        else if (veterinaryClinicId.HasValue)
+        {
+            query = query.Where(v =>
+                v.VeterinaryClinicId == veterinaryClinicId.Value);
+        }
+
+        query = query.Where(v =>
                 (
                     EF.Functions.ILike(v.FirstName, pattern) ||
 
@@ -599,6 +638,7 @@ public class VeterinarianService : IVeterinarianService
             .OrderBy(v => v.LastName)
             .ThenBy(v => v.SecondLastName)
             .ThenBy(v => v.FirstName)
+            .ThenBy(v => v.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(v => new VeterinarianDto
