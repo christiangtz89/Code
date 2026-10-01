@@ -1,6 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { getCremationStatusLabel } from "../../cremations/utils/cremationLabels";
 import { getPets } from "../../pets/api/petsApi";
@@ -82,8 +88,35 @@ function ReceptionReadOnlyModal({
   reception,
   onClose,
 }: ReceptionReadOnlyFormModalProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    closeButtonRef.current?.focus();
+
+    return () => previouslyFocused?.focus();
+  }, [isOpen, reception.id]);
+
   if (!isOpen) {
     return null;
+  }
+
+  function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (event.key === "Tab") {
+      event.preventDefault();
+      closeButtonRef.current?.focus();
+    }
   }
 
   const referralSource = reception.veterinaryClinicName
@@ -109,6 +142,7 @@ function ReceptionReadOnlyModal({
         aria-labelledby="reception-detail-title"
         className="max-h-full w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
         onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
       >
         <header className="border-b border-slate-200 px-6 py-5">
           <p className="text-sm font-medium text-slate-500">
@@ -218,6 +252,7 @@ function ReceptionReadOnlyModal({
 
           <footer className="flex justify-end border-t border-slate-200 pt-5">
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={onClose}
               className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
