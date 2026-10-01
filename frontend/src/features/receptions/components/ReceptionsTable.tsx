@@ -17,6 +17,7 @@ interface ReceptionsTableProps {
   canRequestDeactivation: boolean;
   canViewLifecycleHistory: boolean;
   onCopyQrCode: (reception: Reception) => void;
+  onView: (reception: Reception) => void;
   onEdit: (reception: Reception) => void;
   onCorrection: (reception: Reception) => void;
   onClarification: (reception: Reception) => void;
@@ -38,6 +39,7 @@ export function ReceptionsTable({
   canRequestDeactivation,
   canViewLifecycleHistory,
   onCopyQrCode,
+  onView,
   onEdit,
   onCorrection,
   onClarification,
@@ -261,16 +263,27 @@ export function ReceptionsTable({
                         </button>
                       )}
 
-                      {reception.isActive && canManage && (
-                        <button
-                          type="button"
-                          onClick={() => onEdit(reception)}
-                          disabled={isLifecyclePending}
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {reception.isNormalEditLocked ? "Ver" : "Editar"}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => onView(reception)}
+                        disabled={isLifecyclePending}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Ver
+                      </button>
+
+                      {reception.isActive &&
+                        canManage &&
+                        !reception.isNormalEditLocked && (
+                          <button
+                            type="button"
+                            onClick={() => onEdit(reception)}
+                            disabled={isLifecyclePending}
+                            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Editar
+                          </button>
+                        )}
 
                       {reception.isActive &&
                         reception.hasCremation &&

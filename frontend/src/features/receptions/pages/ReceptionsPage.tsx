@@ -56,12 +56,9 @@ import { getWeightRangeChangeConfirmation } from "../utils/weightRangeChangeConf
 import { getReceptionCorrectionFingerprint } from "../utils/receptionCorrection";
 import { getReceptionLifecycleDependencyLabels } from "../utils/receptionLifecycleLabels";
 
-type ReceptionFormMode = "create" | "edit";
-
-interface ReceptionModalState {
-  mode: ReceptionFormMode;
-  reception: Reception | null;
-}
+type ReceptionModalState =
+  | { mode: "create"; reception: null }
+  | { mode: "edit" | "view"; reception: Reception };
 
 interface NormalWeightRangeChangeConfirmationState {
   kind: "normalUpdate";
@@ -816,6 +813,12 @@ export function ReceptionsPage() {
             canRequestDeactivation={canRequestDeactivation}
             canViewLifecycleHistory={canViewLifecycleHistory}
             onCopyQrCode={handleCopyQrCode}
+            onView={(reception) =>
+              setModalState({
+                mode: "view",
+                reception,
+              })
+            }
             onEdit={(reception) =>
               setModalState({
                 mode: "edit",
@@ -865,18 +868,27 @@ export function ReceptionsPage() {
         </footer>
       )}
 
-      <ReceptionFormModal
-        isOpen={modalState !== null}
-        mode={modalState?.mode ?? "create"}
-        reception={modalState?.reception ?? null}
-        isSubmitting={isFormSubmitting}
-        onClose={() => {
-          if (!isFormSubmitting) {
-            setModalState(null);
-          }
-        }}
-        onSubmit={handleFormSubmit}
-      />
+      {modalState?.mode === "view" ? (
+        <ReceptionFormModal
+          isOpen
+          mode="view"
+          reception={modalState.reception}
+          onClose={() => setModalState(null)}
+        />
+      ) : (
+        <ReceptionFormModal
+          isOpen={modalState !== null}
+          mode={modalState?.mode ?? "create"}
+          reception={modalState?.reception ?? null}
+          isSubmitting={isFormSubmitting}
+          onClose={() => {
+            if (!isFormSubmitting) {
+              setModalState(null);
+            }
+          }}
+          onSubmit={handleFormSubmit}
+        />
+      )}
       <ReceptionCorrectionModal
         isOpen={correctionReception !== null}
         reception={correctionReception}

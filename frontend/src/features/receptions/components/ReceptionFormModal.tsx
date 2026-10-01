@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { getCremationStatusLabel } from "../../cremations/utils/cremationLabels";
 import { getPets } from "../../pets/api/petsApi";
 import {
   getVeterinarians,
@@ -18,6 +19,11 @@ import {
   type ReceptionFormValues,
 } from "../schemas/receptionSchema";
 import type { Reception } from "../types/reception.types";
+import {
+  formatReceptionDate,
+  formatReceptionWeight,
+  showOptionalReceptionValue,
+} from "../utils/receptionFormatters";
 import { ReceptionLookupPagination } from "./ReceptionLookupPagination";
 
 interface SelectedLookupOption {
@@ -31,23 +37,216 @@ interface SelectedVeterinarianOption extends SelectedLookupOption {
 
 const RECEPTION_LOOKUP_PAGE_SIZE = 20;
 
-interface ReceptionFormModalProps {
+interface ReceptionFormModalBaseProps {
   isOpen: boolean;
-  mode: "create" | "edit";
   reception: Reception | null;
-  isSubmitting: boolean;
   onClose: () => void;
+}
+
+interface ReceptionEditableFormModalProps extends ReceptionFormModalBaseProps {
+  mode: "create" | "edit";
+  isSubmitting: boolean;
   onSubmit: (values: ReceptionFormValues) => Promise<void>;
 }
 
-export function ReceptionFormModal({
+interface ReceptionReadOnlyFormModalProps extends ReceptionFormModalBaseProps {
+  mode: "view";
+  reception: Reception;
+  isSubmitting?: never;
+  onSubmit?: never;
+}
+
+type ReceptionFormModalProps =
+  ReceptionEditableFormModalProps | ReceptionReadOnlyFormModalProps;
+
+interface ReadOnlyFieldProps {
+  label: string;
+  value: string;
+}
+
+function ReadOnlyField({ label, value }: ReadOnlyFieldProps) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function ReceptionReadOnlyModal({
+  isOpen,
+  reception,
+  onClose,
+}: ReceptionReadOnlyFormModalProps) {
+  if (!isOpen) {
+    return null;
+  }
+
+  const referralSource = reception.veterinaryClinicName
+    ? reception.veterinaryClinicName
+    : reception.referringVeterinarianName
+      ? "Veterinario independiente"
+      : "Recepción directa";
+  const origin = reception.isVeterinaryRequestOrigin
+    ? "Solicitud veterinaria"
+    : reception.isCollectionOrigin
+      ? "Recolección"
+      : "Recepción directa";
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 px-4 py-8"
+      role="presentation"
+      onMouseDown={onClose}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reception-detail-title"
+        className="max-h-full w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="border-b border-slate-200 px-6 py-5">
+          <p className="text-sm font-medium text-slate-500">
+            Consulta de solo lectura
+          </p>
+          <h2
+            id="reception-detail-title"
+            className="mt-1 text-xl font-semibold text-slate-900"
+          >
+            Detalle de la recepción
+          </h2>
+          <p className="mt-2 font-mono text-xs text-slate-500">
+            {reception.qrCode}
+          </p>
+        </header>
+
+        <div className="space-y-6 px-6 py-6">
+          <section className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">
+              Recepción y cadena de custodia
+            </h3>
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <ReadOnlyField label="Mascota" value={reception.petName} />
+              <ReadOnlyField label="Cliente" value={reception.customerName} />
+              <ReadOnlyField
+                label="Fecha de recepción"
+                value={formatReceptionDate(reception.receivedAt)}
+              />
+              <ReadOnlyField
+                label="Recibió"
+                value={reception.receivedByUserName}
+              />
+              <ReadOnlyField
+                label="Peso verificado"
+                value={`${formatReceptionWeight(reception.verifiedWeightKg)} kg`}
+              />
+              <ReadOnlyField
+                label="Estado"
+                value={reception.isActive ? "Activa" : "Inactiva"}
+              />
+              <ReadOnlyField label="Origen" value={origin} />
+              <ReadOnlyField
+                label="Cremación"
+                value={
+                  reception.cremationStatus === null
+                    ? "Sin cremación"
+                    : getCremationStatusLabel(reception.cremationStatus)
+                }
+              />
+              {reception.latestReportedCorrectedWeightKg !== null && (
+                <ReadOnlyField
+                  label="Peso corregido reportado"
+                  value={`${formatReceptionWeight(
+                    reception.latestReportedCorrectedWeightKg,
+                  )} kg`}
+                />
+              )}
+            </dl>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">
+              Referencia veterinaria
+            </h3>
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <ReadOnlyField label="Procedencia" value={referralSource} />
+              <ReadOnlyField
+                label="Veterinario"
+                value={
+                  reception.referringVeterinarianName
+                    ? `Dr. ${reception.referringVeterinarianName}`
+                    : "No registrado"
+                }
+              />
+              <div className="sm:col-span-2">
+                <ReadOnlyField
+                  label="Notas de referencia"
+                  value={showOptionalReceptionValue(reception.referralNotes)}
+                />
+              </div>
+            </dl>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 p-4">
+            <h3 className="font-semibold text-slate-900">
+              Objetos personales y notas
+            </h3>
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <ReadOnlyField
+                label="Objetos personales"
+                value={reception.hasPersonalBelongings ? "Sí" : "No"}
+              />
+              <ReadOnlyField
+                label="Descripción"
+                value={showOptionalReceptionValue(
+                  reception.personalBelongingsDescription,
+                )}
+              />
+              <div className="sm:col-span-2">
+                <ReadOnlyField
+                  label="Notas de la recepción"
+                  value={showOptionalReceptionValue(reception.notes)}
+                />
+              </div>
+            </dl>
+          </section>
+
+          <footer className="flex justify-end border-t border-slate-200 pt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Cerrar
+            </button>
+          </footer>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function ReceptionFormModal(props: ReceptionFormModalProps) {
+  if (props.mode === "view") {
+    return <ReceptionReadOnlyModal {...props} />;
+  }
+
+  return <ReceptionEditableFormModal {...props} />;
+}
+
+function ReceptionEditableFormModal({
   isOpen,
   mode,
   reception,
   isSubmitting,
   onClose,
   onSubmit,
-}: ReceptionFormModalProps) {
+}: ReceptionEditableFormModalProps) {
   const [petSearchInput, setPetSearchInput] = useState("");
   const [debouncedPetSearch, setDebouncedPetSearch] = useState("");
   const [petPage, setPetPage] = useState(1);
