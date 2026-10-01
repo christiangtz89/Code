@@ -48,10 +48,10 @@ const modalCopy: Record<
     submitting: "Restaurando...",
   },
   request: {
-    eyebrow: "Solicitud de Manager",
+    eyebrow: "Solicitud de Gerente",
     title: "Solicitar desactivación",
     explanation:
-      "La solicitud quedará registrada, pero la recepción permanecerá activa. Owner o Admin deberá revisarla de forma independiente.",
+      "La solicitud quedará registrada, pero la recepción permanecerá activa. El Propietario o un Administrador deberá revisarla de forma independiente.",
     submit: "Registrar solicitud",
     submitting: "Registrando...",
   },

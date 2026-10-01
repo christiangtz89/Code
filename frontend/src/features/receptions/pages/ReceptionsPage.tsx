@@ -650,7 +650,7 @@ export function ReceptionsPage() {
         toast.success("La recepción fue restaurada.");
       } else {
         toast.success(
-          "Solicitud de desactivación registrada. La recepción permanece activa; Owner o Admin debe revisarla de forma independiente.",
+          "Solicitud de desactivación registrada. La recepción permanece activa; el Propietario o un Administrador debe revisarla de forma independiente.",
         );
       }
 

@@ -956,8 +956,8 @@ public partial class ReceptionService
         if (role is null)
         {
             throw new UnauthorizedAccessException(
-                "La corrección requiere un propietario, administrador " +
-                "protegido o Manager activo con permiso para enmendar " +
+                "La corrección requiere un Propietario, un Administrador " +
+                "protegido o un Gerente activo con permiso para enmendar " +
                 "recepciones.");
         }
 

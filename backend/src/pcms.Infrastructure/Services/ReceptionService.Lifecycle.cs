@@ -269,7 +269,7 @@ public partial class ReceptionService
         if (!isProtectedAdmin)
         {
             throw new UnauthorizedAccessException(
-                "Solo Owner o Admin activo puede aprobar esta acción.");
+                "Solo el Propietario o un Administrador activo puede aprobar esta acción.");
         }
 
         return new LifecycleActor(actor, "Admin");
@@ -283,7 +283,7 @@ public partial class ReceptionService
         if (actor.IsOwner)
         {
             throw new UnauthorizedAccessException(
-                "Solo un Manager activo puede registrar esta solicitud.");
+                "Solo un Gerente activo puede registrar esta solicitud.");
         }
 
         var activeAuthorityRoles = await _context.UserRoles
@@ -309,7 +309,7 @@ public partial class ReceptionService
                 role.NormalizedName == "MANAGER"))
         {
             throw new UnauthorizedAccessException(
-                "Solo un Manager activo puede registrar esta solicitud.");
+                "Solo un Gerente activo puede registrar esta solicitud.");
         }
 
         return new LifecycleActor(actor, "Manager");
@@ -333,7 +333,7 @@ public partial class ReceptionService
         if (!actorUserId.HasValue)
         {
             throw new UnauthorizedAccessException(
-                "Solo Owner o Admin activo puede consultar recepciones inactivas.");
+                "Solo el Propietario o un Administrador activo puede consultar recepciones inactivas.");
         }
 
         try
@@ -343,7 +343,7 @@ public partial class ReceptionService
         catch (UnauthorizedAccessException)
         {
             throw new UnauthorizedAccessException(
-                "Solo Owner o Admin activo puede consultar recepciones inactivas.");
+                "Solo el Propietario o un Administrador activo puede consultar recepciones inactivas.");
         }
     }
 
