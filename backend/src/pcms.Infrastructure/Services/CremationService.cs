@@ -13,6 +13,16 @@ namespace pcms.Infrastructure.Services;
 
 public class CremationService : ICremationService
 {
+    private const int CremationScheduleDurationMinutes = 90;
+    private const long OneHornoSchedulingAdvisoryLockKey =
+        0x50434D5343350001L;
+
+    private const string ScheduleConflictMessage =
+        "El horario seleccionado se empalma con otra cremación programada para el horno.";
+
+    private const string ScheduleLockedMessage =
+        "No se puede cambiar la fecha programada después de iniciar la cremación.";
+
     private readonly AppDbContext _context;
     private readonly ICremationPricingService _cremationPricingService;
 
@@ -264,6 +274,12 @@ public class CremationService : ICremationService
         {
             throw new ArgumentException(
                 "La fecha programada no puede ser anterior a la fecha de recepción.");
+        }
+
+        if (dto.ScheduledAt.HasValue)
+        {
+            await AcquireOneHornoSchedulingLockAsync();
+            await EnsureScheduleAvailableAsync(dto.ScheduledAt.Value);
         }
 
         User? assignedUser = null;
@@ -856,6 +872,40 @@ public class CremationService : ICremationService
                 "La recepción no tiene un peso verificado válido.");
         }
 
+        var scheduleChanged =
+            cremation.ScheduledAt != dto.ScheduledAt;
+
+        if (IsScheduleLocked(cremation.Status) &&
+            scheduleChanged)
+        {
+            throw new InvalidOperationException(
+                ScheduleLockedMessage);
+        }
+
+        ValidateScheduledAt(dto.ScheduledAt);
+
+        if (dto.ScheduledAt.HasValue &&
+            dto.ScheduledAt.Value <
+            cremation.Reception.ReceivedAt)
+        {
+            throw new ArgumentException(
+                "La fecha programada no puede ser anterior a la fecha de recepción.");
+        }
+
+        if (cremation.Status is
+            CremationStatus.Pending or
+            CremationStatus.Scheduled)
+        {
+            await AcquireOneHornoSchedulingLockAsync();
+
+            if (dto.ScheduledAt.HasValue)
+            {
+                await EnsureScheduleAvailableAsync(
+                    dto.ScheduledAt.Value,
+                    cremation.Id);
+            }
+        }
+
         var packageChanged =
     cremation.CremationPackageId !=
     dto.CremationPackageId;
@@ -1047,16 +1097,6 @@ public class CremationService : ICremationService
 
             cremation.QuotedMaximumWeightKg =
                 updatedQuote.MaximumWeightKg;
-        }
-
-        ValidateScheduledAt(dto.ScheduledAt);
-
-        if (dto.ScheduledAt.HasValue &&
-            dto.ScheduledAt.Value <
-            cremation.Reception.ReceivedAt)
-        {
-            throw new ArgumentException(
-                "La fecha programada no puede ser anterior a la fecha de recepción.");
         }
 
         User? assignedUser = null;
@@ -1343,6 +1383,12 @@ public class CremationService : ICremationService
                 "Debe asignar un usuario antes de iniciar la cremación.");
         }
 
+        if (dto.Status == CremationStatus.InProgress)
+        {
+            await AcquireOneHornoSchedulingLockAsync();
+            await EnsureHornoAvailableForInProgressAsync(cremation);
+        }
+
         var currentTime = DateTime.UtcNow;
 
         cremation.Status = dto.Status;
@@ -1524,6 +1570,83 @@ public class CremationService : ICremationService
         return cremationIds.Count > 0;
     }
 
+    private async Task AcquireOneHornoSchedulingLockAsync()
+    {
+        await _context.Database.ExecuteSqlInterpolatedAsync($"""
+            SELECT pg_advisory_xact_lock(
+                {OneHornoSchedulingAdvisoryLockKey})
+            """);
+    }
+
+    private async Task EnsureScheduleAvailableAsync(
+        DateTime candidateStart,
+        Guid? excludedCremationId = null)
+    {
+        var candidateEnd = candidateStart.AddMinutes(
+            CremationScheduleDurationMinutes);
+
+        var earliestConflictingStart = candidateStart.AddMinutes(
+            -CremationScheduleDurationMinutes);
+
+        var hasConflict = await _context.Cremations
+            .AsNoTracking()
+            .AnyAsync(cremation =>
+                cremation.IsActive &&
+                (!excludedCremationId.HasValue ||
+                 cremation.Id != excludedCremationId.Value) &&
+                cremation.ScheduledAt.HasValue &&
+                (cremation.Status == CremationStatus.Scheduled ||
+                 cremation.Status == CremationStatus.InProgress) &&
+                cremation.ScheduledAt.Value < candidateEnd &&
+                cremation.ScheduledAt.Value >
+                    earliestConflictingStart);
+
+        if (hasConflict)
+        {
+            throw new InvalidOperationException(
+                ScheduleConflictMessage);
+        }
+    }
+
+    private async Task EnsureHornoAvailableForInProgressAsync(
+        Cremation cremation)
+    {
+        if (!cremation.ScheduledAt.HasValue)
+        {
+            throw new InvalidOperationException(
+                "Debe establecer una fecha programada antes de iniciar la cremación.");
+        }
+
+        var anotherCremationIsInProgress =
+            await _context.Cremations
+                .AsNoTracking()
+                .AnyAsync(candidate =>
+                    candidate.IsActive &&
+                    candidate.Id != cremation.Id &&
+                    candidate.Status ==
+                        CremationStatus.InProgress);
+
+        if (anotherCremationIsInProgress)
+        {
+            throw new InvalidOperationException(
+                "No se puede iniciar la cremación porque el horno está ocupado por otra cremación en proceso.");
+        }
+
+        await EnsureScheduleAvailableAsync(
+            cremation.ScheduledAt.Value,
+            cremation.Id);
+    }
+
+    private static bool IsScheduleLocked(CremationStatus status) =>
+        status is
+            CremationStatus.InProgress or
+            CremationStatus.Cooling or
+            CremationStatus.ProcessingRemains or
+            CremationStatus.Completed or
+            CremationStatus.ReadyForDelivery or
+            CremationStatus.Delivered or
+            CremationStatus.Cancelled;
+
     private static bool IsCremationConcurrencyConflict(
         Exception exception)
     {
@@ -1583,6 +1706,57 @@ public class CremationService : ICremationService
 
     public async Task<bool> RestoreAsync(Guid id)
     {
+        Exception? concurrencyException = null;
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            try
+            {
+                return await RestoreCoreAsync(id);
+            }
+            catch (Exception exception)
+                when (IsCremationConcurrencyConflict(exception))
+            {
+                concurrencyException = exception;
+                _context.ChangeTracker.Clear();
+            }
+        }
+
+        throw CremationConcurrencyConflict(concurrencyException!);
+    }
+
+    private async Task<bool> RestoreCoreAsync(Guid id)
+    {
+        await using var transaction =
+            await _context.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable);
+
+        var receptionId = await _context.Cremations
+            .AsNoTracking()
+            .Where(cremation =>
+                cremation.Id == id &&
+                !cremation.IsActive)
+            .Select(cremation => (Guid?)cremation.ReceptionId)
+            .FirstOrDefaultAsync();
+
+        if (!receptionId.HasValue)
+        {
+            return false;
+        }
+
+        if (!await LockActiveReceptionAsync(receptionId.Value))
+        {
+            throw new InvalidOperationException(
+                "No se puede restaurar la cremación porque su recepción está inactiva.");
+        }
+
+        if (!await LockInactiveCremationAsync(
+                id,
+                receptionId.Value))
+        {
+            return false;
+        }
+
         var cremation = await _context.Cremations
             .FirstOrDefaultAsync(c =>
                 c.Id == id &&
@@ -1593,22 +1767,53 @@ public class CremationService : ICremationService
             return false;
         }
 
-        var receptionIsActive = await _context.Receptions
-            .AnyAsync(r =>
-                r.Id == cremation.ReceptionId &&
-                r.IsActive);
-
-        if (!receptionIsActive)
+        if (cremation.Status is
+            CremationStatus.Scheduled or
+            CremationStatus.InProgress)
         {
-            throw new InvalidOperationException(
-                "No se puede restaurar la cremación porque su recepción está inactiva.");
+            await AcquireOneHornoSchedulingLockAsync();
+
+            if (cremation.Status == CremationStatus.InProgress)
+            {
+                await EnsureHornoAvailableForInProgressAsync(cremation);
+            }
+            else if (cremation.ScheduledAt.HasValue)
+            {
+                await EnsureScheduleAvailableAsync(
+                    cremation.ScheduledAt.Value,
+                    cremation.Id);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "Debe establecer una fecha programada antes de restaurar una cremación programada.");
+            }
         }
 
         cremation.IsActive = true;
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return true;
+    }
+
+    private async Task<bool> LockInactiveCremationAsync(
+        Guid cremationId,
+        Guid receptionId)
+    {
+        var cremationIds = await _context.Database
+            .SqlQuery<Guid>($"""
+                SELECT "Id" AS "Value"
+                FROM "Cremaciones"
+                WHERE "Id" = {cremationId}
+                  AND "RecepcionId" = {receptionId}
+                  AND "Activo" = FALSE
+                FOR UPDATE
+                """)
+            .ToListAsync();
+
+        return cremationIds.Count > 0;
     }
 
     public async Task<IEnumerable<CremationDto>> SearchAsync(
