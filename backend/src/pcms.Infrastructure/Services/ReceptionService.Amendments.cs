@@ -806,6 +806,8 @@ public partial class ReceptionService
             newQuote.MinimumWeightKg;
         cremation.QuotedMaximumWeightKg =
             newQuote.MaximumWeightKg;
+        cremation.RequiredStartPaymentAmount =
+            newQuote.RequiredCollectionPaymentAmount;
 
         return result;
     }

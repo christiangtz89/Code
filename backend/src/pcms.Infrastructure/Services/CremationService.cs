@@ -226,6 +226,21 @@ public class CremationService : ICremationService
         var quotedPrice =
             collectionPaymentAccount?.ServiceTotal ?? quote!.Price;
 
+        decimal? requiredStartPaymentAmount =
+            quote?.RequiredCollectionPaymentAmount;
+
+        if (collectionPaymentAccount?.CremationPriceId is Guid collectionPriceId)
+        {
+            requiredStartPaymentAmount = await _context.CremationPrices
+                .AsNoTracking()
+                .Where(price =>
+                    price.Id == collectionPriceId &&
+                    price.CremationPackageId == package.Id &&
+                    price.CremationType == cremationType)
+                .Select(price => price.RequiredCollectionPaymentAmount)
+                .FirstOrDefaultAsync();
+        }
+
         if (reception.CollectionId.HasValue)
         {
             if (collectionPaymentAccount != null &&
@@ -326,6 +341,7 @@ public class CremationService : ICremationService
             IncludesCertificate = package.IncludesCertificate,
             QuotedPrice =
     quotedPrice,
+            RequiredStartPaymentAmount = requiredStartPaymentAmount,
 
             QuotedWeightKg = collectionPaymentAccount?.WeightKgSnapshot ?? quote!.WeightKg,
 
@@ -1118,6 +1134,12 @@ public class CremationService : ICremationService
 
             cremation.QuotedMaximumWeightKg =
                 updatedQuote.MaximumWeightKg;
+
+            if (cremation.Status is CremationStatus.Pending or CremationStatus.Scheduled)
+            {
+                cremation.RequiredStartPaymentAmount =
+                    updatedQuote.RequiredCollectionPaymentAmount;
+            }
         }
 
         User? assignedUser = null;
