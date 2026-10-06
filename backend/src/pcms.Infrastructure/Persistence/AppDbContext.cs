@@ -42,6 +42,8 @@ public class AppDbContext : DbContext
 
     public DbSet<CremationStartVerification> CremationStartVerifications { get; set; }
 
+    public DbSet<CremationStartPaymentRevalidation> CremationStartPaymentRevalidations { get; set; }
+
     public DbSet<CremationPackage> CremationPackages { get; set; }
 
     public DbSet<Urn> Urns { get; set; }
@@ -1907,6 +1909,70 @@ public class AppDbContext : DbContext
             entity.HasOne(verification => verification.ConfirmedByUser)
                 .WithMany()
                 .HasForeignKey(verification => verification.ConfirmedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CremationStartPaymentRevalidation>(entity =>
+        {
+            entity.ToTable("RevalidacionesPagoInicioCremacion");
+
+            entity.HasKey(revalidation => revalidation.Id);
+
+            entity.Property(revalidation => revalidation.CremationId)
+                .HasColumnName("CremacionId")
+                .IsRequired();
+
+            entity.Property(revalidation => revalidation.ConfirmedByUserId)
+                .HasColumnName("ConfirmadoPorUsuarioId")
+                .IsRequired();
+
+            entity.Property(revalidation => revalidation.ConfirmedByUserNameSnapshot)
+                .HasColumnName("NombreUsuarioConfirmoSnapshot")
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(revalidation => revalidation.ConfirmedAt)
+                .HasColumnName("FechaConfirmacion")
+                .IsRequired();
+
+            entity.Property(revalidation => revalidation.RequestId)
+                .HasColumnName("SolicitudId")
+                .IsRequired();
+
+            entity.Property(revalidation => revalidation.SelectedCremationPriceId)
+                .HasColumnName("PrecioCremacionSeleccionadoId")
+                .IsRequired();
+
+            entity.Property(revalidation => revalidation.PreviousQuotedPrice)
+                .HasColumnName("PrecioCotizadoAnterior")
+                .HasColumnType("numeric(12,2)");
+
+            entity.Property(revalidation => revalidation.NewQuotedPrice)
+                .HasColumnName("PrecioCotizadoNuevo")
+                .HasColumnType("numeric(12,2)")
+                .IsRequired();
+
+            entity.Property(revalidation => revalidation.EstablishedRequiredStartPaymentAmount)
+                .HasColumnName("MontoPagoRequeridoInicioEstablecido")
+                .HasColumnType("numeric(12,2)")
+                .IsRequired();
+
+            entity.HasIndex(revalidation => revalidation.CremationId)
+                .IsUnique();
+
+            entity.HasOne(revalidation => revalidation.Cremation)
+                .WithOne()
+                .HasForeignKey<CremationStartPaymentRevalidation>(revalidation => revalidation.CremationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(revalidation => revalidation.ConfirmedByUser)
+                .WithMany()
+                .HasForeignKey(revalidation => revalidation.ConfirmedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(revalidation => revalidation.SelectedCremationPrice)
+                .WithMany()
+                .HasForeignKey(revalidation => revalidation.SelectedCremationPriceId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
