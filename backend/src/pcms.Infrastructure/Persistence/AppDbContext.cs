@@ -40,6 +40,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Cremation> Cremations { get; set; }
 
+    public DbSet<CremationStartVerification> CremationStartVerifications { get; set; }
+
     public DbSet<CremationPackage> CremationPackages { get; set; }
 
     public DbSet<Urn> Urns { get; set; }
@@ -1771,6 +1773,10 @@ public class AppDbContext : DbContext
     .HasColumnName("PrecioCotizado")
     .HasColumnType("numeric(12,2)");
 
+            entity.Property(x => x.RequiredStartPaymentAmount)
+                .HasColumnName("MontoPagoRequeridoInicio")
+                .HasColumnType("numeric(12,2)");
+
             entity.Property(x => x.QuotedWeightKg)
                 .HasColumnName("PesoCotizadoKg")
                 .HasColumnType("numeric(10,2)");
@@ -1847,6 +1853,61 @@ public class AppDbContext : DbContext
                 .HasForeignKey(c => c.UrnId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+        });
+
+        modelBuilder.Entity<CremationStartVerification>(entity =>
+        {
+            entity.ToTable("VerificacionesInicioCremacion");
+
+            entity.HasKey(verification => verification.Id);
+
+            entity.Property(verification => verification.CremationId)
+                .HasColumnName("CremacionId")
+                .IsRequired();
+
+            entity.Property(verification => verification.ReceptionId)
+                .HasColumnName("RecepcionId")
+                .IsRequired();
+
+            entity.Property(verification => verification.ReceptionQrCodeSnapshot)
+                .HasColumnName("CodigoQrRecepcionSnapshot")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(verification => verification.ConfirmedByUserId)
+                .HasColumnName("ConfirmadoPorUsuarioId")
+                .IsRequired();
+
+            entity.Property(verification => verification.ConfirmedByUserNameSnapshot)
+                .HasColumnName("NombreUsuarioConfirmoSnapshot")
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(verification => verification.ConfirmedAt)
+                .HasColumnName("FechaConfirmacion")
+                .IsRequired();
+
+            entity.Property(verification => verification.RequestId)
+                .HasColumnName("SolicitudId")
+                .IsRequired();
+
+            entity.HasIndex(verification => verification.CremationId)
+                .IsUnique();
+
+            entity.HasOne(verification => verification.Cremation)
+                .WithOne()
+                .HasForeignKey<CremationStartVerification>(verification => verification.CremationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(verification => verification.Reception)
+                .WithMany()
+                .HasForeignKey(verification => verification.ReceptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(verification => verification.ConfirmedByUser)
+                .WithMany()
+                .HasForeignKey(verification => verification.ConfirmedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Payment account table configuration
