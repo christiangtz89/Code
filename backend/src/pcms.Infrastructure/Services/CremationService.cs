@@ -1079,6 +1079,27 @@ public class CremationService : ICremationService
                         $"no puede ser menor que el monto ya pagado ({amountPaid:C2}).");
                 }
 
+                paymentAccount.CremationPriceId =
+                    updatedQuote.CremationPriceId;
+
+                paymentAccount.CremationPackageId =
+                    updatedQuote.CremationPackageId;
+
+                paymentAccount.PackageName =
+                    updatedQuote.CremationPackageName;
+
+                paymentAccount.CremationTypeSnapshot =
+                    updatedQuote.CremationType;
+
+                paymentAccount.WeightKgSnapshot =
+                    updatedQuote.WeightKg;
+
+                paymentAccount.MinimumWeightKgSnapshot =
+                    updatedQuote.MinimumWeightKg;
+
+                paymentAccount.MaximumWeightKgSnapshot =
+                    updatedQuote.MaximumWeightKg;
+
                 paymentAccount.ServiceTotal =
                     updatedQuote.Price;
 
