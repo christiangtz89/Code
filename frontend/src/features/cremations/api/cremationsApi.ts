@@ -8,6 +8,8 @@ import type {
   PaginatedCremations,
   SearchCremationsParams,
   UpdateCremationPayload,
+  RevalidateStartPaymentRequest,
+  RevalidateStartPaymentResult,
 } from "../types/cremation.types";
 import type {
   CremationReceptionOption,
@@ -121,4 +123,15 @@ export async function deactivateCremation(id: string): Promise<void> {
 
 export async function restoreCremation(id: string): Promise<void> {
   await apiClient.patch(`/Cremations/${id}/restore`);
+}
+
+export async function revalidateStartPayment(
+  id: string,
+  payload: RevalidateStartPaymentRequest,
+): Promise<RevalidateStartPaymentResult> {
+  const response = await apiClient.post<RevalidateStartPaymentResult>(
+    `/Cremations/${id}/revalidate-start-payment`,
+    payload,
+  );
+  return response.data;
 }

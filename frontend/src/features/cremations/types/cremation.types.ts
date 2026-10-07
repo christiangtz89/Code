@@ -56,6 +56,8 @@ export interface Cremation {
 
   quotedPrice: number | null;
 
+  requiredStartPaymentAmount: number | null;
+
   quotedWeightKg: number | null;
 
   quotedMinimumWeightKg: number | null;
@@ -122,4 +124,29 @@ export interface GetCremationsParams {
 export interface SearchCremationsParams {
   search: string;
   isActive: boolean;
+}
+
+export type RevalidateStartPaymentRequest =
+  | { requestId: string; confirmPriceChange: false }
+  | {
+      requestId: string;
+      confirmPriceChange: true;
+      expectedCurrentQuotedPrice: number | null;
+      expectedNewQuotedPrice: number;
+      expectedCremationPriceId: string;
+      expectedRequiredStartPaymentAmount: number;
+      expectedCurrentPaymentAccountServiceTotal: number | null;
+    };
+
+export interface RevalidateStartPaymentResult {
+  cremationId: string;
+  applied: boolean;
+  priceConfirmationRequired: boolean;
+  replayed: boolean;
+  selectedCremationPriceId: string;
+  previousQuotedPrice: number | null;
+  previousPaymentAccountServiceTotal: number | null;
+  newQuotedPrice: number;
+  requiredStartPaymentAmount: number;
+  message: string | null;
 }

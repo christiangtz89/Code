@@ -15,6 +15,7 @@ import {
 } from "../../cremation-pricing/utils";
 import { Link } from "react-router-dom";
 import { hasPermission } from "../../auth/utils/permissions";
+import { canRevalidateStartPayment } from "../hooks/useStartPaymentRevalidation";
 
 interface CremationsTableProps {
   cremations: Cremation[];
@@ -29,6 +30,9 @@ interface CremationsTableProps {
 
   onRestore: (cremation: Cremation) => void;
   onInventory: (cremation: Cremation) => void;
+  onRevalidateStartPayment: (cremation: Cremation) => void;
+  revalidationBusy: boolean;
+  revalidatingId: string | null;
 }
 
 function getStatusClasses(cremation: Cremation): string {
@@ -74,6 +78,9 @@ export function CremationsTable({
   onDeactivate,
   onRestore,
   onInventory,
+  onRevalidateStartPayment,
+  revalidationBusy,
+  revalidatingId,
 }: CremationsTableProps) {
   const canScanDelivery =
     hasPermission("Inventory.ScanOutgoing") &&
@@ -243,6 +250,14 @@ export function CremationsTable({
                         Cotización histórica no disponible.
                       </p>
                     )}
+                    <p className="mt-3 text-xs text-slate-500">
+                      Pago requerido para iniciar
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-slate-800">
+                      {cremation.requiredStartPaymentAmount == null
+                        ? "Pendiente de validación"
+                        : formatCurrency(cremation.requiredStartPaymentAmount)}
+                    </p>
                   </td>
 
                   <td className="px-5 py-4 text-sm text-slate-600">
@@ -268,6 +283,20 @@ export function CremationsTable({
                     <div className="flex min-w-40 flex-wrap justify-end gap-2">
                       {showingActive ? (
                         <>
+                          {canRevalidateStartPayment(cremation) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onRevalidateStartPayment(cremation)
+                              }
+                              disabled={isPending || revalidationBusy}
+                              className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {revalidatingId === cremation.id
+                                ? "Validando..."
+                                : "Validar pago requerido"}
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onEdit(cremation)}

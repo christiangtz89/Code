@@ -23,6 +23,9 @@ import { CremationFormModal } from "../components/CremationFormModal";
 import { CremationsTable } from "../components/CremationsTable";
 import { CremationStatusModal } from "../components/CremationStatusModal";
 import { CremationInventoryPanel } from "../components/CremationInventoryPanel";
+import { StartPaymentRevalidationModal } from "../components/StartPaymentRevalidationModal";
+import { useStartPaymentRevalidation } from "../hooks/useStartPaymentRevalidation";
+import { hasPermission } from "../../auth/utils/permissions";
 import type { CremationFormValues } from "../schemas/cremationSchema";
 import type {
   ChangeCremationStatusPayload,
@@ -72,6 +75,7 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
 
 export function CremationsPage() {
   const queryClient = useQueryClient();
+  const revalidation = useStartPaymentRevalidation();
 
   const [statusFilter, setStatusFilter] =
     useState<CremationStatusFilter>("active");
@@ -360,7 +364,11 @@ export function CremationsPage() {
         <div>
           <p className="text-sm font-medium text-slate-500">Operación</p>
 
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+          <h1
+            id="cremations-title"
+            tabIndex={-1}
+            className="mt-1 text-3xl font-semibold tracking-tight text-slate-900"
+          >
             Cremaciones
           </h1>
 
@@ -459,6 +467,28 @@ export function CremationsPage() {
         </div>
       </div>
 
+      {revalidation.isUncertain &&
+        revalidation.attempt &&
+        hasPermission("Cremations.Manage") && (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+          >
+            <p>
+              Falta confirmar el resultado de la validación de{" "}
+              {revalidation.attempt.cremation.petName}.
+            </p>
+            <button
+              type="button"
+              disabled={revalidation.isPending}
+              onClick={revalidation.reopen}
+              className="mt-2 rounded-lg border border-amber-300 px-3 py-2 font-semibold disabled:opacity-50"
+            >
+              Revisar validación pendiente
+            </button>
+          </div>
+        )}
+
       {cremationsQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-5 text-sm text-red-700">
           No fue posible cargar las cremaciones. Verifica que el backend esté
@@ -479,6 +509,15 @@ export function CremationsPage() {
           onDeactivate={handleDeactivate}
           onRestore={handleRestore}
           onInventory={setSelectedInventoryCremation}
+          onRevalidateStartPayment={revalidation.start}
+          revalidationBusy={
+            revalidation.isPending || revalidation.attempt !== null
+          }
+          revalidatingId={
+            revalidation.isPending
+              ? (revalidation.attempt?.cremation.id ?? null)
+              : null
+          }
         />
       )}
 
@@ -530,6 +569,21 @@ export function CremationsPage() {
         }}
         onSubmit={handleFormSubmit}
       />
+
+      {revalidation.isOpen &&
+        revalidation.attempt &&
+        hasPermission("Cremations.Manage") && (
+          <StartPaymentRevalidationModal
+            cremation={revalidation.attempt.cremation}
+            preview={revalidation.attempt.preview}
+            isPending={revalidation.isPending}
+            isUncertain={revalidation.isUncertain}
+            returnFocus={revalidation.returnFocus}
+            onClose={revalidation.close}
+            onConfirm={revalidation.confirm}
+            onRetry={revalidation.retry}
+          />
+        )}
 
       <CremationStatusModal
         isOpen={selectedStatusCremation !== null}

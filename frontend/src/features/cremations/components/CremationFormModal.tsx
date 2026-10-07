@@ -303,6 +303,18 @@ export function CremationFormModal({
           noValidate
           className="space-y-7 px-6 py-6"
         >
+          {mode === "edit" && cremation && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-600">
+                Pago requerido para iniciar
+              </p>
+              <p className="mt-1 font-semibold text-slate-900">
+                {cremation.requiredStartPaymentAmount == null
+                  ? "Pendiente de validación"
+                  : formatCurrency(cremation.requiredStartPaymentAmount)}
+              </p>
+            </div>
+          )}
           <section>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Recepción
