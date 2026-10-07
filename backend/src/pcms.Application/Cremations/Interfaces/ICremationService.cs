@@ -27,7 +27,8 @@ public interface ICremationService
 
     Task<CremationDto?> ChangeStatusAsync(
         Guid id,
-        ChangeCremationStatusDto dto);
+        ChangeCremationStatusDto dto,
+        Guid actorUserId);
 
     Task<RevalidateStartPaymentResultDto?> RevalidateStartPaymentAsync(
         Guid id,

@@ -1312,7 +1312,8 @@ public partial class CremationService : ICremationService
 
     public async Task<CremationDto?> ChangeStatusAsync(
         Guid id,
-        ChangeCremationStatusDto dto)
+        ChangeCremationStatusDto dto,
+        Guid actorUserId)
     {
         Exception? concurrencyException = null;
 
@@ -1320,10 +1321,11 @@ public partial class CremationService : ICremationService
         {
             try
             {
-                return await ChangeStatusCoreAsync(id, dto);
+                return await ChangeStatusCoreAsync(id, dto, actorUserId);
             }
             catch (Exception exception)
-                when (IsCremationConcurrencyConflict(exception))
+                when (IsCremationConcurrencyConflict(exception) ||
+                      IsStartVerificationUniqueConflict(exception))
             {
                 concurrencyException = exception;
                 _context.ChangeTracker.Clear();
@@ -1335,7 +1337,8 @@ public partial class CremationService : ICremationService
 
     private async Task<CremationDto?> ChangeStatusCoreAsync(
         Guid id,
-        ChangeCremationStatusDto dto)
+        ChangeCremationStatusDto dto,
+        Guid actorUserId)
     {
         if (!Enum.IsDefined(
                 typeof(CremationStatus),
@@ -1345,9 +1348,18 @@ public partial class CremationService : ICremationService
                 "El estado de cremación no es válido.");
         }
 
+        ValidateStartRequest(dto);
+
         await using var transaction =
             await _context.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable);
+
+        if (dto.Status == CremationStatus.InProgress)
+        {
+            // Inventory writers acquire this resource before referencing Cremation.
+            await new InventoryLedger(_context)
+                .AcquireResourceLockAsync($"pcms:cremation:{id:D}");
+        }
 
         var receptionId = await LockReceptionForCremationAsync(id);
 
@@ -1369,6 +1381,23 @@ public partial class CremationService : ICremationService
         if (cremation == null)
         {
             return null;
+        }
+
+        User? startActor = null;
+        if (dto.Status == CremationStatus.InProgress)
+        {
+            startActor = await LockActiveStartActorAsync(actorUserId);
+            var verification = await _context.CremationStartVerifications
+                .AsNoTracking()
+                .SingleOrDefaultAsync(record => record.CremationId == id);
+
+            if (verification is not null)
+            {
+                EnsureMatchingStartReplay(cremation, verification, dto, actorUserId);
+                var current = await GetByIdAsync(id);
+                await transaction.CommitAsync();
+                return current;
+            }
         }
 
         if (cremation.Status == dto.Status)
@@ -1434,11 +1463,17 @@ public partial class CremationService : ICremationService
 
         if (dto.Status == CremationStatus.InProgress)
         {
+            await ValidateNewStartAsync(cremation, dto, actorUserId);
             await AcquireOneHornoSchedulingLockAsync();
             await EnsureHornoAvailableForInProgressAsync(cremation);
         }
 
         var currentTime = DateTime.UtcNow;
+
+        if (dto.Status == CremationStatus.InProgress)
+        {
+            AddStartVerification(cremation, dto, startActor!, currentTime);
+        }
 
         cremation.Status = dto.Status;
 

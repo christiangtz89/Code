@@ -199,12 +199,27 @@ public class CremationsController : ControllerBase
         Guid id,
         ChangeCremationStatusDto dto)
     {
+        var actorValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst("userId")?.Value;
+
+        if (!Guid.TryParse(actorValue, out var actorUserId))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "No se pudo identificar al usuario autenticado."
+            });
+        }
+
         try
         {
             var cremation =
                 await _cremationService.ChangeStatusAsync(
                     id,
-                    dto);
+                    dto,
+                    actorUserId);
 
             if (cremation == null)
             {

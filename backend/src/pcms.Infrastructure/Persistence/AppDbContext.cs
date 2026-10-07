@@ -1882,7 +1882,7 @@ public class AppDbContext : DbContext
 
             entity.Property(verification => verification.ConfirmedByUserNameSnapshot)
                 .HasColumnName("NombreUsuarioConfirmoSnapshot")
-                .HasMaxLength(200)
+                .HasColumnType("text")
                 .IsRequired();
 
             entity.Property(verification => verification.ConfirmedAt)

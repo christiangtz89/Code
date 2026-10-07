@@ -10,6 +10,12 @@ public class ChangeCremationStatusDto
         ErrorMessage = "El estado de cremación no es válido.")]
     public CremationStatus Status { get; set; }
 
+    public Guid? RequestId { get; set; }
+
+    public string? ReceptionQrCode { get; set; }
+
+    public bool? CustodyAccepted { get; set; }
+
     [StringLength(
         1000,
         ErrorMessage =
