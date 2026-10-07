@@ -11,7 +11,7 @@ using pcms.Application.CremationPricing.DTOs;
 
 namespace pcms.Infrastructure.Services;
 
-public class CremationService : ICremationService
+public partial class CremationService : ICremationService
 {
     private const int CremationScheduleDurationMinutes = 90;
     private const long OneHornoSchedulingAdvisoryLockKey =
@@ -411,6 +411,7 @@ public class CremationService : ICremationService
                 cremation.IncludesCertificate,
             QuotedPrice =
     cremation.QuotedPrice,
+            RequiredStartPaymentAmount = cremation.RequiredStartPaymentAmount,
 
             QuotedWeightKg =
     cremation.QuotedWeightKg,
@@ -509,6 +510,7 @@ public class CremationService : ICremationService
 
                 QuotedPrice =
     c.QuotedPrice,
+                RequiredStartPaymentAmount = c.RequiredStartPaymentAmount,
 
                 QuotedWeightKg =
     c.QuotedWeightKg,
@@ -611,6 +613,7 @@ public class CremationService : ICremationService
                     c.IncludesCertificate,
 
                 QuotedPrice = c.QuotedPrice,
+                RequiredStartPaymentAmount = c.RequiredStartPaymentAmount,
                 QuotedWeightKg = c.QuotedWeightKg,
                 QuotedMinimumWeightKg = c.QuotedMinimumWeightKg,
                 QuotedMaximumWeightKg = c.QuotedMaximumWeightKg,
@@ -699,6 +702,7 @@ public class CremationService : ICremationService
 
                 QuotedPrice =
     c.QuotedPrice,
+                RequiredStartPaymentAmount = c.RequiredStartPaymentAmount,
 
                 QuotedWeightKg =
     c.QuotedWeightKg,
@@ -801,6 +805,7 @@ public class CremationService : ICremationService
                     c.IncludesCertificate,
 
                 QuotedPrice = c.QuotedPrice,
+                RequiredStartPaymentAmount = c.RequiredStartPaymentAmount,
                 QuotedWeightKg = c.QuotedWeightKg,
                 QuotedMinimumWeightKg = c.QuotedMinimumWeightKg,
                 QuotedMaximumWeightKg = c.QuotedMaximumWeightKg,
@@ -1270,6 +1275,7 @@ public class CremationService : ICremationService
 
             QuotedPrice =
     cremation.QuotedPrice,
+            RequiredStartPaymentAmount = cremation.RequiredStartPaymentAmount,
 
             QuotedWeightKg =
     cremation.QuotedWeightKg,
@@ -1525,6 +1531,7 @@ public class CremationService : ICremationService
 
             QuotedPrice =
     cremation.QuotedPrice,
+            RequiredStartPaymentAmount = cremation.RequiredStartPaymentAmount,
 
             QuotedWeightKg =
     cremation.QuotedWeightKg,
@@ -1965,6 +1972,7 @@ public class CremationService : ICremationService
 
                 QuotedPrice =
     c.QuotedPrice,
+                RequiredStartPaymentAmount = c.RequiredStartPaymentAmount,
 
                 QuotedWeightKg =
     c.QuotedWeightKg,

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using pcms.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using pcms.Infrastructure.Persistence;
 namespace pcms.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006214300_UpdateCremationStartPaymentRevalidationReplayEvidence")]
+    partial class UpdateCremationStartPaymentRevalidationReplayEvidence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -839,10 +842,6 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("NewQuotedPrice")
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("PrecioCotizadoNuevo");
-
-                    b.Property<decimal?>("PreviousPaymentAccountServiceTotal")
-                        .HasColumnType("numeric(12,2)")
-                        .HasColumnName("TotalServicioCuentaPagoAnterior");
 
                     b.Property<decimal?>("PreviousQuotedPrice")
                         .HasColumnType("numeric(12,2)")

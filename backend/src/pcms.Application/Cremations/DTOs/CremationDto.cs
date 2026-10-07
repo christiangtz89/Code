@@ -62,6 +62,8 @@ public class CremationDto
 
     public decimal? QuotedPrice { get; set; }
 
+    public decimal? RequiredStartPaymentAmount { get; set; }
+
     public decimal? QuotedWeightKg { get; set; }
 
     public decimal? QuotedMinimumWeightKg { get; set; }

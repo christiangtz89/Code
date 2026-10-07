@@ -14,9 +14,14 @@ public class CremationStartPaymentRevalidation
 
     public Guid RequestId { get; set; }
 
+    public bool PriceChangeConfirmed { get; set; }
+
     public Guid SelectedCremationPriceId { get; set; }
 
     public decimal? PreviousQuotedPrice { get; set; }
+
+    // Null means this operation did not change a payment account's total.
+    public decimal? PreviousPaymentAccountServiceTotal { get; set; }
 
     public decimal NewQuotedPrice { get; set; }
 

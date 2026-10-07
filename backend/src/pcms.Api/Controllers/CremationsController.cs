@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using pcms.Application.Cremations.DTOs;
 using pcms.Application.Cremations.Interfaces;
 using pcms.Domain.Enums;
@@ -230,6 +231,58 @@ public class CremationsController : ControllerBase
             {
                 success = false,
                 message = ex.Message
+            });
+        }
+    }
+
+    [HttpPost("{id:guid}/revalidate-start-payment")]
+    [Authorize(Policy = "Cremations.Manage")]
+    public async Task<ActionResult<RevalidateStartPaymentResultDto>>
+        RevalidateStartPayment(
+            Guid id,
+            RevalidateStartPaymentRequestDto request)
+    {
+        var actorValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst("userId")?.Value;
+
+        if (!Guid.TryParse(actorValue, out var actorUserId))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "No se pudo identificar al usuario autenticado."
+            });
+        }
+
+        try
+        {
+            var result = await _cremationService
+                .RevalidateStartPaymentAsync(id, request, actorUserId);
+
+            return result is null
+                ? NotFound(new
+                {
+                    success = false,
+                    message = "Cremación no encontrada."
+                })
+                : Ok(result);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = exception.Message
             });
         }
     }

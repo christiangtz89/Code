@@ -1928,7 +1928,7 @@ public class AppDbContext : DbContext
 
             entity.Property(revalidation => revalidation.ConfirmedByUserNameSnapshot)
                 .HasColumnName("NombreUsuarioConfirmoSnapshot")
-                .HasMaxLength(200)
+                .HasColumnType("text")
                 .IsRequired();
 
             entity.Property(revalidation => revalidation.ConfirmedAt)
@@ -1939,12 +1939,20 @@ public class AppDbContext : DbContext
                 .HasColumnName("SolicitudId")
                 .IsRequired();
 
+            entity.Property(revalidation => revalidation.PriceChangeConfirmed)
+                .HasColumnName("CambioPrecioConfirmado")
+                .IsRequired();
+
             entity.Property(revalidation => revalidation.SelectedCremationPriceId)
                 .HasColumnName("PrecioCremacionSeleccionadoId")
                 .IsRequired();
 
             entity.Property(revalidation => revalidation.PreviousQuotedPrice)
                 .HasColumnName("PrecioCotizadoAnterior")
+                .HasColumnType("numeric(12,2)");
+
+            entity.Property(revalidation => revalidation.PreviousPaymentAccountServiceTotal)
+                .HasColumnName("TotalServicioCuentaPagoAnterior")
                 .HasColumnType("numeric(12,2)");
 
             entity.Property(revalidation => revalidation.NewQuotedPrice)
