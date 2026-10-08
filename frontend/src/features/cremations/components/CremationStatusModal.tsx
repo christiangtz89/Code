@@ -88,6 +88,7 @@ export function CremationStatusModal({
   const qrInputRef = useRef<HTMLInputElement>(null);
   const retryButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const wasSubmittingRef = useRef(false);
   const [selectedStatus, setSelectedStatus] = useState<CremationStatus | null>(
     null,
   );
@@ -161,6 +162,34 @@ export function CremationStatusModal({
       }
     });
   }, [isOpen, retryRequest]);
+
+  useEffect(() => {
+    const justSettled = wasSubmittingRef.current && !isSubmitting;
+    wasSubmittingRef.current = isSubmitting;
+    if (!isOpen || !justSettled) return;
+
+    const frame = requestAnimationFrame(() => {
+      const dialog = dialogRef.current;
+      if (!dialog?.isConnected || dialog.contains(document.activeElement))
+        return;
+
+      const firstEnabledStatus = dialog.querySelector<HTMLElement>(
+        'input[name="cremation-status"]:not(:disabled)',
+      );
+      const fallback = dialog.querySelector<HTMLElement>(
+        "button:not(:disabled)",
+      );
+      const qrInput = qrInputRef.current;
+      const target = retryRequest
+        ? retryButtonRef.current
+        : qrInput && !qrInput.disabled
+          ? qrInput
+          : (firstEnabledStatus ?? fallback);
+      (target ?? dialog).focus();
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, isSubmitting, retryRequest]);
 
   if (!isOpen || !cremation) {
     return null;
