@@ -33,6 +33,7 @@ interface CremationsTableProps {
   onRevalidateStartPayment: (cremation: Cremation) => void;
   revalidationBusy: boolean;
   revalidatingId: string | null;
+  statusChangeBusy: boolean;
 }
 
 function getStatusClasses(cremation: Cremation): string {
@@ -81,7 +82,9 @@ export function CremationsTable({
   onRevalidateStartPayment,
   revalidationBusy,
   revalidatingId,
+  statusChangeBusy,
 }: CremationsTableProps) {
+  const canManageCremations = hasPermission("Cremations.Manage");
   const canScanDelivery =
     hasPermission("Inventory.ScanOutgoing") &&
     hasPermission("Cremations.View");
@@ -315,11 +318,11 @@ export function CremationsTable({
                             </Link>
                           )}
 
-                          {!terminalStatus && (
+                          {canManageCremations && !terminalStatus && (
                             <button
                               type="button"
                               onClick={() => onChangeStatus(cremation)}
-                              disabled={isPending}
+                              disabled={isPending || statusChangeBusy}
                               className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Cambiar estado

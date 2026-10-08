@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import axios from "axios";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import {
@@ -25,13 +25,16 @@ import { CremationStatusModal } from "../components/CremationStatusModal";
 import { CremationInventoryPanel } from "../components/CremationInventoryPanel";
 import { StartPaymentRevalidationModal } from "../components/StartPaymentRevalidationModal";
 import { useStartPaymentRevalidation } from "../hooks/useStartPaymentRevalidation";
-import { hasPermission } from "../../auth/utils/permissions";
+import { currentUserId, hasPermission } from "../../auth/utils/permissions";
 import type { CremationFormValues } from "../schemas/cremationSchema";
 import type {
   ChangeCremationStatusPayload,
   Cremation,
   PaginatedCremations,
+  StartCremationStatusPayload,
 } from "../types/cremation.types";
+import { CremationStatus } from "../types/cremation.types";
+import { getCremationStatusLabel } from "../utils/cremationLabels";
 import {
   createCremationPayload,
   updateCremationPayload,
@@ -43,6 +46,11 @@ type CremationFormMode = "create" | "edit";
 interface CremationModalState {
   mode: CremationFormMode;
   cremation: Cremation | null;
+}
+
+interface UncertainStartAttempt {
+  cremation: Cremation;
+  request: StartCremationStatusPayload;
 }
 
 interface ApiErrorResponse {
@@ -92,6 +100,9 @@ export function CremationsPage() {
 
   const [selectedStatusCremation, setSelectedStatusCremation] =
     useState<Cremation | null>(null);
+  const [uncertainStartAttempt, setUncertainStartAttempt] =
+    useState<UncertainStartAttempt | null>(null);
+  const statusRequestBusy = useRef(false);
   const [selectedInventoryCremation, setSelectedInventoryCremation] = useState<Cremation | null>(null);
 
   const isActive = statusFilter === "active";
@@ -224,22 +235,6 @@ export function CremationsPage() {
       payload: ChangeCremationStatusPayload;
     }) => changeCremationStatus(id, payload),
 
-    onSuccess: async () => {
-      await refreshCremations();
-
-      setSelectedStatusCremation(null);
-
-      toast.success("Estado actualizado correctamente.");
-    },
-
-    onError: (error) => {
-      toast.error(
-        getApiErrorMessage(
-          error,
-          "No fue posible cambiar el estado de la cremación.",
-        ),
-      );
-    },
   });
 
   const deactivateMutation = useMutation({
@@ -317,15 +312,68 @@ export function CremationsPage() {
     }
   }
 
-  async function handleStatusSubmit(payload: ChangeCremationStatusPayload) {
-    if (!selectedStatusCremation) {
+  async function sendStatusRequest(
+    cremation: Cremation,
+    payload: ChangeCremationStatusPayload,
+  ) {
+    if (statusRequestBusy.current || !hasPermission("Cremations.Manage")) return;
+    if (
+      payload.status === CremationStatus.InProgress &&
+      currentUserId()?.toLowerCase() !==
+        cremation.assignedToUserId?.toLowerCase()
+    ) {
+      toast.error("Solo el empleado asignado puede iniciar esta cremación.");
       return;
     }
 
-    await changeStatusMutation.mutateAsync({
-      id: selectedStatusCremation.id,
-      payload,
-    });
+    statusRequestBusy.current = true;
+    try {
+      const current = await changeStatusMutation.mutateAsync({
+        id: cremation.id,
+        payload,
+      });
+      setUncertainStartAttempt(null);
+      setSelectedStatusCremation(null);
+      toast.success(
+        payload.status === CremationStatus.InProgress
+          ? `Inicio confirmado. Estado actual: ${getCremationStatusLabel(current.status)}.`
+          : "Estado actualizado correctamente.",
+      );
+      // A refresh failure cannot turn a confirmed start into an uncertain request.
+      await Promise.allSettled([refreshCremations()]);
+    } catch (error) {
+      const status = axios.isAxiosError(error) ? error.response?.status : null;
+      if (
+        payload.status === CremationStatus.InProgress &&
+        axios.isAxiosError(error) &&
+        (!status || status === 408 || status >= 500)
+      ) {
+        setUncertainStartAttempt({ cremation, request: payload });
+      } else {
+        setUncertainStartAttempt(null);
+        toast.error(
+          getApiErrorMessage(
+            error,
+            "No fue posible cambiar el estado de la cremación.",
+          ),
+        );
+      }
+    } finally {
+      statusRequestBusy.current = false;
+    }
+  }
+
+  async function handleStatusSubmit(payload: ChangeCremationStatusPayload) {
+    if (!selectedStatusCremation || uncertainStartAttempt) return;
+    await sendStatusRequest(selectedStatusCremation, payload);
+  }
+
+  async function handleStatusRetry() {
+    if (!uncertainStartAttempt) return;
+    await sendStatusRequest(
+      uncertainStartAttempt.cremation,
+      uncertainStartAttempt.request,
+    );
   }
 
   function handleDeactivate(cremation: Cremation) {
@@ -489,6 +537,28 @@ export function CremationsPage() {
           </div>
         )}
 
+      {uncertainStartAttempt && hasPermission("Cremations.Manage") && (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+        >
+          <p>
+            Falta confirmar el resultado del inicio de{" "}
+            {uncertainStartAttempt.cremation.petName}.
+          </p>
+          <button
+            type="button"
+            disabled={changeStatusMutation.isPending}
+            onClick={() =>
+              setSelectedStatusCremation(uncertainStartAttempt.cremation)
+            }
+            className="mt-2 rounded-lg border border-amber-300 px-3 py-2 font-semibold disabled:opacity-50"
+          >
+            Revisar inicio pendiente
+          </button>
+        </div>
+      )}
+
       {cremationsQuery.isError ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-5 text-sm text-red-700">
           No fue posible cargar las cremaciones. Verifica que el backend esté
@@ -505,7 +575,9 @@ export function CremationsPage() {
               cremation,
             })
           }
-          onChangeStatus={setSelectedStatusCremation}
+          onChangeStatus={(cremation) => {
+            if (!uncertainStartAttempt) setSelectedStatusCremation(cremation);
+          }}
           onDeactivate={handleDeactivate}
           onRestore={handleRestore}
           onInventory={setSelectedInventoryCremation}
@@ -517,6 +589,9 @@ export function CremationsPage() {
             revalidation.isPending
               ? (revalidation.attempt?.cremation.id ?? null)
               : null
+          }
+          statusChangeBusy={
+            changeStatusMutation.isPending || uncertainStartAttempt !== null
           }
         />
       )}
@@ -589,12 +664,19 @@ export function CremationsPage() {
         isOpen={selectedStatusCremation !== null}
         cremation={selectedStatusCremation}
         isSubmitting={changeStatusMutation.isPending}
+        retryRequest={
+          uncertainStartAttempt &&
+          selectedStatusCremation?.id === uncertainStartAttempt.cremation.id
+            ? uncertainStartAttempt.request
+            : null
+        }
         onClose={() => {
           if (!changeStatusMutation.isPending) {
             setSelectedStatusCremation(null);
           }
         }}
         onSubmit={handleStatusSubmit}
+        onRetry={handleStatusRetry}
       />
     </section>
   );

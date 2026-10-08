@@ -102,10 +102,20 @@ export interface UpdateCremationPayload {
   notes: string | null;
 }
 
-export interface ChangeCremationStatusPayload {
-  status: CremationStatus;
+export type StartCremationStatusPayload = {
+  status: typeof CremationStatus.InProgress;
   notes: string | null;
-}
+  requestId: string;
+  receptionQrCode: string;
+  custodyAccepted: true;
+};
+
+export type ChangeCremationStatusPayload =
+  | StartCremationStatusPayload
+  | {
+      status: Exclude<CremationStatus, typeof CremationStatus.InProgress>;
+      notes: string | null;
+    };
 
 export interface PaginatedCremations {
   items: Cremation[];
