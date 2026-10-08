@@ -1496,10 +1496,10 @@ public partial class CremationService : ICremationService
                 break;
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.Notes))
-        {
-            cremation.Notes = dto.Notes.Trim();
-        }
+        // Keep transition evidence independent from editable general/legacy Notes.
+        // Exact start replay returns above, before any new commentary is recorded.
+        await AddOperationalCommentAsync(
+            cremation.Id, dto.Status, dto.Notes, actorUserId, currentTime, startActor);
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();

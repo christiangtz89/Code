@@ -107,6 +107,24 @@ public class CremationsController : ControllerBase
         return Ok(cremation);
     }
 
+    [HttpGet("{id:guid}/operational-comments")]
+    public async Task<ActionResult<IReadOnlyList<CremationOperationalCommentDto>>> GetOperationalComments(
+        Guid id)
+    {
+        var comments = await _cremationService.GetOperationalCommentsAsync(id);
+
+        if (comments is null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Cremación no encontrada."
+            });
+        }
+
+        return Ok(comments);
+    }
+
     [HttpGet("reception/{receptionId:guid}")]
     public async Task<ActionResult<CremationDto>>
         GetByReceptionId(Guid receptionId)

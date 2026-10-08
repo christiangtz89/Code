@@ -40,6 +40,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Cremation> Cremations { get; set; }
 
+    public DbSet<CremationOperationalComment> CremationOperationalComments { get; set; }
+
     public DbSet<CremationStartVerification> CremationStartVerifications { get; set; }
 
     public DbSet<CremationStartPaymentRevalidation> CremationStartPaymentRevalidations { get; set; }
@@ -1855,6 +1857,52 @@ public class AppDbContext : DbContext
                 .HasForeignKey(c => c.UrnId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+        });
+
+        modelBuilder.Entity<CremationOperationalComment>(entity =>
+        {
+            entity.ToTable("ComentariosOperativosCremacion");
+
+            entity.HasKey(comment => comment.Id);
+
+            entity.Property(comment => comment.CremationId)
+                .HasColumnName("CremacionId")
+                .IsRequired();
+
+            entity.Property(comment => comment.Status)
+                .HasColumnName("Estado")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(comment => comment.Comment)
+                .HasColumnName("Comentario")
+                .HasMaxLength(1000)
+                .IsRequired();
+
+            entity.Property(comment => comment.CreatedByUserId)
+                .HasColumnName("CreadoPorUsuarioId")
+                .IsRequired();
+
+            entity.Property(comment => comment.CreatedByUserNameSnapshot)
+                .HasColumnName("NombreUsuarioSnapshot")
+                .HasColumnType("text")
+                .IsRequired();
+
+            entity.Property(comment => comment.CreatedAt)
+                .HasColumnName("FechaCreacion")
+                .IsRequired();
+
+            entity.HasIndex(comment => new { comment.CremationId, comment.CreatedAt });
+
+            entity.HasOne(comment => comment.Cremation)
+                .WithMany()
+                .HasForeignKey(comment => comment.CremationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(comment => comment.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(comment => comment.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CremationStartVerification>(entity =>

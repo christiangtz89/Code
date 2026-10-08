@@ -15,6 +15,9 @@ public interface ICremationService
 
     Task<CremationDto?> GetByIdAsync(Guid id);
 
+    Task<IReadOnlyList<CremationOperationalCommentDto>?> GetOperationalCommentsAsync(
+        Guid id);
+
     Task<CremationDto?> GetByReceptionIdAsync(
         Guid receptionId);
 
