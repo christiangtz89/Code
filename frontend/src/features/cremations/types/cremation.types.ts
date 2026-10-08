@@ -160,3 +160,9 @@ export interface RevalidateStartPaymentResult {
   requiredStartPaymentAmount: number;
   message: string | null;
 }
+
+export interface ReassignCremationPayload {
+  requestId: string;
+  newAssignedToUserId: string;
+  reason: string;
+}

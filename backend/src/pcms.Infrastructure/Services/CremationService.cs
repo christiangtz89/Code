@@ -887,6 +887,14 @@ public partial class CremationService : ICremationService
             return null;
         }
 
+        if ((cremation.StartedAt.HasValue ||
+             cremation.Status is >= CremationStatus.InProgress and <= CremationStatus.Delivered) &&
+            cremation.AssignedToUserId != dto.AssignedToUserId)
+        {
+            throw new InvalidOperationException(
+                "Esta cremación ya inició. La reasignación requiere autorización y motivo.");
+        }
+
         if (cremation.Reception.VerifiedWeightKg <= 0)
         {
             throw new InvalidOperationException(

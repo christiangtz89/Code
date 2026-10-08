@@ -38,6 +38,10 @@ public interface ICremationService
         RevalidateStartPaymentRequestDto dto,
         Guid actorUserId);
 
+    Task<CremationDto?> ReassignAsync(Guid id, ReassignCremationDto dto, Guid actorUserId);
+
+    Task<IReadOnlyList<CremationReassignmentDto>?> GetReassignmentsAsync(Guid id);
+
     Task<bool> DeactivateAsync(Guid id);
 
     Task<bool> RestoreAsync(Guid id);

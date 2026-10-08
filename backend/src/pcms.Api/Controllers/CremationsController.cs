@@ -320,6 +320,39 @@ public class CremationsController : ControllerBase
         }
     }
 
+    [HttpPost("{id:guid}/reassignments")]
+    [Authorize(Policy = "Cremations.Manage")]
+    public async Task<ActionResult<CremationDto>> Reassign(Guid id, ReassignCremationDto dto)
+    {
+        var actorValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value ?? User.FindFirst("userId")?.Value;
+        if (!Guid.TryParse(actorValue, out var actorUserId)) return Unauthorized();
+        try
+        {
+            var result = await _cremationService.ReassignAsync(id, dto, actorUserId);
+            return result is null ? NotFound(new { message = "Cremación no encontrada." }) : Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/reassignments")]
+    public async Task<ActionResult<IReadOnlyList<CremationReassignmentDto>>> GetReassignments(Guid id)
+    {
+        var result = await _cremationService.GetReassignmentsAsync(id);
+        return result is null ? NotFound(new { message = "Cremación no encontrada." }) : Ok(result);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "Cremations.Manage")]
     public async Task<IActionResult> Deactivate(Guid id)

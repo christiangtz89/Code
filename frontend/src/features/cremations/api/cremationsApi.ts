@@ -1,3 +1,4 @@
+import type { ReassignCremationPayload } from "../types/cremation.types";
 import { apiClient } from "../../../services/apiClient";
 import type {
   ChangeCremationStatusPayload,
@@ -131,6 +132,17 @@ export async function revalidateStartPayment(
 ): Promise<RevalidateStartPaymentResult> {
   const response = await apiClient.post<RevalidateStartPaymentResult>(
     `/Cremations/${id}/revalidate-start-payment`,
+    payload,
+  );
+  return response.data;
+}
+
+export async function reassignCremation(
+  id: string,
+  payload: ReassignCremationPayload,
+): Promise<Cremation> {
+  const response = await apiClient.post<Cremation>(
+    `/Cremations/${id}/reassignments`,
     payload,
   );
   return response.data;

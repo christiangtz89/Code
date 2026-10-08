@@ -1,3 +1,4 @@
+import { isAssignmentLocked } from "../utils/cremationReassignment";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -997,22 +998,34 @@ export function CremationFormModal({
                   </span>
                 </label>
 
-                <select
-                  id="cremation-user"
-                  disabled={isSubmitting || isLoadingUsers}
-                  {...register("assignedToUserId")}
-                  className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
-                >
-                  <option value="">
-                    {isLoadingUsers ? "Cargando usuarios..." : "Sin asignar"}
-                  </option>
-
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
+                {cremation && isAssignmentLocked(cremation) ? (
+                  <>
+                    <input type="hidden" {...register("assignedToUserId")} />
+                    <p id="cremation-user" className="mt-2 text-sm text-slate-700">
+                      {cremation.assignedToUserName ?? "Sin asignar"}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Esta cremación ya inició. La reasignación requiere autorización y motivo.
+                    </p>
+                  </>
+                ) : (
+                  <select
+                    id="cremation-user"
+                    disabled={isSubmitting || isLoadingUsers}
+                    {...register("assignedToUserId")}
+                    className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
+                  >
+                    <option value="">
+                      {isLoadingUsers ? "Cargando usuarios..." : "Sin asignar"}
                     </option>
-                  ))}
-                </select>
+
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
 
                 {errors.assignedToUserId && (
                   <p className="mt-2 text-sm text-red-600">

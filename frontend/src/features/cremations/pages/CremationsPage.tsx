@@ -1,3 +1,4 @@
+import { CremationReassignmentModal } from "../components/CremationReassignmentModal";
 import {
   keepPreviousData,
   useMutation,
@@ -83,6 +84,8 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
 
 export function CremationsPage() {
   const queryClient = useQueryClient();
+  const [reassigning, setReassigning] = useState<Cremation | null>(null);
+  const reassignmentOrigin = useRef<HTMLElement | null>(null);
   const revalidation = useStartPaymentRevalidation();
 
   const [statusFilter, setStatusFilter] =
@@ -185,7 +188,7 @@ export function CremationsPage() {
 
     queryFn: getCremationUserOptions,
 
-    enabled: modalState !== null,
+    enabled: modalState !== null || reassigning !== null,
   });
 
   async function refreshCremations() {
@@ -566,6 +569,12 @@ export function CremationsPage() {
         </div>
       ) : (
         <CremationsTable
+          onReassign={(cremation) => {
+            reassignmentOrigin.current = document.activeElement instanceof HTMLElement
+              ? document.activeElement : null;
+            setReassigning(cremation);
+          }}
+          reassignmentBusy={reassigning !== null}
           cremations={cremations}
           showingActive={isActive}
           pendingCremationId={pendingCremationId}
@@ -626,6 +635,16 @@ export function CremationsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {reassigning && (
+        <CremationReassignmentModal
+          cremation={reassigning}
+          origin={reassignmentOrigin.current}
+          users={userOptionsQuery.data ?? []}
+          loadingUsers={userOptionsQuery.isLoading}
+          onClose={() => setReassigning(null)}
+        />
       )}
 
       <CremationFormModal

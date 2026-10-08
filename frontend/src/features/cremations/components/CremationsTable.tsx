@@ -1,3 +1,4 @@
+import { canReassignCremation } from "../utils/cremationReassignment";
 import {
   getCremationStatusLabel,
   getCremationTypeLabel,
@@ -22,6 +23,8 @@ interface CremationsTableProps {
   showingActive: boolean;
   pendingCremationId: string | null;
 
+  onReassign: (cremation: Cremation) => void;
+  reassignmentBusy: boolean;
   onEdit: (cremation: Cremation) => void;
 
   onChangeStatus: (cremation: Cremation) => void;
@@ -75,6 +78,8 @@ export function CremationsTable({
   showingActive,
   pendingCremationId,
   onEdit,
+  onReassign,
+  reassignmentBusy,
   onChangeStatus,
   onDeactivate,
   onRestore,
@@ -298,6 +303,18 @@ export function CremationsTable({
                               {revalidatingId === cremation.id
                                 ? "Validando..."
                                 : "Validar pago requerido"}
+                            </button>
+                          )}
+                          {canReassignCremation(cremation) && (
+                            <button
+                              type="button"
+                              disabled={reassignmentBusy || isPending}
+                              onClick={() => onReassign(cremation)}
+                              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+                            >
+                              {cremation.status === CremationStatus.Delivered
+                                ? "Corregir responsable"
+                                : "Reasignar responsable"}
                             </button>
                           )}
                           <button
