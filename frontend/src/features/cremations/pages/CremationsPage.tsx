@@ -1,4 +1,5 @@
 import { CremationReassignmentModal } from "../components/CremationReassignmentModal";
+import { CremationInstructionsAmendmentModal } from "../components/CremationInstructionsAmendmentModal";
 import {
   keepPreviousData,
   useMutation,
@@ -86,6 +87,8 @@ export function CremationsPage() {
   const queryClient = useQueryClient();
   const [reassigning, setReassigning] = useState<Cremation | null>(null);
   const reassignmentOrigin = useRef<HTMLElement | null>(null);
+  const [amendingInstructions, setAmendingInstructions] = useState<Cremation | null>(null);
+  const instructionsAmendmentOrigin = useRef<HTMLElement | null>(null);
   const revalidation = useStartPaymentRevalidation();
 
   const [statusFilter, setStatusFilter] =
@@ -569,6 +572,12 @@ export function CremationsPage() {
         </div>
       ) : (
         <CremationsTable
+          onAmendInstructions={(cremation) => {
+            instructionsAmendmentOrigin.current = document.activeElement instanceof HTMLElement
+              ? document.activeElement : null;
+            setAmendingInstructions(cremation);
+          }}
+          instructionsAmendmentBusy={amendingInstructions !== null}
           onReassign={(cremation) => {
             reassignmentOrigin.current = document.activeElement instanceof HTMLElement
               ? document.activeElement : null;
@@ -644,6 +653,14 @@ export function CremationsPage() {
           users={userOptionsQuery.data ?? []}
           loadingUsers={userOptionsQuery.isLoading}
           onClose={() => setReassigning(null)}
+        />
+      )}
+
+      {amendingInstructions && (
+        <CremationInstructionsAmendmentModal
+          cremation={amendingInstructions}
+          origin={instructionsAmendmentOrigin.current}
+          onClose={() => setAmendingInstructions(null)}
         />
       )}
 

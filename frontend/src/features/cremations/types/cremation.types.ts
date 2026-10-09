@@ -166,3 +166,25 @@ export interface ReassignCremationPayload {
   newAssignedToUserId: string;
   reason: string;
 }
+
+export interface AmendCremationInstructionsPayload {
+  requestId: string;
+  newSpecialInstructions: string | null;
+  expectedCurrentSpecialInstructions: string | null;
+  reason: string;
+}
+
+export interface CremationInstructionsAmendment {
+  id: string;
+  cremationId: string;
+  sequence: number;
+  requestId: string;
+  previousSpecialInstructions: string | null;
+  newSpecialInstructions: string | null;
+  actorUserId: string;
+  actorNameSnapshot: string;
+  actorRole: string;
+  reason: string;
+  status: CremationStatus;
+  createdAt: string;
+}

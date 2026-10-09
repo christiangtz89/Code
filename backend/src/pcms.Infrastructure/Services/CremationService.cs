@@ -895,6 +895,16 @@ public partial class CremationService : ICremationService
                 "Esta cremación ya inició. La reasignación requiere autorización y motivo.");
         }
 
+        var requestedInstructions = string.IsNullOrWhiteSpace(dto.SpecialInstructions)
+            ? null : dto.SpecialInstructions.Trim();
+        if ((cremation.StartedAt.HasValue ||
+             cremation.Status is >= CremationStatus.InProgress and <= CremationStatus.Delivered) &&
+            cremation.SpecialInstructions != requestedInstructions)
+        {
+            throw new InvalidOperationException(
+                "Esta cremación ya inició. Para cambiar las instrucciones especiales, registre un motivo.");
+        }
+
         if (cremation.Reception.VerifiedWeightKg <= 0)
         {
             throw new InvalidOperationException(
@@ -1211,11 +1221,7 @@ public partial class CremationService : ICremationService
         cremation.ScheduledAt =
             dto.ScheduledAt;
 
-        cremation.SpecialInstructions =
-            string.IsNullOrWhiteSpace(
-                dto.SpecialInstructions)
-                ? null
-                : dto.SpecialInstructions.Trim();
+        cremation.SpecialInstructions = requestedInstructions;
 
         cremation.Notes =
             string.IsNullOrWhiteSpace(dto.Notes)

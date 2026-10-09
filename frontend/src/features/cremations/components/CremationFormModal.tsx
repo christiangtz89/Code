@@ -1,4 +1,5 @@
 import { isAssignmentLocked } from "../utils/cremationReassignment";
+import { areInstructionsLocked } from "../utils/cremationInstructions";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -1061,9 +1062,16 @@ export function CremationFormModal({
                   id="cremation-instructions"
                   rows={3}
                   disabled={isSubmitting}
+                  readOnly={mode === "edit" && cremation !== null && areInstructionsLocked(cremation)}
                   {...register("specialInstructions")}
                   className="mt-2 block w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                 />
+
+                {mode === "edit" && cremation && areInstructionsLocked(cremation) && (
+                  <p className="mt-2 text-sm text-slate-600">
+                    Esta cremación ya inició. Los cambios a las instrucciones quedan registrados.
+                  </p>
+                )}
 
                 {errors.specialInstructions && (
                   <p className="mt-2 text-sm text-red-600">
