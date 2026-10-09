@@ -387,6 +387,40 @@ public class CremationsController : ControllerBase
         return result is null ? NotFound(new { message = "Cremación no encontrada." }) : Ok(result);
     }
 
+    [HttpPost("{id:guid}/accessory-amendments")]
+    [Authorize(Policy = "Cremations.Manage")]
+    public async Task<ActionResult<CremationDto>> AmendAccessory(
+        Guid id, AmendCremationAccessoryDto dto)
+    {
+        var actorValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value ?? User.FindFirst("userId")?.Value;
+        if (!Guid.TryParse(actorValue, out var actorUserId)) return Unauthorized();
+        try
+        {
+            var result = await _cremationService.AmendAccessoryAsync(id, dto, actorUserId);
+            return result is null ? NotFound(new { message = "Cremación no encontrada." }) : Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("{id:guid}/accessory-amendments")]
+    public async Task<ActionResult<IReadOnlyList<CremationAccessoryAmendmentDto>>> GetAccessoryAmendments(Guid id)
+    {
+        var result = await _cremationService.GetAccessoryAmendmentsAsync(id);
+        return result is null ? NotFound(new { message = "Cremación no encontrada." }) : Ok(result);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "Cremations.Manage")]
     public async Task<IActionResult> Deactivate(Guid id)

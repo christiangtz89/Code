@@ -1090,6 +1090,14 @@ public partial class CremationService : ICremationService
                 dto.AccessoryDescription.Trim();
         }
 
+        if ((cremation.StartedAt.HasValue ||
+             cremation.Status is >= CremationStatus.InProgress and <= CremationStatus.Delivered) &&
+            cremation.AccessoryDescription != accessoryDescription)
+        {
+            throw new InvalidOperationException(
+                "Esta cremación ya inició. Para cambiar la descripción del accesorio, registre un motivo.");
+        }
+
         if (packageChanged)
         {
             var updatedQuote =

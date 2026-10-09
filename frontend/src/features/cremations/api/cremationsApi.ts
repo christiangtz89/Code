@@ -1,5 +1,6 @@
 import type { ReassignCremationPayload } from "../types/cremation.types";
 import type { AmendCremationInstructionsPayload, CremationInstructionsAmendment } from "../types/cremation.types";
+import type { AmendCremationAccessoryPayload, CremationAccessoryAmendment } from "../types/cremation.types";
 import { apiClient } from "../../../services/apiClient";
 import type {
   ChangeCremationStatusPayload,
@@ -166,5 +167,20 @@ export async function getCremationInstructionsAmendments(
   const response = await apiClient.get<CremationInstructionsAmendment[]>(
     `/Cremations/${id}/instructions-amendments`,
   );
+  return response.data;
+}
+
+export async function amendCremationAccessory(
+  id: string,
+  payload: AmendCremationAccessoryPayload,
+): Promise<Cremation> {
+  const response = await apiClient.post<Cremation>(`/Cremations/${id}/accessory-amendments`, payload);
+  return response.data;
+}
+
+export async function getCremationAccessoryAmendments(
+  id: string,
+): Promise<CremationAccessoryAmendment[]> {
+  const response = await apiClient.get<CremationAccessoryAmendment[]>(`/Cremations/${id}/accessory-amendments`);
   return response.data;
 }

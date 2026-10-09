@@ -1,5 +1,6 @@
 import { isAssignmentLocked } from "../utils/cremationReassignment";
 import { areInstructionsLocked } from "../utils/cremationInstructions";
+import { isAccessoryDescriptionLocked } from "../utils/cremationAccessory";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -896,6 +897,7 @@ export function CremationFormModal({
                     id="cremation-accessory"
                     type="text"
                     disabled={isSubmitting}
+                    readOnly={mode === "edit" && cremation !== null && isAccessoryDescriptionLocked(cremation)}
                     {...register("accessoryDescription")}
                     placeholder={
                       isOriginalPackage
@@ -906,6 +908,12 @@ export function CremationFormModal({
                     }
                     className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100"
                   />
+
+                  {mode === "edit" && cremation && isAccessoryDescriptionLocked(cremation) && (
+                    <p className="mt-2 text-sm text-slate-600">
+                      Esta cremación ya inició. Los cambios en la descripción del accesorio quedan registrados.
+                    </p>
+                  )}
 
                   {errors.accessoryDescription && (
                     <p className="mt-2 text-sm text-red-600">

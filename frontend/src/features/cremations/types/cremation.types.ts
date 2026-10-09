@@ -188,3 +188,25 @@ export interface CremationInstructionsAmendment {
   status: CremationStatus;
   createdAt: string;
 }
+
+export interface AmendCremationAccessoryPayload {
+  requestId: string;
+  newAccessoryDescription: string | null;
+  expectedCurrentAccessoryDescription: string | null;
+  reason: string;
+}
+
+export interface CremationAccessoryAmendment {
+  id: string;
+  cremationId: string;
+  sequence: number;
+  requestId: string;
+  previousAccessoryDescription: string | null;
+  newAccessoryDescription: string | null;
+  actorUserId: string;
+  actorNameSnapshot: string;
+  actorRole: string;
+  reason: string;
+  status: CremationStatus;
+  createdAt: string;
+}

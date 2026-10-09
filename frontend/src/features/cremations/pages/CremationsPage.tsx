@@ -1,5 +1,6 @@
 import { CremationReassignmentModal } from "../components/CremationReassignmentModal";
 import { CremationInstructionsAmendmentModal } from "../components/CremationInstructionsAmendmentModal";
+import { CremationAccessoryAmendmentModal } from "../components/CremationAccessoryAmendmentModal";
 import {
   keepPreviousData,
   useMutation,
@@ -89,6 +90,8 @@ export function CremationsPage() {
   const reassignmentOrigin = useRef<HTMLElement | null>(null);
   const [amendingInstructions, setAmendingInstructions] = useState<Cremation | null>(null);
   const instructionsAmendmentOrigin = useRef<HTMLElement | null>(null);
+  const [amendingAccessory, setAmendingAccessory] = useState<Cremation | null>(null);
+  const accessoryAmendmentOrigin = useRef<HTMLElement | null>(null);
   const revalidation = useStartPaymentRevalidation();
 
   const [statusFilter, setStatusFilter] =
@@ -578,6 +581,12 @@ export function CremationsPage() {
             setAmendingInstructions(cremation);
           }}
           instructionsAmendmentBusy={amendingInstructions !== null}
+          onAmendAccessory={(cremation) => {
+            accessoryAmendmentOrigin.current = document.activeElement instanceof HTMLElement
+              ? document.activeElement : null;
+            setAmendingAccessory(cremation);
+          }}
+          accessoryAmendmentBusy={amendingAccessory !== null}
           onReassign={(cremation) => {
             reassignmentOrigin.current = document.activeElement instanceof HTMLElement
               ? document.activeElement : null;
@@ -661,6 +670,14 @@ export function CremationsPage() {
           cremation={amendingInstructions}
           origin={instructionsAmendmentOrigin.current}
           onClose={() => setAmendingInstructions(null)}
+        />
+      )}
+
+      {amendingAccessory && (
+        <CremationAccessoryAmendmentModal
+          cremation={amendingAccessory}
+          origin={accessoryAmendmentOrigin.current}
+          onClose={() => setAmendingAccessory(null)}
         />
       )}
 

@@ -46,6 +46,10 @@ public interface ICremationService
 
     Task<IReadOnlyList<CremationInstructionsAmendmentDto>?> GetInstructionsAmendmentsAsync(Guid id);
 
+    Task<CremationDto?> AmendAccessoryAsync(Guid id, AmendCremationAccessoryDto dto, Guid actorUserId);
+
+    Task<IReadOnlyList<CremationAccessoryAmendmentDto>?> GetAccessoryAmendmentsAsync(Guid id);
+
     Task<bool> DeactivateAsync(Guid id);
 
     Task<bool> RestoreAsync(Guid id);

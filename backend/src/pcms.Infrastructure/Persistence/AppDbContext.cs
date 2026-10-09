@@ -42,6 +42,7 @@ public class AppDbContext : DbContext
 
     public DbSet<CremationReassignment> CremationReassignments { get; set; }
     public DbSet<CremationInstructionsAmendment> CremationInstructionsAmendments { get; set; }
+    public DbSet<CremationAccessoryAmendment> CremationAccessoryAmendments { get; set; }
 
     public DbSet<CremationOperationalComment> CremationOperationalComments { get; set; }
 
@@ -1894,6 +1895,26 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Sequence).HasColumnName("Secuencia");
             entity.Property(x => x.PreviousSpecialInstructions).HasColumnName("InstruccionesAnteriores").HasMaxLength(1000);
             entity.Property(x => x.NewSpecialInstructions).HasColumnName("InstruccionesNuevas").HasMaxLength(1000);
+            entity.Property(x => x.ActorUserId).HasColumnName("ActorUsuarioId");
+            entity.Property(x => x.ActorNameSnapshot).HasColumnName("NombreActorSnapshot").HasColumnType("text").IsRequired();
+            entity.Property(x => x.ActorRole).HasColumnName("RolActor").HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Reason).HasColumnName("Motivo").HasMaxLength(1000).IsRequired();
+            entity.Property(x => x.Status).HasColumnName("Estado").HasConversion<int>();
+            entity.Property(x => x.CreatedAt).HasColumnName("FechaCreacion");
+            entity.HasIndex(x => new { x.CremationId, x.Sequence }).IsUnique();
+            entity.HasIndex(x => new { x.CremationId, x.RequestId }).IsUnique();
+            entity.HasOne<Cremation>().WithMany().HasForeignKey(x => x.CremationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CremationAccessoryAmendment>(entity =>
+        {
+            entity.ToTable("CambiosAccesorioCremacion");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CremationId).HasColumnName("CremacionId");
+            entity.Property(x => x.Sequence).HasColumnName("Secuencia");
+            entity.Property(x => x.PreviousAccessoryDescription).HasColumnName("DescripcionAnterior").HasMaxLength(500);
+            entity.Property(x => x.NewAccessoryDescription).HasColumnName("DescripcionNueva").HasMaxLength(500);
             entity.Property(x => x.ActorUserId).HasColumnName("ActorUsuarioId");
             entity.Property(x => x.ActorNameSnapshot).HasColumnName("NombreActorSnapshot").HasColumnType("text").IsRequired();
             entity.Property(x => x.ActorRole).HasColumnName("RolActor").HasMaxLength(100).IsRequired();
