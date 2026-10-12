@@ -56,6 +56,11 @@ public interface ICremationService
 
     Task<IReadOnlyList<CremationArchiveEventDto>?> GetArchiveEventsAsync(Guid id);
 
+    Task<CremationClarificationDto?> CreateClarificationAsync(
+        Guid id, CreateCremationClarificationDto dto, Guid actorUserId);
+
+    Task<IReadOnlyList<CremationClarificationDto>?> GetClarificationsAsync(Guid id);
+
     Task<IEnumerable<CremationDto>> SearchAsync(
     string search,
     bool isActive);

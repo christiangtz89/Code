@@ -64,11 +64,12 @@ public partial class CremationService
             return await GetByIdAsync(id);
         }
 
-        if (cremation.Status == CremationStatus.Delivered && actorRole == "Manager")
+        if (cremation.Status is CremationStatus.Delivered or CremationStatus.Cancelled && actorRole == "Manager")
             throw new UnauthorizedAccessException(
-                "Después de la entrega, solo el propietario o un administrador protegido puede corregir el responsable.");
-        if (cremation.Status is < CremationStatus.InProgress or > CremationStatus.Delivered)
-            throw new InvalidOperationException("La reasignación con motivo solo está disponible desde el inicio hasta la entrega.");
+                "Después de la entrega o cancelación, solo el propietario o un administrador protegido puede corregir el responsable.");
+        if (cremation.Status != CremationStatus.Cancelled &&
+            cremation.Status is < CremationStatus.InProgress or > CremationStatus.Delivered)
+            throw new InvalidOperationException("La reasignación con motivo solo está disponible desde el inicio hasta la entrega, o como corrección de un caso cancelado.");
         if (cremation.AssignedToUserId == dto.NewAssignedToUserId)
             throw new ArgumentException("Selecciona un responsable diferente al actual.");
 

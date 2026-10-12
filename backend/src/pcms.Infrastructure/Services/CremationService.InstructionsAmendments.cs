@@ -69,13 +69,14 @@ public partial class CremationService
             return await GetByIdAsync(id);
         }
 
-        if (cremation.Status is < CremationStatus.InProgress or > CremationStatus.Delivered)
+        if (cremation.Status != CremationStatus.Cancelled &&
+            cremation.Status is < CremationStatus.InProgress or > CremationStatus.Delivered)
             throw new InvalidOperationException(
-                "El cambio con motivo solo está disponible desde el inicio hasta la entrega.");
-        if (cremation.Status == CremationStatus.Delivered &&
-            actorRole is not ("Owner" or "Admin"))
+                "El cambio con motivo solo está disponible desde el inicio hasta la entrega, o como corrección de un caso cancelado.");
+        if ((cremation.Status == CremationStatus.Delivered && actorRole is not ("Owner" or "Admin")) ||
+            (cremation.Status == CremationStatus.Cancelled && !(await ResolveArchiveActorAsync(actor)).Privileged))
             throw new UnauthorizedAccessException(
-                "Después de la entrega, solo el propietario o un administrador protegido puede corregir las instrucciones.");
+                "Después de la entrega o cancelación, solo el propietario o un administrador protegido puede corregir las instrucciones.");
         if (cremation.SpecialInstructions != dto.ExpectedCurrentSpecialInstructions)
             throw new InvalidOperationException(
                 "Las instrucciones cambiaron desde que se abrió la solicitud. Revise el valor actual e intente nuevamente.");

@@ -6,7 +6,7 @@ public class UpdateCremationDto
 {
     public Guid? AssignedToUserId { get; set; }
 
-    public Guid CremationPackageId { get; set; }
+    public Guid? CremationPackageId { get; set; }
 
     public Guid? UrnId { get; set; }
 

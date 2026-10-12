@@ -1,4 +1,5 @@
 import { CremationArchiveModal } from "../components/CremationArchiveModal";
+import { CremationClarificationModal } from "../components/CremationClarificationModal";
 import { CremationReassignmentModal } from "../components/CremationReassignmentModal";
 import { CremationInstructionsAmendmentModal } from "../components/CremationInstructionsAmendmentModal";
 import { CremationAccessoryAmendmentModal } from "../components/CremationAccessoryAmendmentModal";
@@ -93,6 +94,8 @@ export function CremationsPage() {
   const accessoryAmendmentOrigin = useRef<HTMLElement | null>(null);
   const [archiving, setArchiving] = useState<Cremation | null>(null);
   const archiveOrigin = useRef<HTMLElement | null>(null);
+  const [clarifying, setClarifying] = useState<Cremation | null>(null);
+  const clarificationOrigin = useRef<HTMLElement | null>(null);
   const revalidation = useStartPaymentRevalidation();
 
   const [statusFilter, setStatusFilter] =
@@ -532,6 +535,13 @@ export function CremationsPage() {
           cremations={cremations}
           showingActive={isActive}
           archiveBusy={archiving !== null}
+          clarificationBusy={clarifying !== null}
+          onClarify={(cremation) => {
+            if (clarifying) return;
+            clarificationOrigin.current = document.activeElement instanceof HTMLElement
+              ? document.activeElement : null;
+            setClarifying(cremation);
+          }}
           pendingCremationId={pendingCremationId}
           onEdit={(cremation) =>
             setModalState({
@@ -615,6 +625,14 @@ export function CremationsPage() {
           cremation={amendingAccessory}
           origin={accessoryAmendmentOrigin.current}
           onClose={() => setAmendingAccessory(null)}
+        />
+      )}
+
+      {clarifying && (
+        <CremationClarificationModal
+          cremation={clarifying}
+          origin={clarificationOrigin.current}
+          onClose={() => setClarifying(null)}
         />
       )}
 

@@ -94,7 +94,7 @@ export interface CreateCremationPayload {
 export interface UpdateCremationPayload {
   assignedToUserId: string | null;
 
-  cremationPackageId: string;
+  cremationPackageId: string | null;
   urnId: string | null;
   accessoryDescription: string | null;
 
@@ -228,6 +228,24 @@ export interface CremationArchiveEvent {
   actorNameSnapshot: string;
   actorRole: string;
   reason: string;
+  status: CremationStatus;
+  createdAt: string;
+}
+
+export interface CreateCremationClarificationPayload {
+  requestId: string;
+  text: string;
+}
+
+export interface CremationClarification {
+  id: string;
+  cremationId: string;
+  sequence: number;
+  requestId: string;
+  text: string;
+  actorUserId: string;
+  actorNameSnapshot: string;
+  actorRole: string;
   status: CremationStatus;
   createdAt: string;
 }

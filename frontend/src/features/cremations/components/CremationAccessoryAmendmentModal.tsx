@@ -200,7 +200,8 @@ export function CremationAccessoryAmendmentModal({
     );
 
   const title =
-    cremation.status === CremationStatus.Delivered
+    cremation.status === CremationStatus.Delivered ||
+    cremation.status === CremationStatus.Cancelled
       ? "Corregir descripción del accesorio"
       : "Modificar descripción del accesorio";
   return (
@@ -228,8 +229,9 @@ export function CremationAccessoryAmendmentModal({
           id="description-amendment-description"
           className="mt-2 text-sm text-slate-600"
         >
-          Esta cremación ya inició. Los cambios en la descripción del accesorio
-          quedan registrados.
+          {cremation.status === CremationStatus.Cancelled
+            ? "Esta cremación está cancelada. Cualquier corrección autorizada de la descripción del accesorio quedará registrada."
+            : "Esta cremación ya inició. Los cambios en la descripción del accesorio quedan registrados."}
         </p>
         <p className="mt-4 text-sm font-medium">Descripción actual</p>
         <p className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">

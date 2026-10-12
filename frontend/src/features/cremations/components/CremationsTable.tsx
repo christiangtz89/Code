@@ -23,6 +23,8 @@ import { canRevalidateStartPayment } from "../hooks/useStartPaymentRevalidation"
 
 interface CremationsTableProps {
   archiveBusy: boolean;
+  clarificationBusy: boolean;
+  onClarify: (cremation: Cremation) => void;
   cremations: Cremation[];
   showingActive: boolean;
   pendingCremationId: string | null;
@@ -83,6 +85,8 @@ function getStatusClasses(cremation: Cremation): string {
 
 export function CremationsTable({
   archiveBusy,
+  clarificationBusy,
+  onClarify,
   cremations,
   showingActive,
   pendingCremationId,
@@ -325,7 +329,7 @@ export function CremationsTable({
                               onClick={() => onReassign(cremation)}
                               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
                             >
-                              {cremation.status === CremationStatus.Delivered
+                              {cremation.status >= CremationStatus.Delivered
                                 ? "Corregir responsable"
                                 : "Reasignar responsable"}
                             </button>
@@ -334,7 +338,7 @@ export function CremationsTable({
                             <button type="button" disabled={instructionsAmendmentBusy || isPending}
                               onClick={() => onAmendInstructions(cremation)}
                               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">
-                              {cremation.status === CremationStatus.Delivered
+                              {cremation.status >= CremationStatus.Delivered
                                 ? "Corregir instrucciones" : "Modificar instrucciones"}
                             </button>
                           )}
@@ -342,18 +346,27 @@ export function CremationsTable({
                             <button type="button" disabled={accessoryAmendmentBusy || isPending}
                               onClick={() => onAmendAccessory(cremation)}
                               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">
-                              {cremation.status === CremationStatus.Delivered
+                              {cremation.status >= CremationStatus.Delivered
                                 ? "Corregir descripción del accesorio" : "Modificar descripción del accesorio"}
                             </button>
                           )}
-                          <button
+                          {cremation.status === CremationStatus.Cancelled ? (
+                            <>
+                              <p className="w-full text-sm text-slate-600">Registro cancelado. Los cambios autorizados quedan registrados.</p>
+                              <button type="button" disabled={clarificationBusy || isPending}
+                                onClick={() => onClarify(cremation)}
+                                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">
+                                {canManageCremations ? "Agregar aclaración" : "Ver datos y aclaraciones"}
+                              </button>
+                            </>
+                          ) : <button
                             type="button"
                             onClick={() => onEdit(cremation)}
                             disabled={isPending}
                             className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Editar
-                          </button>
+                          </button>}
                           <button type="button" onClick={() => onInventory(cremation)} className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50">Inventario</button>
                           {canScanDelivery && (
                             <Link

@@ -872,12 +872,6 @@ public partial class CremationService : ICremationService
         Guid id,
         UpdateCremationDto dto)
     {
-        if (dto.CremationPackageId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Debe seleccionar un paquete o servicio válido.");
-        }
-
         await using var transaction =
             await _context.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable);
@@ -901,6 +895,32 @@ public partial class CremationService : ICremationService
         if (cremation == null)
         {
             return null;
+        }
+
+        if (cremation.Status == CremationStatus.Cancelled)
+        {
+            // A no-op must preserve even unnormalized legacy values and must never
+            // enter quote/account synchronization or initialize a legacy quote.
+            if (cremation.AssignedToUserId != dto.AssignedToUserId ||
+                cremation.CremationPackageId != dto.CremationPackageId ||
+                cremation.UrnId != dto.UrnId ||
+                cremation.ScheduledAt != dto.ScheduledAt ||
+                !SameCancelledText(cremation.SpecialInstructions, dto.SpecialInstructions) ||
+                !SameCancelledText(cremation.AccessoryDescription, dto.AccessoryDescription) ||
+                !SameCancelledText(cremation.Notes, dto.Notes))
+            {
+                throw new InvalidOperationException(
+                    "Este registro está cancelado. Los datos históricos no se pueden modificar directamente. " +
+                    "Utilice una corrección autorizada o agregue una aclaración.");
+            }
+
+            await transaction.CommitAsync();
+            return await GetByIdAsync(id);
+        }
+
+        if (!dto.CremationPackageId.HasValue || dto.CremationPackageId == Guid.Empty)
+        {
+            throw new ArgumentException("Debe seleccionar un paquete o servicio válido.");
         }
 
         if ((cremation.StartedAt.HasValue ||
@@ -1347,6 +1367,11 @@ public partial class CremationService : ICremationService
             CreatedAt = cremation.CreatedAt
         };
     }
+
+    private static bool SameCancelledText(string? stored, string? requested) =>
+        string.Equals(stored, requested, StringComparison.Ordinal) ||
+        string.Equals(stored?.Trim() ?? string.Empty, requested?.Trim() ?? string.Empty,
+            StringComparison.Ordinal);
 
     public async Task<CremationDto?> ChangeStatusAsync(
         Guid id,

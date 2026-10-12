@@ -137,8 +137,11 @@ export function CremationInstructionsAmendmentModal({ cremation, origin, onClose
     </div>
   );
 
-  const title = cremation.status === CremationStatus.Delivered
-    ? "Corregir instrucciones" : "Modificar instrucciones";
+  const title =
+    cremation.status === CremationStatus.Delivered ||
+    cremation.status === CremationStatus.Cancelled
+      ? "Corregir instrucciones"
+      : "Modificar instrucciones";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
@@ -147,7 +150,9 @@ export function CremationInstructionsAmendmentModal({ cremation, origin, onClose
         onKeyDown={trap} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         <h2 id="instructions-amendment-title" className="text-xl font-semibold">{title}</h2>
         <p id="instructions-amendment-description" className="mt-2 text-sm text-slate-600">
-          Esta cremación ya inició. Los cambios a las instrucciones quedan registrados.
+          {cremation.status === CremationStatus.Cancelled
+            ? "Esta cremación está cancelada. Cualquier corrección autorizada de las instrucciones quedará registrada."
+            : "Esta cremación ya inició. Los cambios a las instrucciones quedan registrados."}
         </p>
         <p className="mt-4 text-sm font-medium">Instrucciones actuales</p>
         <p className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">

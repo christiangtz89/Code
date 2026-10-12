@@ -652,6 +652,65 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.ToTable("EventosArchivoCremacion", (string)null);
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.CremationClarification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorNameSnapshot")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("NombreActorSnapshot");
+
+                    b.Property<string>("ActorRole")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("RolActor");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ActorUsuarioId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaCreacion");
+
+                    b.Property<Guid>("CremationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("CremacionId");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("Secuencia");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("Estado");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("Texto");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("CremationId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("AclaracionesCremacion", (string)null);
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.CremationInstructionsAmendment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4170,6 +4229,21 @@ namespace pcms.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.CremationArchiveEvent", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.Cremation", null)
+                        .WithMany()
+                        .HasForeignKey("CremationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationClarification", b =>
                 {
                     b.HasOne("pcms.Domain.Entities.User", null)
                         .WithMany()

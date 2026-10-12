@@ -1,4 +1,4 @@
-import type { ChangeCremationActiveStatePayload, CremationArchiveEvent } from "../types/cremation.types";
+import type { ChangeCremationActiveStatePayload, CremationArchiveEvent, CreateCremationClarificationPayload, CremationClarification } from "../types/cremation.types";
 import type { ReassignCremationPayload } from "../types/cremation.types";
 import type { AmendCremationInstructionsPayload, CremationInstructionsAmendment } from "../types/cremation.types";
 import type { AmendCremationAccessoryPayload, CremationAccessoryAmendment } from "../types/cremation.types";
@@ -188,5 +188,15 @@ export async function getCremationAccessoryAmendments(
 
 export async function getCremationArchiveEvents(id: string): Promise<CremationArchiveEvent[]> {
   const response = await apiClient.get<CremationArchiveEvent[]>(`/Cremations/${id}/archive-events`);
+  return response.data;
+}
+
+export async function getCremationClarifications(id: string): Promise<CremationClarification[]> {
+  const response = await apiClient.get<CremationClarification[]>(`/Cremations/${id}/clarifications`);
+  return response.data;
+}
+
+export async function createCremationClarification(id: string, payload: CreateCremationClarificationPayload): Promise<CremationClarification> {
+  const response = await apiClient.post<CremationClarification>(`/Cremations/${id}/clarifications`, payload);
   return response.data;
 }

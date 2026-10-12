@@ -183,7 +183,8 @@ export function CremationReassignmentModal({
     );
 
   const title =
-    cremation.status === CremationStatus.Delivered
+    cremation.status === CremationStatus.Delivered ||
+    cremation.status === CremationStatus.Cancelled
       ? "Corrección de responsable"
       : "Reasignar responsable";
   return (
@@ -211,8 +212,9 @@ export function CremationReassignmentModal({
           id="reassignment-description"
           className="mt-2 text-sm text-slate-600"
         >
-          {cremation.petName}: el responsable anterior y el motivo quedarán
-          registrados. La confirmación original de inicio se conserva.
+          {cremation.status === CremationStatus.Cancelled
+            ? `${cremation.petName}: esta cremación está cancelada. Cualquier corrección autorizada del responsable quedará registrada.`
+            : `${cremation.petName}: el responsable anterior y el motivo quedarán registrados. La confirmación original de inicio se conserva.`}
         </p>
         <p className="mt-3 text-sm">
           Responsable actual: {cremation.assignedToUserName ?? "Sin asignar"}
