@@ -535,6 +535,10 @@ public partial class CremationService : ICremationService
 
                 Notes = c.Notes,
                 IsActive = c.IsActive,
+                RequiresPrivilegedArchive =
+                    (c.Status != CremationStatus.Pending && c.Status != CremationStatus.Scheduled) ||
+                    c.StartedAt.HasValue || c.CompletedAt.HasValue || c.ReadyForDeliveryAt.HasValue ||
+                    c.DeliveredAt.HasValue || _context.CremationStartVerifications.Any(x => x.CremationId == c.Id),
                 CreatedAt = c.CreatedAt
             })
             .ToListAsync();
@@ -632,6 +636,10 @@ public partial class CremationService : ICremationService
 
                 Notes = c.Notes,
                 IsActive = c.IsActive,
+                RequiresPrivilegedArchive =
+                    (c.Status != CremationStatus.Pending && c.Status != CremationStatus.Scheduled) ||
+                    c.StartedAt.HasValue || c.CompletedAt.HasValue || c.ReadyForDeliveryAt.HasValue ||
+                    c.DeliveredAt.HasValue || _context.CremationStartVerifications.Any(x => x.CremationId == c.Id),
                 CreatedAt = c.CreatedAt
             })
             .FirstOrDefaultAsync();
@@ -727,6 +735,10 @@ public partial class CremationService : ICremationService
 
                 Notes = c.Notes,
                 IsActive = c.IsActive,
+                RequiresPrivilegedArchive =
+                    (c.Status != CremationStatus.Pending && c.Status != CremationStatus.Scheduled) ||
+                    c.StartedAt.HasValue || c.CompletedAt.HasValue || c.ReadyForDeliveryAt.HasValue ||
+                    c.DeliveredAt.HasValue || _context.CremationStartVerifications.Any(x => x.CremationId == c.Id),
                 CreatedAt = c.CreatedAt
             })
             .FirstOrDefaultAsync();
@@ -824,6 +836,10 @@ public partial class CremationService : ICremationService
 
                 Notes = c.Notes,
                 IsActive = c.IsActive,
+                RequiresPrivilegedArchive =
+                    (c.Status != CremationStatus.Pending && c.Status != CremationStatus.Scheduled) ||
+                    c.StartedAt.HasValue || c.CompletedAt.HasValue || c.ReadyForDeliveryAt.HasValue ||
+                    c.DeliveredAt.HasValue || _context.CremationStartVerifications.Any(x => x.CremationId == c.Id),
                 CreatedAt = c.CreatedAt
             })
             .ToListAsync();
@@ -1792,137 +1808,6 @@ public partial class CremationService : ICremationService
             "Intente nuevamente.",
             innerException);
 
-    public async Task<bool> DeactivateAsync(Guid id)
-    {
-        var cremation = await _context.Cremations
-            .FirstOrDefaultAsync(c =>
-                c.Id == id &&
-                c.IsActive);
-
-        if (cremation == null)
-        {
-            return false;
-        }
-
-        cremation.IsActive = false;
-
-        await _context.SaveChangesAsync();
-
-        return true;
-    }
-
-    public async Task<bool> RestoreAsync(Guid id)
-    {
-        Exception? concurrencyException = null;
-
-        for (var attempt = 0; attempt < 2; attempt++)
-        {
-            try
-            {
-                return await RestoreCoreAsync(id);
-            }
-            catch (Exception exception)
-                when (IsCremationConcurrencyConflict(exception))
-            {
-                concurrencyException = exception;
-                _context.ChangeTracker.Clear();
-            }
-        }
-
-        throw CremationConcurrencyConflict(concurrencyException!);
-    }
-
-    private async Task<bool> RestoreCoreAsync(Guid id)
-    {
-        await using var transaction =
-            await _context.Database.BeginTransactionAsync(
-                IsolationLevel.Serializable);
-
-        var receptionId = await _context.Cremations
-            .AsNoTracking()
-            .Where(cremation =>
-                cremation.Id == id &&
-                !cremation.IsActive)
-            .Select(cremation => (Guid?)cremation.ReceptionId)
-            .FirstOrDefaultAsync();
-
-        if (!receptionId.HasValue)
-        {
-            return false;
-        }
-
-        if (!await LockActiveReceptionAsync(receptionId.Value))
-        {
-            throw new InvalidOperationException(
-                "No se puede restaurar la cremación porque su recepción está inactiva.");
-        }
-
-        if (!await LockInactiveCremationAsync(
-                id,
-                receptionId.Value))
-        {
-            return false;
-        }
-
-        var cremation = await _context.Cremations
-            .FirstOrDefaultAsync(c =>
-                c.Id == id &&
-                !c.IsActive);
-
-        if (cremation == null)
-        {
-            return false;
-        }
-
-        if (cremation.Status is
-            CremationStatus.Scheduled or
-            CremationStatus.InProgress)
-        {
-            await AcquireOneHornoSchedulingLockAsync();
-
-            if (cremation.Status == CremationStatus.InProgress)
-            {
-                await EnsureHornoAvailableForInProgressAsync(cremation);
-            }
-            else if (cremation.ScheduledAt.HasValue)
-            {
-                await EnsureScheduleAvailableAsync(
-                    cremation.ScheduledAt.Value,
-                    cremation.Id);
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    "Debe establecer una fecha programada antes de restaurar una cremación programada.");
-            }
-        }
-
-        cremation.IsActive = true;
-
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        return true;
-    }
-
-    private async Task<bool> LockInactiveCremationAsync(
-        Guid cremationId,
-        Guid receptionId)
-    {
-        var cremationIds = await _context.Database
-            .SqlQuery<Guid>($"""
-                SELECT "Id" AS "Value"
-                FROM "Cremaciones"
-                WHERE "Id" = {cremationId}
-                  AND "RecepcionId" = {receptionId}
-                  AND "Activo" = FALSE
-                FOR UPDATE
-                """)
-            .ToListAsync();
-
-        return cremationIds.Count > 0;
-    }
-
     public async Task<IEnumerable<CremationDto>> SearchAsync(
     string search,
     bool isActive)
@@ -2054,6 +1939,10 @@ public partial class CremationService : ICremationService
 
                 Notes = c.Notes,
                 IsActive = c.IsActive,
+                RequiresPrivilegedArchive =
+                    (c.Status != CremationStatus.Pending && c.Status != CremationStatus.Scheduled) ||
+                    c.StartedAt.HasValue || c.CompletedAt.HasValue || c.ReadyForDeliveryAt.HasValue ||
+                    c.DeliveredAt.HasValue || _context.CremationStartVerifications.Any(x => x.CremationId == c.Id),
                 CreatedAt = c.CreatedAt
             })
             .ToListAsync();

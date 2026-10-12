@@ -1,3 +1,4 @@
+import { CremationArchiveModal } from "../components/CremationArchiveModal";
 import { CremationReassignmentModal } from "../components/CremationReassignmentModal";
 import { CremationInstructionsAmendmentModal } from "../components/CremationInstructionsAmendmentModal";
 import { CremationAccessoryAmendmentModal } from "../components/CremationAccessoryAmendmentModal";
@@ -8,17 +9,15 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import axios from "axios";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import {
   changeCremationStatus,
   createCremation,
-  deactivateCremation,
   getAvailableCremationReceptions,
   getCremations,
   getCremationUserOptions,
-  restoreCremation,
   searchCremations,
   updateCremation,
 } from "../api/cremationsApi";
@@ -92,6 +91,8 @@ export function CremationsPage() {
   const instructionsAmendmentOrigin = useRef<HTMLElement | null>(null);
   const [amendingAccessory, setAmendingAccessory] = useState<Cremation | null>(null);
   const accessoryAmendmentOrigin = useRef<HTMLElement | null>(null);
+  const [archiving, setArchiving] = useState<Cremation | null>(null);
+  const archiveOrigin = useRef<HTMLElement | null>(null);
   const revalidation = useStartPaymentRevalidation();
 
   const [statusFilter, setStatusFilter] =
@@ -246,56 +247,8 @@ export function CremationsPage() {
 
   });
 
-  const deactivateMutation = useMutation({
-    mutationFn: deactivateCremation,
-
-    onSuccess: async () => {
-      await refreshCremations();
-
-      toast.success("Cremación desactivada correctamente.");
-    },
-
-    onError: (error) => {
-      toast.error(
-        getApiErrorMessage(error, "No fue posible desactivar la cremación."),
-      );
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: restoreCremation,
-
-    onSuccess: async () => {
-      await refreshCremations();
-
-      toast.success("Cremación restaurada correctamente.");
-    },
-
-    onError: (error) => {
-      toast.error(
-        getApiErrorMessage(error, "No fue posible restaurar la cremación."),
-      );
-    },
-  });
-
   const isFormSubmitting = createMutation.isPending || updateMutation.isPending;
-
-  const pendingCremationId = useMemo(() => {
-    if (deactivateMutation.isPending) {
-      return deactivateMutation.variables;
-    }
-
-    if (restoreMutation.isPending) {
-      return restoreMutation.variables;
-    }
-
-    return null;
-  }, [
-    deactivateMutation.isPending,
-    deactivateMutation.variables,
-    restoreMutation.isPending,
-    restoreMutation.variables,
-  ]);
+  const pendingCremationId = archiving?.id ?? null;
 
   async function handleFormSubmit(values: CremationFormValues) {
     try {
@@ -385,28 +338,11 @@ export function CremationsPage() {
     );
   }
 
-  function handleDeactivate(cremation: Cremation) {
-    const confirmed = window.confirm(
-      `¿Deseas desactivar la cremación de ${cremation.petName}?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    deactivateMutation.mutate(cremation.id);
-  }
-
-  function handleRestore(cremation: Cremation) {
-    const confirmed = window.confirm(
-      `¿Deseas restaurar la cremación de ${cremation.petName}?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    restoreMutation.mutate(cremation.id);
+  function handleArchiveOrRestore(cremation: Cremation) {
+    if (archiving) return;
+    archiveOrigin.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement : null;
+    setArchiving(cremation);
   }
 
   const cremations = cremationsQuery.data?.items ?? [];
@@ -595,6 +531,7 @@ export function CremationsPage() {
           reassignmentBusy={reassigning !== null}
           cremations={cremations}
           showingActive={isActive}
+          archiveBusy={archiving !== null}
           pendingCremationId={pendingCremationId}
           onEdit={(cremation) =>
             setModalState({
@@ -605,8 +542,8 @@ export function CremationsPage() {
           onChangeStatus={(cremation) => {
             if (!uncertainStartAttempt) setSelectedStatusCremation(cremation);
           }}
-          onDeactivate={handleDeactivate}
-          onRestore={handleRestore}
+          onDeactivate={handleArchiveOrRestore}
+          onRestore={handleArchiveOrRestore}
           onInventory={setSelectedInventoryCremation}
           onRevalidateStartPayment={revalidation.start}
           revalidationBusy={
@@ -678,6 +615,14 @@ export function CremationsPage() {
           cremation={amendingAccessory}
           origin={accessoryAmendmentOrigin.current}
           onClose={() => setAmendingAccessory(null)}
+        />
+      )}
+
+      {archiving && (
+        <CremationArchiveModal
+          cremation={archiving}
+          origin={archiveOrigin.current}
+          onClose={() => setArchiving(null)}
         />
       )}
 

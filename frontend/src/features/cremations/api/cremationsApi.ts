@@ -1,3 +1,4 @@
+import type { ChangeCremationActiveStatePayload, CremationArchiveEvent } from "../types/cremation.types";
 import type { ReassignCremationPayload } from "../types/cremation.types";
 import type { AmendCremationInstructionsPayload, CremationInstructionsAmendment } from "../types/cremation.types";
 import type { AmendCremationAccessoryPayload, CremationAccessoryAmendment } from "../types/cremation.types";
@@ -120,12 +121,12 @@ export async function changeCremationStatus(
   return response.data;
 }
 
-export async function deactivateCremation(id: string): Promise<void> {
-  await apiClient.delete(`/Cremations/${id}`);
+export async function deactivateCremation(id: string, payload: ChangeCremationActiveStatePayload): Promise<void> {
+  await apiClient.delete(`/Cremations/${id}`, { data: payload });
 }
 
-export async function restoreCremation(id: string): Promise<void> {
-  await apiClient.patch(`/Cremations/${id}/restore`);
+export async function restoreCremation(id: string, payload: ChangeCremationActiveStatePayload): Promise<void> {
+  await apiClient.patch(`/Cremations/${id}/restore`, payload);
 }
 
 export async function revalidateStartPayment(
@@ -182,5 +183,10 @@ export async function getCremationAccessoryAmendments(
   id: string,
 ): Promise<CremationAccessoryAmendment[]> {
   const response = await apiClient.get<CremationAccessoryAmendment[]>(`/Cremations/${id}/accessory-amendments`);
+  return response.data;
+}
+
+export async function getCremationArchiveEvents(id: string): Promise<CremationArchiveEvent[]> {
+  const response = await apiClient.get<CremationArchiveEvent[]>(`/Cremations/${id}/archive-events`);
   return response.data;
 }

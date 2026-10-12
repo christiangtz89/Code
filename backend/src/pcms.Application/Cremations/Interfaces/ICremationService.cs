@@ -50,9 +50,11 @@ public interface ICremationService
 
     Task<IReadOnlyList<CremationAccessoryAmendmentDto>?> GetAccessoryAmendmentsAsync(Guid id);
 
-    Task<bool> DeactivateAsync(Guid id);
+    Task<bool> DeactivateAsync(Guid id, ChangeCremationActiveStateDto dto, Guid actorUserId);
 
-    Task<bool> RestoreAsync(Guid id);
+    Task<bool> RestoreAsync(Guid id, ChangeCremationActiveStateDto dto, Guid actorUserId);
+
+    Task<IReadOnlyList<CremationArchiveEventDto>?> GetArchiveEventsAsync(Guid id);
 
     Task<IEnumerable<CremationDto>> SearchAsync(
     string search,

@@ -52,6 +52,8 @@ public class CremationDto
 
     public bool IsActive { get; set; }
 
+    public bool RequiresPrivilegedArchive { get; set; } = true;
+
     public DateTime CreatedAt { get; set; }
 
     public Guid? CremationPackageId { get; set; }

@@ -21,6 +21,7 @@ export type CremationStatus =
   (typeof CremationStatus)[keyof typeof CremationStatus];
 
 export interface Cremation {
+  requiresPrivilegedArchive: boolean;
   id: string;
 
   receptionId: string;
@@ -203,6 +204,26 @@ export interface CremationAccessoryAmendment {
   requestId: string;
   previousAccessoryDescription: string | null;
   newAccessoryDescription: string | null;
+  actorUserId: string;
+  actorNameSnapshot: string;
+  actorRole: string;
+  reason: string;
+  status: CremationStatus;
+  createdAt: string;
+}
+
+export interface ChangeCremationActiveStatePayload {
+  requestId: string;
+  reason: string;
+}
+
+export interface CremationArchiveEvent {
+  id: string;
+  cremationId: string;
+  sequence: number;
+  requestId: string;
+  previousIsActive: boolean;
+  newIsActive: boolean;
   actorUserId: string;
   actorNameSnapshot: string;
   actorRole: string;

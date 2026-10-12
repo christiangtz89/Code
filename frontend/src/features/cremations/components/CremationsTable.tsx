@@ -1,3 +1,4 @@
+import { canArchiveOrRestoreCremation } from "../utils/cremationArchive";
 import { canReassignCremation } from "../utils/cremationReassignment";
 import { canAmendCremationInstructions } from "../utils/cremationInstructions";
 import { canAmendCremationAccessory } from "../utils/cremationAccessory";
@@ -21,6 +22,7 @@ import { hasPermission } from "../../auth/utils/permissions";
 import { canRevalidateStartPayment } from "../hooks/useStartPaymentRevalidation";
 
 interface CremationsTableProps {
+  archiveBusy: boolean;
   cremations: Cremation[];
   showingActive: boolean;
   pendingCremationId: string | null;
@@ -80,6 +82,7 @@ function getStatusClasses(cremation: Cremation): string {
 }
 
 export function CremationsTable({
+  archiveBusy,
   cremations,
   showingActive,
   pendingCremationId,
@@ -372,25 +375,27 @@ export function CremationsTable({
                             </button>
                           )}
 
-                          <button
-                            type="button"
-                            onClick={() => onDeactivate(cremation)}
-                            disabled={isPending}
-                            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {isPending ? "Procesando..." : "Desactivar"}
-                          </button>
+                          {canArchiveOrRestoreCremation(cremation) && (
+                            <button
+                              type="button"
+                              onClick={() => onDeactivate(cremation)}
+                              disabled={isPending || archiveBusy}
+                              className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Archivar
+                            </button>
+                          )}
                         </>
-                      ) : (
+                      ) : canArchiveOrRestoreCremation(cremation) ? (
                         <button
                           type="button"
                           onClick={() => onRestore(cremation)}
-                          disabled={isPending}
+                          disabled={isPending || archiveBusy}
                           className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {isPending ? "Restaurando..." : "Restaurar"}
+                          Restaurar
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </td>
                 </tr>

@@ -423,53 +423,45 @@ public class CremationsController : ControllerBase
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "Cremations.Manage")]
-    public async Task<IActionResult> Deactivate(Guid id)
-    {
-        var success =
-            await _cremationService.DeactivateAsync(id);
-
-        if (!success)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message =
-                    "No se encontró una cremación activa."
-            });
-        }
-
-        return NoContent();
-    }
+    public Task<IActionResult> Deactivate(Guid id, ChangeCremationActiveStateDto dto) =>
+        ChangeActiveState(id, dto, false);
 
     [HttpPatch("{id:guid}/restore")]
     [Authorize(Policy = "Cremations.Manage")]
-    public async Task<IActionResult> Restore(Guid id)
+    public Task<IActionResult> Restore(Guid id, ChangeCremationActiveStateDto dto) =>
+        ChangeActiveState(id, dto, true);
+
+    private async Task<IActionResult> ChangeActiveState(Guid id, ChangeCremationActiveStateDto dto, bool restore)
     {
+        var actorValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value ?? User.FindFirst("userId")?.Value;
+        if (!Guid.TryParse(actorValue, out var actorUserId)) return Unauthorized();
         try
         {
-            var success =
-                await _cremationService.RestoreAsync(id);
-
-            if (!success)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    message =
-                        "No se encontró una cremación inactiva."
-                });
-            }
-
-            return NoContent();
+            var success = restore
+                ? await _cremationService.RestoreAsync(id, dto, actorUserId)
+                : await _cremationService.DeactivateAsync(id, dto, actorUserId);
+            return success ? NoContent() : NotFound(new { message = "Cremación no encontrada." });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(new
-            {
-                success = false,
-                message = ex.Message
-            });
+            return Conflict(new { message = ex.Message });
         }
+    }
+
+    [HttpGet("{id:guid}/archive-events")]
+    public async Task<ActionResult<IReadOnlyList<CremationArchiveEventDto>>> GetArchiveEvents(Guid id)
+    {
+        var result = await _cremationService.GetArchiveEventsAsync(id);
+        return result is null ? NotFound(new { message = "Cremación no encontrada." }) : Ok(result);
     }
 
     [HttpGet("search")]
