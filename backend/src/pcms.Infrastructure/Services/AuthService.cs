@@ -10,21 +10,21 @@ namespace pcms.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
-    private static readonly Guid ProtectedAdminRoleId =
-        Guid.Parse("11111111-1111-1111-1111-111111111111");
-
     private readonly AppDbContext _context;
 
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly ICurrentAuthorizationService _authorization;
 
     private readonly PasswordHasher<User> _passwordHasher;
 
 
     public AuthService(AppDbContext context,
-    IJwtTokenService jwtTokenService)
+    IJwtTokenService jwtTokenService,
+    ICurrentAuthorizationService authorization)
     {
         _context = context;
         _jwtTokenService = jwtTokenService;
+        _authorization = authorization;
 
         _passwordHasher = new PasswordHasher<User>();
     }
@@ -74,8 +74,6 @@ public class AuthService : IAuthService
 
 
         var defaultRole = await _context.Roles
-            .Include(x => x.RolePermissions)
-            .ThenInclude(x => x.Permission)
             .FirstAsync(x => x.Name == "Usuario");
         user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = defaultRole.Id, Role = defaultRole });
         _context.Users.Add(user);
@@ -84,27 +82,7 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
 
-var activeRoles = user.UserRoles.Where(x => x.Role.IsActive).ToList();
-var roles = activeRoles.Select(x => x.Role.Name).ToList();
-var permissions = activeRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
-
-
-var token = _jwtTokenService.GenerateToken(
-    user.Id,
-    user.Email,
-    roles,
-    permissions,
-    user.IsOwner,
-    activeRoles.Any(x => x.RoleId == ProtectedAdminRoleId &&
-        x.Role.RolePermissions.Any(rp => rp.Permission.Code == PermissionCodes.CremationsManage)));
-
-
-return new AuthResponse
-{
-    UserId = user.Id,
-    Email = user.Email,
-    Token = token
-};
+        return await IssueTokenAsync(user.Id);
     }
 
 
@@ -115,18 +93,13 @@ return new AuthResponse
     {
 
         var user = await _context.Users
-    .Include(x => x.UserRoles)
-    .ThenInclude(x => x.Role)
-    .ThenInclude(x => x.RolePermissions)
-    .ThenInclude(x => x.Permission)
-    .FirstOrDefaultAsync(x => x.Email == request.Email);
+            .FirstOrDefaultAsync(x => x.Email == request.Email);
 
 
 
-        if (user == null)
+        if (user == null || !user.IsActive)
         {
-            throw new Exception(
-                "Invalid email or password");
+            throw InvalidCredentials();
         }
 
 
@@ -142,32 +115,28 @@ return new AuthResponse
         if (result ==
             PasswordVerificationResult.Failed)
         {
-            throw new Exception(
-                "Invalid email or password");
+            throw InvalidCredentials();
         }
 
 
 
-        var registeredUser = await _context.Users.Include(x => x.UserRoles).ThenInclude(x => x.Role).ThenInclude(x => x.RolePermissions).ThenInclude(x => x.Permission).FirstAsync(x => x.Id == user.Id);
-        var activeRoles = registeredUser.UserRoles.Where(x => x.Role.IsActive).ToList();
-        var roles = activeRoles.Select(x => x.Role.Name).ToList();
-        var permissions = activeRoles.SelectMany(x => x.Role.RolePermissions).Select(x => x.Permission.Code).Distinct().ToList();
+        return await IssueTokenAsync(user.Id);
+    }
 
-
-var token = _jwtTokenService.GenerateToken(
-    user.Id,
-    user.Email,
-    roles,
-    permissions,
-    registeredUser.IsOwner,
-    activeRoles.Any(x => x.RoleId == ProtectedAdminRoleId &&
-        x.Role.RolePermissions.Any(rp => rp.Permission.Code == PermissionCodes.CremationsManage)));
-
-           return new AuthResponse
+    private async Task<AuthResponse> IssueTokenAsync(Guid userId)
+    {
+        var current = await _authorization.ResolveAsync(userId)
+            ?? throw InvalidCredentials();
+        return new AuthResponse
         {
-            UserId = user.Id,
-            Email = user.Email,
-            Token = token
+            UserId = current.UserId,
+            Email = current.Email,
+            Token = _jwtTokenService.GenerateToken(
+                current.UserId, current.Email, current.Roles, current.Permissions,
+                current.IsOwner, current.IsProtectedAdmin)
         };
     }
+
+    private static UnauthorizedAccessException InvalidCredentials() =>
+        new("Correo electrónico o contraseña incorrectos.");
 }

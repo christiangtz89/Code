@@ -5,6 +5,7 @@ using pcms.Infrastructure;
 using System.IdentityModel.Tokens.Jwt;
 using pcms.Api.Middleware;
 using pcms.Application.Auth;
+using pcms.Api.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +57,7 @@ builder.Services.AddSwaggerGen(options =>
 // JWT Authentication
 
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
+builder.Services.AddScoped<CurrentAuthorizationEvents>();
 
 builder.Services
     .AddAuthentication(options =>
@@ -68,6 +70,7 @@ builder.Services
     })
     .AddJwtBearer(options =>
     {
+        options.EventsType = typeof(CurrentAuthorizationEvents);
         options.TokenValidationParameters =
             new TokenValidationParameters
             {

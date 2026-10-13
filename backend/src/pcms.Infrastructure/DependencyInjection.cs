@@ -36,6 +36,7 @@ public static class DependencyInjection
             ));
 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ICurrentAuthorizationService, CurrentAuthorizationService>();
 
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
