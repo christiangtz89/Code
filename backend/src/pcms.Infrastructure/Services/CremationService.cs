@@ -1126,7 +1126,10 @@ public partial class CremationService : ICremationService
                 dto.AccessoryDescription.Trim();
         }
 
-        if ((cremation.StartedAt.HasValue ||
+        // The existing legacy first quote establishes the initial package/accessory snapshot.
+        // Once established, subsequent post-start changes still require an amendment.
+        if (!canInitializeLegacyQuote &&
+            (cremation.StartedAt.HasValue ||
              cremation.Status is >= CremationStatus.InProgress and <= CremationStatus.Delivered) &&
             cremation.AccessoryDescription != accessoryDescription)
         {
