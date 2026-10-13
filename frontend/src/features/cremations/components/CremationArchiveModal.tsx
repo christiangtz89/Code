@@ -8,6 +8,7 @@ import {
   getCremationArchiveEvents,
 } from "../api/cremationsApi";
 import { getCremationStatusLabel } from "../utils/cremationLabels";
+import { getCremationApiErrorMessage } from "../utils/cremationApiErrors";
 import type {
   ChangeCremationActiveStatePayload,
   Cremation,
@@ -112,14 +113,7 @@ export function CremationArchiveModal({ cremation, origin, onClose }: Props) {
         const data = axios.isAxiosError(failure)
           ? failure.response?.data
           : null;
-        setError(
-          typeof data === "string"
-            ? data
-            : (data?.message ??
-                data?.detail ??
-                data?.title ??
-                "No fue posible completar la acción."),
-        );
+        setError(getCremationApiErrorMessage(data, "No fue posible completar la acción."));
         await Promise.allSettled([
           queryClient.invalidateQueries({ queryKey: ["cremations"] }),
         ]);

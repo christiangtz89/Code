@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { hasPermission } from "../../auth/utils/permissions";
+import { getCremationApiErrorMessage } from "../utils/cremationApiErrors";
 import {
   createCremationClarification,
   getCremationClarifications,
@@ -127,13 +128,7 @@ export function CremationClarificationModal({
         const data = axios.isAxiosError(failure)
           ? failure.response?.data
           : null;
-        setError(
-          typeof data === "string"
-            ? data
-            : (data?.message ??
-                data?.detail ??
-                "No fue posible guardar la aclaración."),
-        );
+        setError(getCremationApiErrorMessage(data, "No fue posible guardar la aclaración."));
       }
       busy.current = false;
       setPending(false);

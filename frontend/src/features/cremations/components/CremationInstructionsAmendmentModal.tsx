@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import toast from "react-hot-toast";
 import { amendCremationInstructions, getCremationById, getCremationInstructionsAmendments } from "../api/cremationsApi";
 import { getCremationStatusLabel } from "../utils/cremationLabels";
+import { getCremationApiErrorMessage } from "../utils/cremationApiErrors";
 import {
   CremationStatus,
   type AmendCremationInstructionsPayload,
@@ -14,6 +15,13 @@ interface Props {
   cremation: Cremation;
   origin: HTMLElement | null;
   onClose: () => void;
+}
+
+function actorRoleLabel(role: string): string {
+  if (role === "Owner") return "Propietario";
+  if (role === "Admin") return "Administrador";
+  if (role === "Manager") return "Gerente";
+  return role;
 }
 
 export function CremationInstructionsAmendmentModal({ cremation, origin, onClose }: Props) {
@@ -82,8 +90,7 @@ export function CremationInstructionsAmendmentModal({ cremation, origin, onClose
         setError("No se pudo confirmar si el cambio se completó. Reintenta con la misma solicitud.");
       } else {
         const data = axios.isAxiosError(failure) ? failure.response?.data : null;
-        setError(typeof data === "string" ? data :
-          (data?.message ?? data?.detail ?? data?.title ?? "No fue posible cambiar las instrucciones."));
+        setError(getCremationApiErrorMessage(data, "No fue posible cambiar las instrucciones."));
         if (status === 409 && !uncertain) {
           try {
             const latest = await getCremationById(cremation.id);
@@ -207,7 +214,7 @@ export function CremationInstructionsAmendmentModal({ cremation, origin, onClose
                   <p className="font-medium">Cambio {amendment.sequence} · {new Date(amendment.createdAt).toLocaleString("es-MX")}</p>
                   <p>De: {amendment.previousSpecialInstructions ?? "Sin instrucciones"}</p>
                   <p>A: {amendment.newSpecialInstructions ?? "Sin instrucciones"}</p>
-                  <p>Por: {amendment.actorNameSnapshot} ({amendment.actorRole})</p>
+                  <p>Por: {amendment.actorNameSnapshot} ({actorRoleLabel(amendment.actorRole)})</p>
                   <p>Estado: {getCremationStatusLabel(amendment.status)}</p>
                   <p>Motivo: {amendment.reason}</p>
                 </li>

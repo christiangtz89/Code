@@ -8,6 +8,7 @@ import {
   getCremationAccessoryAmendments,
 } from "../api/cremationsApi";
 import { getCremationStatusLabel } from "../utils/cremationLabels";
+import { getCremationApiErrorMessage } from "../utils/cremationApiErrors";
 import {
   CremationStatus,
   type AmendCremationAccessoryPayload,
@@ -114,14 +115,7 @@ export function CremationAccessoryAmendmentModal({
         const data = axios.isAxiosError(failure)
           ? failure.response?.data
           : null;
-        setError(
-          typeof data === "string"
-            ? data
-            : (data?.message ??
-                data?.detail ??
-                data?.title ??
-                "No fue posible cambiar la descripción del accesorio."),
-        );
+        setError(getCremationApiErrorMessage(data, "No fue posible cambiar la descripción del accesorio."));
         if (status === 409 && !uncertain) {
           try {
             const latest = await getCremationById(cremation.id);

@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { reassignCremation } from "../api/cremationsApi";
+import { getCremationApiErrorMessage } from "../utils/cremationApiErrors";
 import {
   CremationStatus,
   type Cremation,
@@ -109,14 +110,7 @@ export function CremationReassignmentModal({
         const data = axios.isAxiosError(failure)
           ? failure.response?.data
           : null;
-        setError(
-          typeof data === "string"
-            ? data
-            : (data?.message ??
-                data?.detail ??
-                data?.title ??
-                "No fue posible reasignar el responsable."),
-        );
+        setError(getCremationApiErrorMessage(data, "No fue posible reasignar el responsable."));
       }
       busy.current = false;
       setPending(false);
