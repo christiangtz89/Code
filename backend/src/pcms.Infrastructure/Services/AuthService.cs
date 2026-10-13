@@ -10,6 +10,8 @@ namespace pcms.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
+    private static readonly Guid ProtectedAdminRoleId =
+        Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     private readonly AppDbContext _context;
 
@@ -92,7 +94,9 @@ var token = _jwtTokenService.GenerateToken(
     user.Email,
     roles,
     permissions,
-    user.IsOwner);
+    user.IsOwner,
+    activeRoles.Any(x => x.RoleId == ProtectedAdminRoleId &&
+        x.Role.RolePermissions.Any(rp => rp.Permission.Code == PermissionCodes.CremationsManage)));
 
 
 return new AuthResponse
@@ -155,7 +159,9 @@ var token = _jwtTokenService.GenerateToken(
     user.Email,
     roles,
     permissions,
-    registeredUser.IsOwner);
+    registeredUser.IsOwner,
+    activeRoles.Any(x => x.RoleId == ProtectedAdminRoleId &&
+        x.Role.RolePermissions.Any(rp => rp.Permission.Code == PermissionCodes.CremationsManage)));
 
            return new AuthResponse
         {

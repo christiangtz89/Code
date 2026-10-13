@@ -20,13 +20,15 @@ public class JwtTokenService : IJwtTokenService
 
 
 
-    public string GenerateToken(Guid userId, string email, IEnumerable<string> roles, IEnumerable<string> permissions, bool isOwner)
+    public string GenerateToken(Guid userId, string email, IEnumerable<string> roles, IEnumerable<string> permissions, bool isOwner, bool isProtectedAdmin)
     {
 
         var claims = new List<Claim> { new(JwtRegisteredClaimNames.Sub, userId.ToString()), new(JwtRegisteredClaimNames.Email, email) };
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
         claims.AddRange(permissions.Select(permission => new Claim("permission", permission)));
         if (isOwner) claims.Add(new Claim("pcms_owner", "true"));
+        // Delivered correction visibility; the protected role itself must grant Cremations.Manage.
+        if (isProtectedAdmin) claims.Add(new Claim("pcms_protected_admin", "true"));
 
 
         var key =

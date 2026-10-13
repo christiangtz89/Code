@@ -6,6 +6,7 @@ interface PermissionClaims {
   permission?: string | string[];
   permissions?: string[];
   pcms_owner?: string;
+  pcms_protected_admin?: string;
   role?: string | string[];
   "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"?:
     string | string[];
@@ -81,6 +82,17 @@ export function isOwnerOrAdmin(): boolean {
     const claims = jwtDecode<PermissionClaims>(token);
     if (claims.pcms_owner === "true") return true;
     return hasRole("ADMIN");
+  } catch {
+    return false;
+  }
+}
+
+export function isOwnerOrProtectedAdmin(): boolean {
+  const token = tokenStorage.get();
+  if (!token) return false;
+  try {
+    const claims = jwtDecode<PermissionClaims>(token);
+    return claims.pcms_owner === "true" || claims.pcms_protected_admin === "true";
   } catch {
     return false;
   }

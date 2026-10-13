@@ -1,4 +1,4 @@
-import { hasPermission, isOwnerOrAdmin } from "../../auth/utils/permissions";
+import { hasPermission, isOwnerOrAdmin, isOwnerOrProtectedAdmin } from "../../auth/utils/permissions";
 import { CremationStatus, type Cremation } from "../types/cremation.types";
 
 export function areInstructionsLocked(cremation: Cremation): boolean {
@@ -13,5 +13,7 @@ export function canAmendCremationInstructions(cremation: Cremation): boolean {
     ((cremation.status >= CremationStatus.InProgress &&
       cremation.status <= CremationStatus.Delivered) ||
       cremation.status === CremationStatus.Cancelled) &&
-    (cremation.status < CremationStatus.Delivered || isOwnerOrAdmin());
+    (cremation.status === CremationStatus.Delivered
+      ? isOwnerOrProtectedAdmin()
+      : cremation.status < CremationStatus.Delivered || isOwnerOrAdmin());
 }
