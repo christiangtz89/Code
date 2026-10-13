@@ -847,7 +847,8 @@ public partial class CremationService : ICremationService
 
     public async Task<CremationDto?> UpdateAsync(
         Guid id,
-        UpdateCremationDto dto)
+        UpdateCremationDto dto,
+        Guid actorUserId)
     {
         Exception? concurrencyException = null;
 
@@ -855,7 +856,7 @@ public partial class CremationService : ICremationService
         {
             try
             {
-                return await UpdateCoreAsync(id, dto);
+                return await UpdateCoreAsync(id, dto, actorUserId);
             }
             catch (Exception exception)
                 when (IsCremationConcurrencyConflict(exception))
@@ -870,7 +871,8 @@ public partial class CremationService : ICremationService
 
     private async Task<CremationDto?> UpdateCoreAsync(
         Guid id,
-        UpdateCremationDto dto)
+        UpdateCremationDto dto,
+        Guid actorUserId)
     {
         await using var transaction =
             await _context.Database.BeginTransactionAsync(
@@ -1277,6 +1279,7 @@ public partial class CremationService : ICremationService
 
         // Only Pending and Scheduled records change status
         // automatically when their schedule is edited.
+        var previousStatus = cremation.Status;
         if (cremation.Status == CremationStatus.Pending ||
             cremation.Status == CremationStatus.Scheduled)
         {
@@ -1284,6 +1287,12 @@ public partial class CremationService : ICremationService
                 dto.ScheduledAt.HasValue
                     ? CremationStatus.Scheduled
                     : CremationStatus.Pending;
+        }
+
+        if (cremation.Status != previousStatus)
+        {
+            var actor = await LockActiveStatusActorAsync(actorUserId);
+            await AddStatusTransitionAsync(cremation, previousStatus, actor, DateTime.UtcNow);
         }
 
         await _context.SaveChangesAsync();
@@ -1534,6 +1543,8 @@ public partial class CremationService : ICremationService
             await EnsureHornoAvailableForInProgressAsync(cremation);
         }
 
+        var statusActor = startActor ?? await LockActiveStatusActorAsync(actorUserId);
+        var previousStatus = cremation.Status;
         var currentTime = DateTime.UtcNow;
 
         if (dto.Status == CremationStatus.InProgress)
@@ -1564,8 +1575,9 @@ public partial class CremationService : ICremationService
 
         // Keep transition evidence independent from editable general/legacy Notes.
         // Exact start replay returns above, before any new commentary is recorded.
-        await AddOperationalCommentAsync(
-            cremation.Id, dto.Status, dto.Notes, actorUserId, currentTime, startActor);
+        var commentId = await AddOperationalCommentAsync(
+            cremation.Id, dto.Status, dto.Notes, actorUserId, currentTime, statusActor);
+        await AddStatusTransitionAsync(cremation, previousStatus, statusActor, currentTime, commentId);
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
@@ -1819,8 +1831,9 @@ public partial class CremationService : ICremationService
 
             if (postgresException.SqlState ==
                     PostgresErrorCodes.UniqueViolation &&
-                postgresException.ConstraintName ==
-                    "IX_Cremaciones_RecepcionId")
+                postgresException.ConstraintName is
+                    "IX_Cremaciones_RecepcionId" or
+                    "IX_TransicionesEstadoCremacion_CremacionId_Secuencia")
             {
                 return true;
             }

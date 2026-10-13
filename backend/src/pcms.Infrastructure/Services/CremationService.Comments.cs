@@ -33,7 +33,7 @@ public partial class CremationService
             .ToListAsync();
     }
 
-    private async Task AddOperationalCommentAsync(
+    private async Task<Guid?> AddOperationalCommentAsync(
         Guid cremationId,
         CremationStatus status,
         string? notes,
@@ -43,7 +43,7 @@ public partial class CremationService
     {
         if (string.IsNullOrWhiteSpace(notes))
         {
-            return;
+            return null;
         }
 
         // Start already holds its actor lock. Other transitions retain their
@@ -57,7 +57,7 @@ public partial class CremationService
                 "No se pudo identificar al usuario que registra el comentario.");
         }
 
-        _context.CremationOperationalComments.Add(new CremationOperationalComment
+        var comment = new CremationOperationalComment
         {
             Id = Guid.NewGuid(),
             CremationId = cremationId,
@@ -69,6 +69,8 @@ public partial class CremationService
                     .Where(value => !string.IsNullOrWhiteSpace(value))
                     .Select(value => value.Trim())),
             CreatedAt = createdAt
-        });
+        };
+        _context.CremationOperationalComments.Add(comment);
+        return comment.Id;
     }
 }

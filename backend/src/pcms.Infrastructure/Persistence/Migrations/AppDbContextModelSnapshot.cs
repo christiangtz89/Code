@@ -1307,6 +1307,63 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.ToTable("VerificacionesInicioCremacion", (string)null);
                 });
 
+            modelBuilder.Entity("pcms.Domain.Entities.CremationStatusTransition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorNameSnapshot")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("NombreActorSnapshot");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ActorUsuarioId");
+
+                    b.Property<Guid>("CremationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("CremacionId");
+
+                    b.Property<int>("NewStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("EstadoNuevo");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FechaOcurrencia");
+
+                    b.Property<Guid?>("OperationalCommentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ComentarioOperativoId");
+
+                    b.Property<int>("PreviousStatus")
+                        .HasColumnType("integer")
+                        .HasColumnName("EstadoAnterior");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("Secuencia");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("OperationalCommentId")
+                        .IsUnique();
+
+                    b.HasIndex("CremationId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("TransicionesEstadoCremacion", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TransicionesEstadoCremacion_Cambio", "\"EstadoAnterior\" <> \"EstadoNuevo\"");
+
+                            t.HasCheckConstraint("CK_TransicionesEstadoCremacion_Secuencia", "\"Secuencia\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("pcms.Domain.Entities.CremationUrnReservation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4460,6 +4517,26 @@ namespace pcms.Infrastructure.Persistence.Migrations
                     b.Navigation("Cremation");
 
                     b.Navigation("Reception");
+                });
+
+            modelBuilder.Entity("pcms.Domain.Entities.CremationStatusTransition", b =>
+                {
+                    b.HasOne("pcms.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.Cremation", null)
+                        .WithMany()
+                        .HasForeignKey("CremationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("pcms.Domain.Entities.CremationOperationalComment", null)
+                        .WithMany()
+                        .HasForeignKey("OperationalCommentId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("pcms.Domain.Entities.CremationUrnReservation", b =>

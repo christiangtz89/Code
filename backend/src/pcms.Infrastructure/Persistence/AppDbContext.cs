@@ -49,6 +49,8 @@ public class AppDbContext : DbContext
 
     public DbSet<CremationOperationalComment> CremationOperationalComments { get; set; }
 
+    public DbSet<CremationStatusTransition> CremationStatusTransitions { get; set; }
+
     public DbSet<CremationStartVerification> CremationStartVerifications { get; set; }
 
     public DbSet<CremationStartPaymentRevalidation> CremationStartPaymentRevalidations { get; set; }
@@ -1966,6 +1968,29 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => x.RequestId).IsUnique();
             entity.HasOne<Cremation>().WithMany().HasForeignKey(x => x.CremationId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CremationStatusTransition>(entity =>
+        {
+            entity.ToTable("TransicionesEstadoCremacion", table =>
+            {
+                table.HasCheckConstraint("CK_TransicionesEstadoCremacion_Cambio", "\"EstadoAnterior\" <> \"EstadoNuevo\"");
+                table.HasCheckConstraint("CK_TransicionesEstadoCremacion_Secuencia", "\"Secuencia\" > 0");
+            });
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.CremationId).HasColumnName("CremacionId");
+            entity.Property(x => x.Sequence).HasColumnName("Secuencia");
+            entity.Property(x => x.PreviousStatus).HasColumnName("EstadoAnterior").HasConversion<int>();
+            entity.Property(x => x.NewStatus).HasColumnName("EstadoNuevo").HasConversion<int>();
+            entity.Property(x => x.ActorUserId).HasColumnName("ActorUsuarioId");
+            entity.Property(x => x.ActorNameSnapshot).HasColumnName("NombreActorSnapshot").HasColumnType("text").IsRequired();
+            entity.Property(x => x.OccurredAt).HasColumnName("FechaOcurrencia");
+            entity.Property(x => x.OperationalCommentId).HasColumnName("ComentarioOperativoId");
+            entity.HasIndex(x => new { x.CremationId, x.Sequence }).IsUnique();
+            entity.HasIndex(x => x.OperationalCommentId).IsUnique();
+            entity.HasOne<Cremation>().WithMany().HasForeignKey(x => x.CremationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<CremationOperationalComment>().WithMany().HasForeignKey(x => x.OperationalCommentId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<CremationOperationalComment>(entity =>

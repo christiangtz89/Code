@@ -18,6 +18,8 @@ public interface ICremationService
     Task<IReadOnlyList<CremationOperationalCommentDto>?> GetOperationalCommentsAsync(
         Guid id);
 
+    Task<IReadOnlyList<CremationStatusTransitionDto>?> GetStatusTransitionsAsync(Guid id);
+
     Task<CremationDto?> GetByReceptionIdAsync(
         Guid receptionId);
 
@@ -26,7 +28,8 @@ public interface ICremationService
 
     Task<CremationDto?> UpdateAsync(
         Guid id,
-        UpdateCremationDto dto);
+        UpdateCremationDto dto,
+        Guid actorUserId);
 
     Task<CremationDto?> ChangeStatusAsync(
         Guid id,

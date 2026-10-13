@@ -125,6 +125,13 @@ public class CremationsController : ControllerBase
         return Ok(comments);
     }
 
+    [HttpGet("{id:guid}/status-transitions")]
+    public async Task<ActionResult<IReadOnlyList<CremationStatusTransitionDto>>> GetStatusTransitions(Guid id)
+    {
+        var result = await _cremationService.GetStatusTransitionsAsync(id);
+        return result is null ? NotFound(new { message = "Cremación no encontrada." }) : Ok(result);
+    }
+
     [HttpGet("reception/{receptionId:guid}")]
     public async Task<ActionResult<CremationDto>>
         GetByReceptionId(Guid receptionId)
@@ -175,12 +182,17 @@ public class CremationsController : ControllerBase
         Guid id,
         UpdateCremationDto dto)
     {
+        var actorValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value ?? User.FindFirst("userId")?.Value;
+        if (!Guid.TryParse(actorValue, out var actorUserId)) return Unauthorized();
+
         try
         {
             var cremation =
                 await _cremationService.UpdateAsync(
                     id,
-                    dto);
+                    dto,
+                    actorUserId);
 
             if (cremation == null)
             {
